@@ -54,7 +54,7 @@ export function SettingsPage() {
       const fullList = Array.from(uniqueNotesMap.values());
 
       const backup = {
-        version: "0.1.0",
+        version: __APP_VERSION__,
         exportedAt: new Date().toISOString(),
         notesCount: fullList.length,
         tagsCount: tags.length,
@@ -167,7 +167,7 @@ export function SettingsPage() {
           <ShieldCheck size={16} aria-hidden="true" /> About NoteFlow
         </h2>
         <p className="settings-muted">
-          NoteFlow 1.0.0 — Fast, offline-first notes for the Linux desktop.
+          NoteFlow {__APP_VERSION__} — Fast, offline-first notes for the Linux desktop.
         </p>
         <p className="settings-muted" style={{ marginTop: "6px", fontSize: "12.5px" }}>
           Built with Tauri 2, Rust, React, TypeScript, and SQLite. Released under the MIT License.
