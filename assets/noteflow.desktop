@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=NoteFlow
+GenericName=Notes
+Comment=Offline-first notes for the desktop
+Exec=noteflow
+Icon=noteflow
+Terminal=false
+Categories=Utility;
+Keywords=notes;notebook;memo;checklist;
+StartupWMClass=noteflow
+StartupNotify=true
