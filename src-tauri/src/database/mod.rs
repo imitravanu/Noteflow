@@ -23,4 +23,3 @@ pub fn open_db(dir: &Path) -> AppResult<Connection> {
     migrations::run(&conn)?;
     Ok(conn)
 }
-

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Pin, Plus, Star, StickyNote, Trash2, Archive, SearchX } from "lucide-react";
 import { useNotesStore } from "../store/notesStore";
 import { useUiStore } from "../store/uiStore";
@@ -29,7 +29,14 @@ export function NotesPage() {
   const emptyTrash = useNotesStore((s) => s.emptyTrash);
 
   // Reload whenever the view, tag filter, or (debounced) search query changes.
+  // The initial load is handled by useAppInit, so skip the first run to avoid
+  // fetching the list twice on startup.
+  const firstRun = useRef(true);
   useEffect(() => {
+    if (firstRun.current) {
+      firstRun.current = false;
+      return;
+    }
     const delay = query ? 150 : 0;
     const t = window.setTimeout(() => void refresh(), delay);
     return () => window.clearTimeout(t);

@@ -8,11 +8,9 @@ import type {
   Tag,
 } from "../types";
 
-const cmd = invoke;
-
 export const api = {
   listNotes(view: NoteView, tagId: string | null, query: string) {
-    return cmd<Note[]>("list_notes", {
+    return invoke<Note[]>("list_notes", {
       view,
       tagId: tagId ?? null,
       query: query.trim() ? query : null,
@@ -20,71 +18,71 @@ export const api = {
   },
 
   createNote(color?: string) {
-    return cmd<Note>("create_note", { color: color ?? null });
+    return invoke<Note>("create_note", { color: color ?? null });
   },
 
   getNote(id: string) {
-    return cmd<Note>("get_note", { id });
+    return invoke<Note>("get_note", { id });
   },
 
   updateNote(id: string, patch: NotePatch) {
-    return cmd<Note>("update_note", { id, patch });
+    return invoke<Note>("update_note", { id, patch });
   },
 
   setFlags(id: string, flags: FlagPatch) {
-    return cmd<Note>("set_flags", { id, flags });
+    return invoke<Note>("set_flags", { id, flags });
   },
 
   trashNotes(ids: string[]) {
-    return cmd<number>("trash_notes", { ids });
+    return invoke<number>("trash_notes", { ids });
   },
 
   restoreNotes(ids: string[]) {
-    return cmd<number>("restore_notes", { ids });
+    return invoke<number>("restore_notes", { ids });
   },
 
   deleteNotesPermanent(ids: string[]) {
-    return cmd<number>("delete_notes_permanent", { ids });
+    return invoke<number>("delete_notes_permanent", { ids });
   },
 
   emptyTrash() {
-    return cmd<number>("empty_trash");
+    return invoke<number>("empty_trash");
   },
 
   setNoteTags(noteId: string, tagIds: string[]) {
-    return cmd<Tag[]>("set_note_tags", { noteId, tagIds });
+    return invoke<Tag[]>("set_note_tags", { noteId, tagIds });
   },
 
   getCounts() {
-    return cmd<Counts>("get_counts");
+    return invoke<Counts>("get_counts");
   },
 
   listTags() {
-    return cmd<Tag[]>("list_tags");
+    return invoke<Tag[]>("list_tags");
   },
 
   createTag(name: string) {
-    return cmd<Tag>("create_tag", { name });
+    return invoke<Tag>("create_tag", { name });
   },
 
   renameTag(id: string, name: string) {
-    return cmd<Tag>("rename_tag", { id, name });
+    return invoke<Tag>("rename_tag", { id, name });
   },
 
   deleteTag(id: string) {
-    return cmd<boolean>("delete_tag", { id });
+    return invoke<boolean>("delete_tag", { id });
   },
 
   getSetting(key: string) {
-    return cmd<string | null>("get_setting", { key });
+    return invoke<string | null>("get_setting", { key });
   },
 
   setSetting(key: string, value: string) {
-    return cmd<void>("set_setting", { key, value });
+    return invoke<void>("set_setting", { key, value });
   },
 
   getDataDir() {
-    return cmd<string>("get_data_dir");
+    return invoke<string>("get_data_dir");
   },
 };
 

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicI64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use rusqlite::{params, Connection, Row};
@@ -6,11 +7,45 @@ use rusqlite::{params, Connection, Row};
 use crate::error::{AppError, AppResult};
 use crate::models::{FlagPatch, Note, NotePatch, NoteView, Tag};
 
+/// Colors the frontend can render (`src/types` NOTE_COLORS). Anything else
+/// falls back to `default` so a bad client can't inject `color-<garbage>`
+/// class names into the DOM.
+const NOTE_COLORS: [&str; 8] = [
+    "default", "red", "orange", "yellow", "green", "teal", "blue", "purple",
+];
+
+fn sanitize_color(color: &str) -> &str {
+    if NOTE_COLORS.contains(&color) {
+        color
+    } else {
+        "default"
+    }
+}
+
+/// Last timestamp handed out; keeps `updated_at` monotonic even if the system
+/// clock jumps backwards (NTP corrections, VM snapshots).
+static LAST_MILLIS: AtomicI64 = AtomicI64::new(0);
+
 pub fn now_millis() -> i64 {
-    SystemTime::now()
+    let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis() as i64)
-        .unwrap_or(0)
+        .unwrap_or(0);
+    let mut last = LAST_MILLIS.load(Ordering::Relaxed);
+    loop {
+        if now <= last {
+            return last;
+        }
+        match LAST_MILLIS.compare_exchange(last, now, Ordering::Relaxed, Ordering::Relaxed) {
+            Ok(_) => return now,
+            Err(current) => {
+                if now <= current {
+                    return current;
+                }
+                last = current;
+            }
+        }
+    }
 }
 
 const NOTE_COLUMNS: &str =
@@ -89,7 +124,7 @@ fn escape_like(query: &str) -> String {
 pub fn create_note(conn: &Connection, color: Option<&str>) -> AppResult<Note> {
     let id = uuid::Uuid::new_v4().to_string();
     let now = now_millis();
-    let color = color.unwrap_or("default").to_string();
+    let color = sanitize_color(color.unwrap_or("default")).to_string();
 
     conn.execute(
         "INSERT INTO notes (id, color, created_at, updated_at) VALUES (?1, ?2, ?3, ?3)",
@@ -114,35 +149,55 @@ pub fn get_note(conn: &Connection, id: &str) -> AppResult<Note> {
 
 /// Applies a partial edit inside a transaction. Only fields present in the
 /// patch are written, so autosave flushes never clobber concurrent flag
-/// changes, and `updated_at` only moves for real content edits.
+/// changes, and `updated_at` only moves for real content edits. An empty
+/// patch is a no-op that still verifies the note exists (so callers get the
+/// note back without a spurious `updated_at` bump / list re-sort).
 pub fn update_note(conn: &Connection, id: &str, patch: &NotePatch) -> AppResult<Note> {
     let checklist_json = patch
         .checklist
         .as_ref()
-        .map(|c| serde_json::to_string(c))
+        .map(serde_json::to_string)
         .transpose()
         .map_err(|e| AppError::Internal(format!("Could not save the checklist: {e}")))?;
 
+    let has_edit = patch.title.is_some()
+        || patch.content.is_some()
+        || patch.color.is_some()
+        || patch.checklist.is_some();
+
     let tx = conn.unchecked_transaction()?;
-    let changed = tx.execute(
-        "UPDATE notes SET
-            title      = COALESCE(?1, title),
-            content    = COALESCE(?2, content),
-            color      = COALESCE(?3, color),
-            checklist  = COALESCE(?4, checklist),
-            updated_at = ?5
-         WHERE id = ?6",
-        params![
-            patch.title.as_deref(),
-            patch.content.as_deref(),
-            patch.color.as_deref(),
-            checklist_json.as_deref(),
-            now_millis(),
-            id
-        ],
-    )?;
-    if changed == 0 {
-        return Err(AppError::NotFound("That note no longer exists.".into()));
+    if has_edit {
+        let changed = tx.execute(
+            "UPDATE notes SET
+                title      = COALESCE(?1, title),
+                content    = COALESCE(?2, content),
+                color      = COALESCE(?3, color),
+                checklist  = COALESCE(?4, checklist),
+                updated_at = ?5
+             WHERE id = ?6",
+            params![
+                patch.title.as_deref(),
+                patch.content.as_deref(),
+                patch.color.as_deref().map(sanitize_color),
+                checklist_json.as_deref(),
+                now_millis(),
+                id
+            ],
+        )?;
+        if changed == 0 {
+            return Err(AppError::NotFound("That note no longer exists.".into()));
+        }
+    } else {
+        // Empty patch: verify existence but write nothing, so `updated_at`
+        // never moves and the list order is untouched.
+        let exists: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM notes WHERE id = ?1",
+            params![id],
+            |r| r.get(0),
+        )?;
+        if exists == 0 {
+            return Err(AppError::NotFound("That note no longer exists.".into()));
+        }
     }
     let note = get_note(&tx, id)?;
     tx.commit()?;
@@ -196,13 +251,17 @@ pub fn trash_notes(conn: &Connection, ids: &[String]) -> AppResult<usize> {
     Ok(count)
 }
 
+/// Restores trashed notes to the active list. `archived` is cleared too, so
+/// "Undo move to trash" never resurrects a note into the Archive (which the
+/// All view does not show and users would read as a lost note).
 pub fn restore_notes(conn: &Connection, ids: &[String]) -> AppResult<usize> {
     if ids.is_empty() {
         return Ok(0);
     }
     let tx = conn.unchecked_transaction()?;
     let sql = format!(
-        "UPDATE notes SET deleted = 0, deleted_at = NULL WHERE id IN ({}) AND deleted = 1",
+        "UPDATE notes SET deleted = 0, deleted_at = NULL, archived = 0
+         WHERE id IN ({}) AND deleted = 1",
         ids_placeholders(ids)
     );
     let mut stmt = tx.prepare(&sql)?;
@@ -218,10 +277,7 @@ pub fn delete_notes_permanent(conn: &Connection, ids: &[String]) -> AppResult<us
         return Ok(0);
     }
     let tx = conn.unchecked_transaction()?;
-    let sql = format!(
-        "DELETE FROM notes WHERE id IN ({})",
-        ids_placeholders(ids)
-    );
+    let sql = format!("DELETE FROM notes WHERE id IN ({})", ids_placeholders(ids));
     let mut stmt = tx.prepare(&sql)?;
     let count = stmt.execute(rusqlite::params_from_iter(ids))?;
     drop(stmt);
@@ -238,9 +294,11 @@ pub fn empty_trash(conn: &Connection) -> AppResult<usize> {
 
 pub fn set_note_tags(conn: &Connection, note_id: &str, tag_ids: &[String]) -> AppResult<Vec<Tag>> {
     let tx = conn.unchecked_transaction()?;
-    let exists: i64 = tx.query_row("SELECT COUNT(*) FROM notes WHERE id = ?1", params![note_id], |r| {
-        r.get(0)
-    })?;
+    let exists: i64 = tx.query_row(
+        "SELECT COUNT(*) FROM notes WHERE id = ?1",
+        params![note_id],
+        |r| r.get(0),
+    )?;
     if exists == 0 {
         return Err(AppError::NotFound("That note no longer exists.".into()));
     }
@@ -301,14 +359,21 @@ pub fn list_notes(
         let q = q.trim();
         if !q.is_empty() {
             where_parts.push(
-                "(title LIKE ? ESCAPE '\\' OR content LIKE ? ESCAPE '\\' OR checklist LIKE ? ESCAPE '\\'
+                "(title LIKE ? ESCAPE '\\' OR content LIKE ? ESCAPE '\\'
+                  OR EXISTS (
+                      SELECT 1 FROM json_each(
+                          CASE WHEN json_valid(notes.checklist)
+                               THEN notes.checklist ELSE '[]' END
+                      )
+                      WHERE json_extract(value, '$.text') LIKE ? ESCAPE '\\'
+                  )
                   OR EXISTS (
                       SELECT 1 FROM note_tags nt JOIN tags t ON t.id = nt.tag_id
                       WHERE nt.note_id = notes.id AND t.name LIKE ? ESCAPE '\\'
                   ))",
             );
             let pattern = format!("%{}%", escape_like(q));
-            // Three content-like patterns plus the tag-name pattern.
+            // Title + body patterns, then checklist item text and tag name.
             filter_params.push(pattern.clone());
             filter_params.push(pattern.clone());
             filter_params.push(pattern.clone());
@@ -323,7 +388,10 @@ pub fn list_notes(
 
     let mut stmt = conn.prepare(&sql)?;
     let notes = stmt
-        .query_map(rusqlite::params_from_iter(filter_params.iter()), row_to_note)?
+        .query_map(
+            rusqlite::params_from_iter(filter_params.iter()),
+            row_to_note,
+        )?
         .collect::<rusqlite::Result<Vec<_>>>()?;
 
     attach_tags(conn, notes)
@@ -340,9 +408,7 @@ pub struct Counts {
 }
 
 pub fn get_counts(conn: &Connection) -> AppResult<Counts> {
-    let count_where = |sql: &str| -> AppResult<i64> {
-        Ok(conn.query_row(sql, [], |r| r.get(0))?)
-    };
+    let count_where = |sql: &str| -> AppResult<i64> { Ok(conn.query_row(sql, [], |r| r.get(0))?) };
     Ok(Counts {
         all: count_where("SELECT COUNT(*) FROM notes WHERE deleted = 0 AND archived = 0")?,
         pinned: count_where(
@@ -355,4 +421,3 @@ pub fn get_counts(conn: &Connection) -> AppResult<Counts> {
         trash: count_where("SELECT COUNT(*) FROM notes WHERE deleted = 1")?,
     })
 }
-

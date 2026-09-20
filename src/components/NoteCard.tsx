@@ -49,9 +49,14 @@ export function NoteCard({ note, selected, orderedIds, query }: NoteCardProps) {
           // Deleted notes are selected for restore/permanent delete, not edited.
           e.preventDefault();
           toggleSelect(note.id, { ctrl: true, shift: e.shiftKey }, orderedIds);
-        } else if (selectionLength > 0 || e.ctrlKey || e.metaKey || e.shiftKey) {
+        } else if (e.ctrlKey || e.metaKey || e.shiftKey) {
           e.preventDefault();
           toggleSelect(note.id, { ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey }, orderedIds);
+        } else if (selectionLength > 0) {
+          // In selection mode a plain click re-targets the selection instead of
+          // opening the editor — otherwise users get trapped until Esc.
+          e.preventDefault();
+          toggleSelect(note.id, { ctrl: true, shift: false }, orderedIds);
         } else {
           openEditor(note.id);
         }

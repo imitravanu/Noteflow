@@ -16,9 +16,7 @@ pub struct AppState {
 
 /// Locks the database connection, converting lock poisoning (a previous
 /// panic mid-write) into a user-readable error instead of a second panic.
-pub fn lock_conn<'a>(
-    state: &'a State<'_, AppState>,
-) -> AppResult<MutexGuard<'a, Connection>> {
+pub fn lock_conn<'a>(state: &'a State<'_, AppState>) -> AppResult<MutexGuard<'a, Connection>> {
     state.conn.lock().map_err(|_| {
         AppError::Internal(
             "The notes database hit an internal error and the app needs to be restarted. \
@@ -27,4 +25,3 @@ pub fn lock_conn<'a>(
         )
     })
 }
-

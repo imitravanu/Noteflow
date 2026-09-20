@@ -21,4 +21,3 @@ pub fn set_setting(conn: &Connection, key: &str, value: &str) -> AppResult<()> {
     )?;
     Ok(())
 }
-

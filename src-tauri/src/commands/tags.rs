@@ -28,4 +28,3 @@ pub fn delete_tag(state: State<'_, AppState>, id: String) -> AppResult<bool> {
     let conn = lock_conn(&state)?;
     tag_service::delete_tag(&conn, &id)
 }
-

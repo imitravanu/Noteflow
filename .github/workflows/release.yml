@@ -24,6 +24,8 @@ jobs:
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -39,11 +41,14 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Run Tests & Typecheck
+      - name: Run Tests, Lint & Typecheck
         run: |
           npm run typecheck
           npm test
-          cd src-tauri && cargo test
+          cd src-tauri
+          cargo fmt --all -- --check
+          cargo clippy --all-targets -- -D warnings
+          cargo test
 
       - name: Build and Release Tauri App
         uses: tauri-apps/tauri-action@v0

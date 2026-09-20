@@ -43,13 +43,12 @@ fn update_note_edits_content_like_autosave() {
     let note = note_service::create_note(&conn, None).unwrap();
 
     // First flush: title + content.
-    let updated = note_service::update_note(
-        &conn,
-        &note.id,
-        &patch("Groceries", "milk\neggs"),
-    )
-    .unwrap();
-    assert_eq!((updated.title.as_str(), updated.content.as_str()), ("Groceries", "milk\neggs"));
+    let updated =
+        note_service::update_note(&conn, &note.id, &patch("Groceries", "milk\neggs")).unwrap();
+    assert_eq!(
+        (updated.title.as_str(), updated.content.as_str()),
+        ("Groceries", "milk\neggs")
+    );
     assert!(updated.updated_at >= note.updated_at);
 
     // Second flush: partial patch must not clobber the title.
@@ -104,10 +103,43 @@ fn list_views_filter_correctly() {
     let both = note_service::create_note(&conn, None).unwrap();
     let archived = note_service::create_note(&conn, None).unwrap();
 
-    note_service::set_flags(&conn, &pinned.id, &FlagPatch { pinned: Some(true), ..Default::default() }).unwrap();
-    note_service::set_flags(&conn, &favorite.id, &FlagPatch { favorite: Some(true), ..Default::default() }).unwrap();
-    note_service::set_flags(&conn, &both.id, &FlagPatch { pinned: Some(true), favorite: Some(true), ..Default::default() }).unwrap();
-    note_service::set_flags(&conn, &archived.id, &FlagPatch { archived: Some(true), ..Default::default() }).unwrap();
+    note_service::set_flags(
+        &conn,
+        &pinned.id,
+        &FlagPatch {
+            pinned: Some(true),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    note_service::set_flags(
+        &conn,
+        &favorite.id,
+        &FlagPatch {
+            favorite: Some(true),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    note_service::set_flags(
+        &conn,
+        &both.id,
+        &FlagPatch {
+            pinned: Some(true),
+            favorite: Some(true),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    note_service::set_flags(
+        &conn,
+        &archived.id,
+        &FlagPatch {
+            archived: Some(true),
+            ..Default::default()
+        },
+    )
+    .unwrap();
 
     let ids = |view: NoteView| {
         note_service::list_notes(&conn, view, None, None)
@@ -118,7 +150,11 @@ fn list_views_filter_correctly() {
     };
 
     let all = ids(NoteView::All);
-    assert_eq!(all.len(), 4, "archived and trashed excluded from All: {all:?}");
+    assert_eq!(
+        all.len(),
+        4,
+        "archived and trashed excluded from All: {all:?}"
+    );
     assert!(
         all.contains(&plain.id)
             && all.contains(&pinned.id)
@@ -129,7 +165,10 @@ fn list_views_filter_correctly() {
     // Pinned notes sort first so the UI can split them into a section.
     let pinned_view = ids(NoteView::Pinned);
     assert_eq!(pinned_view.len(), 2);
-    assert!(pinned_view.iter().take(2).all(|id| id == &pinned.id || id == &both.id));
+    assert!(pinned_view
+        .iter()
+        .take(2)
+        .all(|id| id == &pinned.id || id == &both.id));
 
     let favorites = ids(NoteView::Favorites);
     assert_eq!(favorites.len(), 2);
@@ -141,7 +180,13 @@ fn list_views_filter_correctly() {
     // Counts feed the sidebar badges.
     let counts = note_service::get_counts(&conn).unwrap();
     assert_eq!(
-        (counts.all, counts.pinned, counts.favorites, counts.archived, counts.trash),
+        (
+            counts.all,
+            counts.pinned,
+            counts.favorites,
+            counts.archived,
+            counts.trash
+        ),
         (4, 2, 2, 1, 0)
     );
 
@@ -162,7 +207,7 @@ fn search_covers_title_body_and_tags() {
     note_service::update_note(&conn, &c.id, &patch("Unrelated", "nothing here")).unwrap();
 
     let tag = tag_service::create_tag(&conn, "quarterly-review").unwrap();
-    note_service::set_note_tags(&conn, &c.id, &[tag.id.clone()]).unwrap();
+    note_service::set_note_tags(&conn, &c.id, std::slice::from_ref(&tag.id)).unwrap();
 
     let hits = |q: &str| {
         note_service::list_notes(&conn, NoteView::All, None, Some(q))
@@ -172,7 +217,11 @@ fn search_covers_title_body_and_tags() {
             .collect::<Vec<_>>()
     };
 
-    assert_eq!(hits("quarterly").len(), 3, "title (case-insensitive), body, and tag name");
+    assert_eq!(
+        hits("quarterly").len(),
+        3,
+        "title (case-insensitive), body, and tag name"
+    );
     assert_eq!(hits("Report").len(), 1);
     assert_eq!(hits("flour").len(), 1);
     assert!(hits("zzz").is_empty());
@@ -192,7 +241,8 @@ fn tags_crud_and_note_associations() {
     assert!(tag_service::create_tag(&conn, "  ").is_err());
 
     let note = note_service::create_note(&conn, None).unwrap();
-    let tags = note_service::set_note_tags(&conn, &note.id, &[work.id.clone(), ideas.id.clone()]).unwrap();
+    let tags =
+        note_service::set_note_tags(&conn, &note.id, &[work.id.clone(), ideas.id.clone()]).unwrap();
     assert_eq!(tags.len(), 2);
 
     // Tag filter narrows the list.
@@ -206,7 +256,7 @@ fn tags_crud_and_note_associations() {
     assert_eq!(work_tag.note_count, Some(1));
 
     // Re-setting replaces the set.
-    note_service::set_note_tags(&conn, &note.id, &[ideas.id.clone()]).unwrap();
+    note_service::set_note_tags(&conn, &note.id, std::slice::from_ref(&ideas.id)).unwrap();
     let after = note_service::list_notes(&conn, NoteView::All, Some(&work.id), None).unwrap();
     assert!(after.is_empty());
 
@@ -228,21 +278,42 @@ fn trash_restore_and_permanent_delete() {
     let n2 = note_service::create_note(&conn, None).unwrap();
 
     // Trash
-    assert_eq!(note_service::trash_notes(&conn, &[n1.id.clone(), n2.id.clone()]).unwrap(), 2);
+    assert_eq!(
+        note_service::trash_notes(&conn, &[n1.id.clone(), n2.id.clone()]).unwrap(),
+        2
+    );
     let trashed = note_service::get_note(&conn, &n1.id).unwrap();
     assert!(trashed.deleted && trashed.deleted_at.is_some());
-    assert_eq!(note_service::list_notes(&conn, NoteView::Trash, None, None).unwrap().len(), 2);
+    assert_eq!(
+        note_service::list_notes(&conn, NoteView::Trash, None, None)
+            .unwrap()
+            .len(),
+        2
+    );
 
     // Restore (the undo path)
-    assert_eq!(note_service::restore_notes(&conn, &[n1.id.clone()]).unwrap(), 1);
+    assert_eq!(
+        note_service::restore_notes(&conn, std::slice::from_ref(&n1.id)).unwrap(),
+        1
+    );
     let restored = note_service::get_note(&conn, &n1.id).unwrap();
     assert!(!restored.deleted && restored.deleted_at.is_none());
-    assert_eq!(note_service::list_notes(&conn, NoteView::All, None, None).unwrap().len(), 1);
+    assert_eq!(
+        note_service::list_notes(&conn, NoteView::All, None, None)
+            .unwrap()
+            .len(),
+        1
+    );
 
     // Permanent delete removes the row entirely (idempotent-ish)
-    assert_eq!(note_service::delete_notes_permanent(&conn, &[n2.id.clone()]).unwrap(), 1);
+    assert_eq!(
+        note_service::delete_notes_permanent(&conn, std::slice::from_ref(&n2.id)).unwrap(),
+        1
+    );
     assert!(note_service::get_note(&conn, &n2.id).is_err());
-    assert!(note_service::list_notes(&conn, NoteView::Trash, None, None).unwrap().is_empty());
+    assert!(note_service::list_notes(&conn, NoteView::Trash, None, None)
+        .unwrap()
+        .is_empty());
 
     // Empty trash sweeps the rest.
     let n3 = note_service::create_note(&conn, None).unwrap();
@@ -255,9 +326,19 @@ fn settings_roundtrip() {
     let conn = temp_db();
     assert_eq!(settings_service::get_setting(&conn, "theme").unwrap(), None);
     settings_service::set_setting(&conn, "theme", "dark").unwrap();
-    assert_eq!(settings_service::get_setting(&conn, "theme").unwrap().as_deref(), Some("dark"));
+    assert_eq!(
+        settings_service::get_setting(&conn, "theme")
+            .unwrap()
+            .as_deref(),
+        Some("dark")
+    );
     settings_service::set_setting(&conn, "theme", "system").unwrap();
-    assert_eq!(settings_service::get_setting(&conn, "theme").unwrap().as_deref(), Some("system"));
+    assert_eq!(
+        settings_service::get_setting(&conn, "theme")
+            .unwrap()
+            .as_deref(),
+        Some("system")
+    );
 }
 
 #[test]
@@ -266,8 +347,17 @@ fn data_survives_app_restart() {
     {
         let conn = database::open_db(&dir).unwrap();
         let note = note_service::create_note(&conn, Some("teal")).unwrap();
-        note_service::update_note(&conn, &note.id, &patch("Persistent", "survives restarts")).unwrap();
-        note_service::set_flags(&conn, &note.id, &FlagPatch { pinned: Some(true), ..Default::default() }).unwrap();
+        note_service::update_note(&conn, &note.id, &patch("Persistent", "survives restarts"))
+            .unwrap();
+        note_service::set_flags(
+            &conn,
+            &note.id,
+            &FlagPatch {
+                pinned: Some(true),
+                ..Default::default()
+            },
+        )
+        .unwrap();
         let tag = tag_service::create_tag(&conn, "Keep").unwrap();
         note_service::set_note_tags(&conn, &note.id, &[tag.id]).unwrap();
         settings_service::set_setting(&conn, "theme", "dark").unwrap();
@@ -276,11 +366,19 @@ fn data_survives_app_restart() {
     let reopened = database::open_db(&dir).unwrap();
     let notes = note_service::list_notes(&reopened, NoteView::All, None, None).unwrap();
     assert_eq!(notes.len(), 1);
-    assert_eq!((notes[0].title.as_str(), notes[0].content.as_str()), ("Persistent", "survives restarts"));
+    assert_eq!(
+        (notes[0].title.as_str(), notes[0].content.as_str()),
+        ("Persistent", "survives restarts")
+    );
     assert!(notes[0].pinned);
     assert_eq!(notes[0].tags.len(), 1);
     assert_eq!(notes[0].color, "teal");
-    assert_eq!(settings_service::get_setting(&reopened, "theme").unwrap().as_deref(), Some("dark"));
+    assert_eq!(
+        settings_service::get_setting(&reopened, "theme")
+            .unwrap()
+            .as_deref(),
+        Some("dark")
+    );
 
     fs::remove_dir_all(&dir).ok();
 }
@@ -298,7 +396,10 @@ fn corrupted_checklist_degrades_gracefully() {
 
     let notes = note_service::list_notes(&conn, NoteView::All, None, None).unwrap();
     assert_eq!(notes.len(), 1);
-    assert!(notes[0].checklist.is_empty(), "corrupt blob must not break listing");
+    assert!(
+        notes[0].checklist.is_empty(),
+        "corrupt blob must not break listing"
+    );
 
     fs::remove_dir_all(&dir).ok();
 }
@@ -310,10 +411,7 @@ fn rename_tag_rejects_duplicate_names() {
     let other = tag_service::create_tag(&conn, "Personal").unwrap();
 
     let err = tag_service::rename_tag(&conn, &other.id, "work").unwrap_err();
-    assert!(matches!(
-        err,
-        noteflow_lib::error::AppError::Invalid(_)
-    ));
+    assert!(matches!(err, noteflow_lib::error::AppError::Invalid(_)));
 
     // Renaming to a unique name still works.
     let renamed = tag_service::rename_tag(&conn, &other.id, "Home").unwrap();
@@ -325,19 +423,213 @@ fn set_note_tags_rejects_unknown_tag() {
     let conn = temp_db();
     let note = note_service::create_note(&conn, None).unwrap();
 
-    let err = note_service::set_note_tags(
-        &conn,
-        &note.id,
-        &[uuid::Uuid::new_v4().to_string()],
-    )
-    .unwrap_err();
-    assert!(matches!(
-        err,
-        noteflow_lib::error::AppError::NotFound(_)
-    ));
+    let err = note_service::set_note_tags(&conn, &note.id, &[uuid::Uuid::new_v4().to_string()])
+        .unwrap_err();
+    assert!(matches!(err, noteflow_lib::error::AppError::NotFound(_)));
 
     // Real tags still associate fine afterwards.
     let tag = tag_service::create_tag(&conn, "ok").unwrap();
     let tags = note_service::set_note_tags(&conn, &note.id, &[tag.id]).unwrap();
     assert_eq!(tags.len(), 1);
+}
+
+#[test]
+fn search_matches_checklist_text_but_not_json_noise() {
+    let conn = temp_db();
+    let a = note_service::create_note(&conn, None).unwrap();
+    let b = note_service::create_note(&conn, None).unwrap();
+
+    let list = |text: &str, checked: bool| ChecklistItem {
+        id: uuid::Uuid::new_v4().to_string(),
+        text: text.into(),
+        checked,
+    };
+    note_service::update_note(
+        &conn,
+        &a.id,
+        &NotePatch {
+            title: None,
+            content: None,
+            color: None,
+            checklist: Some(vec![list("buy oat milk", false)]),
+        },
+    )
+    .unwrap();
+    note_service::update_note(
+        &conn,
+        &b.id,
+        &NotePatch {
+            title: None,
+            content: None,
+            color: None,
+            checklist: Some(vec![list("call dentist", true)]),
+        },
+    )
+    .unwrap();
+
+    let hits = |q: &str| {
+        note_service::list_notes(&conn, NoteView::All, None, Some(q))
+            .unwrap()
+            .into_iter()
+            .map(|n| n.id)
+            .collect::<Vec<_>>()
+    };
+
+    // Real item text matches.
+    assert_eq!(hits("oat milk"), vec![a.id.clone()]);
+    // JSON field names / values must NOT match every checklist note.
+    assert!(hits("checked").is_empty());
+    assert!(hits("false").is_empty());
+    // Substring of the JSON schema like "id" or "text" must not match either
+    // (the word only appears as a JSON key).
+    assert!(hits("\"id\"").is_empty());
+}
+
+#[test]
+fn search_survives_corrupted_checklist_json() {
+    let dir = std::env::temp_dir().join(format!("noteflow-test-{}", uuid::Uuid::new_v4()));
+    let conn = database::open_db(&dir).unwrap();
+    let note = note_service::create_note(&conn, None).unwrap();
+    conn.execute(
+        "UPDATE notes SET checklist = '{not valid json' WHERE id = ?1",
+        rusqlite::params![note.id],
+    )
+    .unwrap();
+
+    // Must not error — corrupted JSON is treated as having no checklist.
+    let hits = note_service::list_notes(&conn, NoteView::All, None, Some("milk"));
+    assert!(hits.is_ok());
+    assert!(hits.unwrap().is_empty());
+
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn restore_from_trash_unarchives_and_returns_to_all() {
+    let conn = temp_db();
+    let note = note_service::create_note(&conn, None).unwrap();
+    note_service::set_flags(
+        &conn,
+        &note.id,
+        &FlagPatch {
+            archived: Some(true),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    note_service::trash_notes(&conn, std::slice::from_ref(&note.id)).unwrap();
+
+    // Undoing the trash must bring the note back to the active list, not
+    // leave it hidden in Archive.
+    assert_eq!(
+        note_service::restore_notes(&conn, std::slice::from_ref(&note.id)).unwrap(),
+        1
+    );
+    let restored = note_service::get_note(&conn, &note.id).unwrap();
+    assert!(!restored.deleted);
+    assert!(!restored.archived);
+    assert_eq!(
+        note_service::list_notes(&conn, NoteView::All, None, None)
+            .unwrap()
+            .len(),
+        1
+    );
+    assert!(
+        note_service::list_notes(&conn, NoteView::Archive, None, None)
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
+fn empty_patch_does_not_bump_updated_at() {
+    let conn = temp_db();
+    let note = note_service::create_note(&conn, None).unwrap();
+    let before = note.updated_at;
+
+    let empty = NotePatch {
+        title: None,
+        content: None,
+        color: None,
+        checklist: None,
+    };
+    let after = note_service::update_note(&conn, &note.id, &empty).unwrap();
+    assert_eq!(
+        after.updated_at, before,
+        "no-op patch must not reorder the list"
+    );
+
+    // A real edit still bumps the timestamp.
+    let edited = note_service::update_note(&conn, &note.id, &patch("t", "c")).unwrap();
+    assert!(edited.updated_at >= before);
+}
+
+#[test]
+fn invalid_color_falls_back_to_default() {
+    let conn = temp_db();
+    let evil = note_service::create_note(&conn, Some("default\" onmouseover=\"alert(1)"));
+    let note = match evil {
+        Ok(n) => n,
+        Err(e) => panic!("create_note with odd color should sanitize, not fail: {e}"),
+    };
+    assert_eq!(note.color, "default");
+
+    // Valid colors pass through unchanged.
+    let teal = note_service::create_note(&conn, Some("teal")).unwrap();
+    assert_eq!(teal.color, "teal");
+
+    // Same via update patch.
+    let patched = note_service::update_note(
+        &conn,
+        &note.id,
+        &NotePatch {
+            title: None,
+            content: None,
+            color: Some("not-a-color".into()),
+            checklist: None,
+        },
+    )
+    .unwrap();
+    assert_eq!(patched.color, "default");
+}
+
+#[test]
+fn now_millis_is_monotonic() {
+    let first = note_service::now_millis();
+    let second = note_service::now_millis();
+    assert!(second >= first, "clock must never go backwards");
+}
+
+#[test]
+fn tag_counts_exclude_archived_notes() {
+    let conn = temp_db();
+    let tag = tag_service::create_tag(&conn, "work").unwrap();
+    let live = note_service::create_note(&conn, None).unwrap();
+    let archived = note_service::create_note(&conn, None).unwrap();
+    let trashed = note_service::create_note(&conn, None).unwrap();
+    note_service::set_note_tags(&conn, &live.id, std::slice::from_ref(&tag.id)).unwrap();
+    note_service::set_note_tags(&conn, &archived.id, std::slice::from_ref(&tag.id)).unwrap();
+    note_service::set_note_tags(&conn, &trashed.id, std::slice::from_ref(&tag.id)).unwrap();
+    note_service::set_flags(
+        &conn,
+        &archived.id,
+        &FlagPatch {
+            archived: Some(true),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    note_service::trash_notes(&conn, std::slice::from_ref(&trashed.id)).unwrap();
+
+    let listed = tag_service::list_tags(&conn).unwrap();
+    let work = listed.iter().find(|t| t.id == tag.id).unwrap();
+    assert_eq!(
+        work.note_count,
+        Some(1),
+        "badge must match what opening the tag lists"
+    );
+
+    // Opening the tag really does show exactly that many notes.
+    let filtered = note_service::list_notes(&conn, NoteView::All, Some(&tag.id), None).unwrap();
+    assert_eq!(filtered.len(), 1);
 }

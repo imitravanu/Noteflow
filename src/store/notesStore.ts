@@ -182,8 +182,13 @@ export const useNotesStore = create<NotesState>((set, get) => ({
       set({ notes: get().notes.filter((n) => !ids.includes(n.id)) });
       await get().refresh();
       const undoId = ui.registerUndo("Move to Trash", async () => {
-        await api.restoreNotes(ids);
+        const restored = await api.restoreNotes(ids);
         await get().refresh();
+        if (restored === 0) {
+          useUiStore.getState().showSnackbar("Nothing to undo — already deleted.");
+        } else {
+          ui.showSnackbar("Undid: Move to Trash");
+        }
       });
       ui.showSnackbar(count === 1 ? "Note moved to Trash" : noteCountLabel(count), {
         actionLabel: "Undo",
@@ -206,11 +211,22 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     if (!ids.length) return;
     try {
       const count = await api.restoreNotes(ids);
+      if (count === 0) {
+        // Nothing was restored (e.g. permanently deleted in the meantime);
+        // don't claim success or offer an Undo that can't do anything.
+        ui.showSnackbar("Nothing to restore — already deleted.");
+        return;
+      }
       set({ notes: get().notes.filter((n) => !ids.includes(n.id)) });
       await get().refresh();
       const undoId = ui.registerUndo("Restore note", async () => {
-        await api.trashNotes(ids);
+        const reTrashed = await api.trashNotes(ids);
         await get().refresh();
+        if (reTrashed === 0) {
+          useUiStore.getState().showSnackbar("Nothing to undo — already deleted.");
+        } else {
+          ui.showSnackbar("Undid: Restore note");
+        }
       });
       ui.showSnackbar(
         count === 1 ? "Note restored" : `${count} notes restored`,

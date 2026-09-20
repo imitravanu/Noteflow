@@ -55,4 +55,3 @@ pub fn run(conn: &Connection) -> AppResult<()> {
 
     Ok(())
 }
-

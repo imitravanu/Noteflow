@@ -40,4 +40,3 @@ impl Serialize for AppError {
         serializer.serialize_str(&message)
     }
 }
-

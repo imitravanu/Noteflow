@@ -121,7 +121,7 @@ export function SettingsPage() {
         <p className="settings-muted">
           Export all your notes, checklists, and tags as a portable JSON backup file.
         </p>
-        <div style={{ marginTop: "12px" }}>
+        <div className="settings-actions">
           <button
             type="button"
             className="btn btn-secondary"
@@ -141,7 +141,7 @@ export function SettingsPage() {
         <p className="settings-muted">
           Speed up your workflow with full keyboard navigation and quick actions.
         </p>
-        <div style={{ marginTop: "12px" }}>
+        <div className="settings-actions">
           <button
             type="button"
             className="btn btn-secondary"
@@ -169,7 +169,7 @@ export function SettingsPage() {
         <p className="settings-muted">
           NoteFlow {__APP_VERSION__} — Fast, offline-first notes for the Linux desktop.
         </p>
-        <p className="settings-muted" style={{ marginTop: "6px", fontSize: "12.5px" }}>
+        <p className="settings-muted settings-about-fineprint">
           Built with Tauri 2, Rust, React, TypeScript, and SQLite. Released under the MIT License.
         </p>
       </section>

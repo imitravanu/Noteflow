@@ -44,15 +44,11 @@ export function ShortcutsModal() {
       aria-labelledby="shortcuts-title"
       onClick={() => setShortcutsOpen(false)}
     >
-      <div
-        className="dialog shortcuts-dialog"
-        style={{ width: "min(520px, calc(100vw - 32px))", maxWidth: "520px" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="shortcuts-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+      <div className="dialog shortcuts-dialog" onClick={(e) => e.stopPropagation()}>
+        <div className="shortcuts-header">
+          <div className="shortcuts-header-left">
             <Keyboard size={18} className="theme-accent-color" />
-            <h2 id="shortcuts-title" className="dialog-title" style={{ margin: 0 }}>
+            <h2 id="shortcuts-title" className="dialog-title">
               Keyboard Shortcuts
             </h2>
           </div>
@@ -66,37 +62,15 @@ export function ShortcutsModal() {
           </button>
         </div>
 
-        <div className="shortcuts-content" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div className="shortcuts-content">
           {SHORTCUT_GROUPS.map((group) => (
             <div key={group.title} className="shortcuts-group">
-              <h3
-                style={{
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  color: "var(--text-3)",
-                  marginBottom: "8px",
-                }}
-              >
-                {group.title}
-              </h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <h3>{group.title}</h3>
+              <div className="shortcuts-items">
                 {group.items.map((item) => (
-                  <div
-                    key={item.key}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      fontSize: "13.5px",
-                      padding: "4px 0",
-                    }}
-                  >
-                    <span style={{ color: "var(--text-2)" }}>{item.desc}</span>
-                    <kbd className="kbd" style={{ fontSize: "11.5px", padding: "2px 6px" }}>
-                      {item.key}
-                    </kbd>
+                  <div key={item.key} className="shortcuts-row">
+                    <span className="shortcuts-desc">{item.desc}</span>
+                    <kbd className="kbd shortcuts-kbd">{item.key}</kbd>
                   </div>
                 ))}
               </div>
@@ -107,4 +81,3 @@ export function ShortcutsModal() {
     </div>
   );
 }
-

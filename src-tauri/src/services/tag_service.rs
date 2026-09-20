@@ -17,13 +17,15 @@ fn validate_name(name: &str) -> AppResult<String> {
     Ok(trimmed.to_string())
 }
 
-/// All tags with the number of live (non-deleted) notes using them.
+/// All tags with the number of notes using them. Counts only live, active
+/// notes (deleted and archived excluded) so the badge matches what opening
+/// the tag actually lists in the All view.
 pub fn list_tags(conn: &Connection) -> AppResult<Vec<Tag>> {
     let mut stmt = conn.prepare(
         "SELECT t.id, t.name,
                 (SELECT COUNT(*)
                    FROM note_tags nt JOIN notes n ON n.id = nt.note_id
-                  WHERE nt.tag_id = t.id AND n.deleted = 0) AS note_count
+                  WHERE nt.tag_id = t.id AND n.deleted = 0 AND n.archived = 0) AS note_count
          FROM tags t
          ORDER BY t.name COLLATE NOCASE",
     )?;
@@ -76,10 +78,7 @@ pub fn rename_tag(conn: &Connection, id: &str, name: &str) -> AppResult<Tag> {
             "A tag named “{name}” already exists."
         )));
     }
-    let changed = conn.execute(
-        "UPDATE tags SET name = ?2 WHERE id = ?1",
-        params![id, name],
-    )?;
+    let changed = conn.execute("UPDATE tags SET name = ?2 WHERE id = ?1", params![id, name])?;
     if changed == 0 {
         return Err(AppError::NotFound("That tag no longer exists.".into()));
     }
@@ -95,4 +94,3 @@ pub fn delete_tag(conn: &Connection, id: &str) -> AppResult<bool> {
     let changed = conn.execute("DELETE FROM tags WHERE id = ?1", params![id])?;
     Ok(changed > 0)
 }
-

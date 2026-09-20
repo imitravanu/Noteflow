@@ -29,21 +29,13 @@ pub fn get_note(state: State<'_, AppState>, id: String) -> AppResult<Note> {
 }
 
 #[tauri::command]
-pub fn update_note(
-    state: State<'_, AppState>,
-    id: String,
-    patch: NotePatch,
-) -> AppResult<Note> {
+pub fn update_note(state: State<'_, AppState>, id: String, patch: NotePatch) -> AppResult<Note> {
     let conn = lock_conn(&state)?;
     note_service::update_note(&conn, &id, &patch)
 }
 
 #[tauri::command]
-pub fn set_flags(
-    state: State<'_, AppState>,
-    id: String,
-    flags: FlagPatch,
-) -> AppResult<Note> {
+pub fn set_flags(state: State<'_, AppState>, id: String, flags: FlagPatch) -> AppResult<Note> {
     let conn = lock_conn(&state)?;
     note_service::set_flags(&conn, &id, &flags)
 }
@@ -87,4 +79,3 @@ pub fn get_counts(state: State<'_, AppState>) -> AppResult<Counts> {
     let conn = lock_conn(&state)?;
     note_service::get_counts(&conn)
 }
-

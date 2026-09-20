@@ -8,4 +8,3 @@ pub struct Tag {
     #[serde(default)]
     pub note_count: Option<i64>,
 }
-

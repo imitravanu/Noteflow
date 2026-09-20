@@ -26,4 +26,3 @@ pub fn get_data_dir(app: tauri::AppHandle, state: State<'_, AppState>) -> AppRes
         .map_err(|_| AppError::Internal("Could not resolve the data directory.".into()))?;
     Ok(dir.to_string_lossy().into_owned())
 }
-

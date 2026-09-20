@@ -61,4 +61,3 @@ pub struct FlagPatch {
     pub favorite: Option<bool>,
     pub archived: Option<bool>,
 }
-
