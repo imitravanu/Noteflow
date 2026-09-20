@@ -1,205 +1,125 @@
 /* ============================================================
-   NoteFlow — Material Design 3 (M3 / Material You) Design System
-   Google Keep Desktop aesthetics · Tonal color palettes · Surface elevation
+   NoteFlow — Apple Notes / Craft Style Design System
+   Clean editorial desktop aesthetic · Luminous cards · Refined typography
    ============================================================ */
 
 :root {
-  --font-ui: "Roboto", "Inter", "Cantarell", "Segoe UI", "Noto Sans", system-ui, -apple-system, sans-serif;
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", "Segoe UI", system-ui, sans-serif;
 
-  /* Material Design 3 Shape Tokens */
+  /* Modern Desktop Shape Tokens */
   --radius-xs: 4px;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 28px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
   --radius-full: 9999px;
 
-  --sidebar-width: 260px;
-  --topbar-height: 64px;
+  --sidebar-width: 250px;
+  --topbar-height: 56px;
 
-  --glass-blur: 0px;
-  --glass-saturate: 1;
+  --glass-blur: 16px;
+  --glass-saturate: 1.2;
 }
 
-/* ---------- Light (Material Design 3 Tonal Palette) ---------- */
+/* ---------- Light (Apple Notes / Craft Editorial Canvas) ---------- */
 :root,
 [data-theme="light"] {
   color-scheme: light;
 
-  /* M3 System Color Roles (Light) */
-  --md-sys-color-primary: #0b57d0;
-  --md-sys-color-on-primary: #ffffff;
-  --md-sys-color-primary-container: #d3e3fd;
-  --md-sys-color-on-primary-container: #041e49;
-
-  --md-sys-color-secondary: #00639b;
-  --md-sys-color-on-secondary: #ffffff;
-  --md-sys-color-secondary-container: #c2e7ff;
-  --md-sys-color-on-secondary-container: #001d35;
-
-  --md-sys-color-tertiary: #5e52a7;
-  --md-sys-color-on-tertiary: #ffffff;
-  --md-sys-color-tertiary-container: #e6deff;
-  --md-sys-color-on-tertiary-container: #1b0261;
-
-  --md-sys-color-error: #ba1a1a;
-  --md-sys-color-on-error: #ffffff;
-  --md-sys-color-error-container: #ffdad6;
-  --md-sys-color-on-error-container: #410002;
-
-  --md-sys-color-surface: #f8f9fa;
-  --md-sys-color-surface-dim: #ded8e1;
-  --md-sys-color-surface-bright: #f8f9fa;
-  --md-sys-color-surface-container-lowest: #ffffff;
-  --md-sys-color-surface-container-low: #f1f3f4;
-  --md-sys-color-surface-container: #edeef2;
-  --md-sys-color-surface-container-high: #e3e7ee;
-  --md-sys-color-surface-container-highest: #d9e2ec;
-
-  --md-sys-color-on-surface: #1f1f1f;
-  --md-sys-color-on-surface-variant: #444746;
-  --md-sys-color-outline: #747775;
-  --md-sys-color-outline-variant: #c4c7c5;
-
-  --md-sys-color-inverse-surface: #2f3033;
-  --md-sys-color-inverse-on-surface: #f1f0f4;
-  --md-sys-color-inverse-primary: #a8c7fa;
-
-  /* NoteFlow Component Aliases */
-  --bg: var(--md-sys-color-surface);
+  --bg: #f5f5f7;
   --bg-tint: none;
 
-  --surface: var(--md-sys-color-surface-container-lowest);
-  --surface-2: var(--md-sys-color-surface-container-low);
-  --surface-3: var(--md-sys-color-surface-container);
-  --surface-4: var(--md-sys-color-surface-container-high);
+  --surface: #ffffff;
+  --surface-2: #eeeeef;
+  --surface-3: #e5e5ea;
+  --surface-4: #d1d1d6;
 
-  --text-1: var(--md-sys-color-on-surface);
-  --text-2: var(--md-sys-color-on-surface-variant);
-  --text-3: var(--md-sys-color-outline);
+  --text-1: #1d1d1f;
+  --text-2: #6e6e73;
+  --text-3: #86868b;
 
-  --border: var(--md-sys-color-outline-variant);
-  --border-strong: var(--md-sys-color-outline);
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.16);
 
-  --accent: var(--md-sys-color-primary);
-  --accent-2: #6750a4;
-  --accent-contrast: var(--md-sys-color-on-primary);
-  --accent-soft: var(--md-sys-color-secondary-container);
-  --accent-on-soft: var(--md-sys-color-on-secondary-container);
-  --accent-glow: rgba(11, 87, 208, 0.16);
-  --grad-accent: var(--md-sys-color-primary);
-  --grad-accent-strong: #0842a0;
+  --accent: #0071e3;
+  --accent-2: #5e5ce6;
+  --accent-contrast: #ffffff;
+  --accent-soft: rgba(0, 113, 227, 0.09);
+  --accent-on-soft: #0071e3;
+  --accent-glow: rgba(0, 113, 227, 0.16);
+  --grad-accent: #0071e3;
+  --grad-accent-strong: #005bb5;
 
-  --danger: var(--md-sys-color-error);
-  --danger-strong: #93000a;
-  --danger-soft: var(--md-sys-color-error-container);
-  --danger-on-soft: var(--md-sys-color-on-error-container);
+  --danger: #ff3b30;
+  --danger-strong: #d70015;
+  --danger-soft: rgba(255, 59, 48, 0.10);
+  --danger-on-soft: #d70015;
 
-  --mark-bg: #ffe082;
+  --mark-bg: rgba(255, 204, 0, 0.35);
 
-  --chrome: var(--md-sys-color-surface-container-low);
-  --chrome-border: var(--md-sys-color-outline-variant);
+  --chrome: rgba(245, 245, 247, 0.85);
+  --chrome-border: rgba(0, 0, 0, 0.08);
   --glass-edge: transparent;
 
-  --overlay: rgba(15, 23, 42, 0.40);
-  --scrim: rgba(15, 23, 42, 0.45);
+  --overlay: rgba(20, 20, 24, 0.38);
+  --scrim: rgba(20, 20, 24, 0.42);
 
-  /* M3 Elevation Shadows (Clean light mode ambient + penumbra) */
-  --shadow-sm: 0 1px 2px 0 rgba(60, 64, 67, 0.30), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
-  --shadow-md: 0 1px 3px 0 rgba(60, 64, 67, 0.30), 0 4px 8px 3px rgba(60, 64, 67, 0.15);
-  --shadow-lg: 0 2px 6px 2px rgba(60, 64, 67, 0.15), 0 8px 24px 6px rgba(60, 64, 67, 0.20);
+  /* Apple Ambient Elevation Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 4px rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.10), 0 2px 8px rgba(0, 0, 0, 0.05);
 
-  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px rgba(11, 87, 208, 0.45);
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px rgba(0, 113, 227, 0.35);
 }
 
-/* ---------- Dark (Material Design 3 Dark Tonal Palette) ---------- */
+/* ---------- Dark (Apple Pro Dark Obsidian Canvas) ---------- */
 [data-theme="dark"] {
   color-scheme: dark;
 
-  /* M3 System Color Roles (Dark) */
-  --md-sys-color-primary: #a8c7fa;
-  --md-sys-color-on-primary: #062e6f;
-  --md-sys-color-primary-container: #0842a0;
-  --md-sys-color-on-primary-container: #d3e3fd;
-
-  --md-sys-color-secondary: #7fcfff;
-  --md-sys-color-on-secondary: #003453;
-  --md-sys-color-secondary-container: #004c75;
-  --md-sys-color-on-secondary-container: #c2e7ff;
-
-  --md-sys-color-tertiary: #c9bfff;
-  --md-sys-color-on-tertiary: #2f2076;
-  --md-sys-color-tertiary-container: #46398e;
-  --md-sys-color-on-tertiary-container: #e6deff;
-
-  --md-sys-color-error: #ffb4ab;
-  --md-sys-color-on-error: #690005;
-  --md-sys-color-error-container: #93000a;
-  --md-sys-color-on-error-container: #ffdad6;
-
-  --md-sys-color-surface: #131314;
-  --md-sys-color-surface-dim: #131314;
-  --md-sys-color-surface-bright: #37393b;
-  --md-sys-color-surface-container-lowest: #0e0e0f;
-  --md-sys-color-surface-container-low: #1b1c1d;
-  --md-sys-color-surface-container: #1f2022;
-  --md-sys-color-surface-container-high: #282a2c;
-  --md-sys-color-surface-container-highest: #333538;
-
-  --md-sys-color-on-surface: #e3e3e3;
-  --md-sys-color-on-surface-variant: #c4c7c5;
-  --md-sys-color-outline: #8e918f;
-  --md-sys-color-outline-variant: #444746;
-
-  --md-sys-color-inverse-surface: #e3e3e3;
-  --md-sys-color-inverse-on-surface: #1f2022;
-  --md-sys-color-inverse-primary: #0b57d0;
-
-  /* NoteFlow Component Aliases */
-  --bg: var(--md-sys-color-surface);
+  --bg: #141416;
   --bg-tint: none;
 
-  --surface: var(--md-sys-color-surface-container);
-  --surface-2: var(--md-sys-color-surface-container-low);
-  --surface-3: var(--md-sys-color-surface-container-high);
-  --surface-4: var(--md-sys-color-surface-container-highest);
+  --surface: #1e1e22;
+  --surface-2: #26262b;
+  --surface-3: #2e2e34;
+  --surface-4: #383840;
 
-  --text-1: var(--md-sys-color-on-surface);
-  --text-2: var(--md-sys-color-on-surface-variant);
-  --text-3: var(--md-sys-color-outline);
+  --text-1: #f5f5f7;
+  --text-2: #a1a1a6;
+  --text-3: #6e6e73;
 
-  --border: var(--md-sys-color-outline-variant);
-  --border-strong: var(--md-sys-color-outline);
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.18);
 
-  --accent: var(--md-sys-color-primary);
-  --accent-2: #d0bcff;
-  --accent-contrast: var(--md-sys-color-on-primary);
-  --accent-soft: rgba(168, 199, 250, 0.16);
-  --accent-on-soft: var(--md-sys-color-on-primary-container);
-  --accent-glow: rgba(168, 199, 250, 0.22);
-  --grad-accent: var(--md-sys-color-primary);
-  --grad-accent-strong: #c2e7ff;
+  --accent: #2997ff;
+  --accent-2: #7d7aff;
+  --accent-contrast: #ffffff;
+  --accent-soft: rgba(41, 151, 255, 0.14);
+  --accent-on-soft: #2997ff;
+  --accent-glow: rgba(41, 151, 255, 0.22);
+  --grad-accent: #2997ff;
+  --grad-accent-strong: #147ce5;
 
-  --danger: var(--md-sys-color-error);
-  --danger-strong: #ff897d;
-  --danger-soft: rgba(255, 180, 171, 0.16);
-  --danger-on-soft: var(--md-sys-color-on-error-container);
+  --danger: #ff453a;
+  --danger-strong: #ff6961;
+  --danger-soft: rgba(255, 69, 58, 0.14);
+  --danger-on-soft: #ff6961;
 
-  --mark-bg: rgba(255, 224, 130, 0.35);
+  --mark-bg: rgba(255, 214, 10, 0.30);
 
-  --chrome: var(--md-sys-color-surface-container-low);
-  --chrome-border: var(--md-sys-color-outline-variant);
+  --chrome: rgba(22, 22, 25, 0.90);
+  --chrome-border: rgba(255, 255, 255, 0.08);
   --glass-edge: transparent;
 
   --overlay: rgba(0, 0, 0, 0.65);
   --scrim: rgba(0, 0, 0, 0.70);
 
-  /* M3 Dark Elevation Shadows */
-  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.50), 0 1px 2px 0 rgba(0, 0, 0, 0.40);
-  --shadow-md: 0 4px 8px 0 rgba(0, 0, 0, 0.55), 0 2px 4px 0 rgba(0, 0, 0, 0.45);
-  --shadow-lg: 0 12px 28px 0 rgba(0, 0, 0, 0.65), 0 4px 10px 0 rgba(0, 0, 0, 0.50);
+  /* Apple Dark Ambient Elevation Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.40), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --shadow-md: 0 6px 16px rgba(0, 0, 0, 0.50), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.10);
 
-  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px rgba(168, 199, 250, 0.50);
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px rgba(41, 151, 255, 0.40);
 }
 
 /* ---------- Reset & base ---------- */
@@ -218,7 +138,7 @@ body,
 body {
   margin: 0;
   font-family: var(--font-ui);
-  font-size: 14px;
+  font-size: 13.5px;
   line-height: 1.5;
   color: var(--text-1);
   background: var(--bg);
@@ -253,7 +173,7 @@ mark {
   background: var(--mark-bg);
   color: inherit;
   border-radius: var(--radius-xs);
-  padding: 0 2px;
+  padding: 0 3px;
 }
 
 :focus-visible {
@@ -266,14 +186,14 @@ mark {
   background: var(--accent-glow);
 }
 
-/* Clean M3 scrollbars */
+/* Subtle modern scrollbars */
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }
 *::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
 }
 *::-webkit-scrollbar-thumb {
   background: var(--border);
@@ -286,48 +206,41 @@ mark {
   background: transparent;
 }
 
-/* ---------- Surfaces ---------- */
-.glass {
-  background: var(--chrome);
-  border: 1px solid var(--chrome-border);
-  box-shadow: var(--shadow-sm);
-}
-
-/* ---------- M3 Buttons & Controls ---------- */
+/* ---------- Shared Controls ---------- */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 8px 18px;
-  border-radius: var(--radius-full);
+  gap: 7px;
+  padding: 7px 15px;
+  border-radius: var(--radius-md);
   font-weight: 500;
-  font-size: 13.5px;
-  letter-spacing: 0.01em;
+  font-size: 13px;
+  letter-spacing: -0.01em;
   border: 1px solid transparent;
-  transition: background-color 0.18s cubic-bezier(0.2, 0, 0, 1),
-    border-color 0.18s cubic-bezier(0.2, 0, 0, 1),
-    box-shadow 0.18s cubic-bezier(0.2, 0, 0, 1),
+  transition: background-color 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
     transform 0.08s ease,
-    filter 0.18s cubic-bezier(0.2, 0, 0, 1);
+    filter 0.16s ease;
   white-space: nowrap;
 }
 .btn:active {
-  transform: translateY(1px);
+  transform: scale(0.98);
 }
 .btn-sm {
-  padding: 6px 14px;
-  font-size: 13px;
+  padding: 5px 12px;
+  font-size: 12.5px;
+  border-radius: var(--radius-sm);
 }
 
 .btn-secondary {
-  background: var(--surface-3);
+  background: var(--surface-2);
   color: var(--text-1);
-  border: 1px solid transparent;
+  border: 1px solid var(--border);
 }
 .btn-secondary:hover {
-  background: var(--surface-4);
-  box-shadow: var(--shadow-sm);
+  background: var(--surface-3);
 }
 
 .btn-ghost {
@@ -338,7 +251,6 @@ mark {
 .btn-ghost:hover {
   background: var(--accent-soft);
   border-color: var(--accent);
-  color: var(--accent);
 }
 
 .btn-primary {
@@ -347,8 +259,8 @@ mark {
   box-shadow: var(--shadow-sm);
 }
 .btn-primary:hover {
+  filter: brightness(1.05);
   box-shadow: var(--shadow-md);
-  filter: brightness(1.06);
 }
 
 .btn-ghost.danger,
@@ -367,7 +279,6 @@ mark {
 }
 .btn-danger:hover {
   background: var(--danger-strong);
-  box-shadow: var(--shadow-md);
 }
 .btn-danger:disabled,
 .btn-primary:disabled,
@@ -381,15 +292,15 @@ mark {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-full);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
   color: var(--text-2);
-  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  transition: background-color 0.14s ease, color 0.14s ease;
   flex: none;
 }
 .icon-btn:hover {
-  background: var(--surface-3);
+  background: var(--surface-2);
   color: var(--text-1);
 }
 .icon-btn.active {
@@ -397,8 +308,8 @@ mark {
   color: var(--accent);
 }
 .icon-btn-sm {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
 }
 .icon-btn.danger-hover:hover {
   background: var(--danger-soft);
@@ -407,27 +318,27 @@ mark {
 
 .kbd {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-xs);
-  padding: 2px 6px;
+  padding: 1px 5px;
   background: var(--surface-2);
   letter-spacing: 0.02em;
 }
 
-/* ---------- M3 Chips ---------- */
+/* ---------- Chips ---------- */
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 12px;
+  gap: 4px;
+  font-size: 11.5px;
   font-weight: 500;
   color: var(--text-2);
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 3px 10px;
+  padding: 2px 8px;
   max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -448,21 +359,21 @@ mark {
   background: var(--danger-soft);
 }
 
-/* ---------- M3 Popovers / Menus ---------- */
+/* ---------- Popovers / Context Menus ---------- */
 .popover {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
   z-index: 60;
-  min-width: 210px;
+  min-width: 200px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
-  padding: 6px;
+  padding: 5px;
 }
 [data-theme="dark"] .popover {
-  background: var(--md-sys-color-surface-container-high);
+  background: var(--surface);
   border-color: var(--border);
   box-shadow: var(--shadow-lg);
 }
@@ -475,17 +386,17 @@ mark {
 .popover-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
   width: 100%;
-  padding: 8px 12px;
+  padding: 6px 10px;
   border-radius: var(--radius-sm);
   color: var(--text-2);
-  font-size: 13.5px;
+  font-size: 13px;
   text-align: left;
   transition: background-color 0.12s ease, color 0.12s ease;
 }
 .popover-item:hover {
-  background: var(--surface-3);
+  background: var(--surface-2);
   color: var(--text-1);
 }
 .popover-item-label {
@@ -504,6 +415,6 @@ mark {
 
 .popover-empty {
   padding: 10px 12px;
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--text-3);
 }
