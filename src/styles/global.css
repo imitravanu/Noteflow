@@ -1,124 +1,205 @@
 /* ============================================================
-   NoteFlow v1.0.0 — "Aurora Glass"
-   Vibrant glassmorphism · gradient accents · refined surfaces
+   NoteFlow — Material Design 3 (M3 / Material You) Design System
+   Google Keep Desktop aesthetics · Tonal color palettes · Surface elevation
    ============================================================ */
 
 :root {
-  --font-ui: "Inter", "Cantarell", "Segoe UI", "Noto Sans", system-ui, sans-serif;
+  --font-ui: "Roboto", "Inter", "Cantarell", "Segoe UI", "Noto Sans", system-ui, -apple-system, sans-serif;
 
-  --radius-sm: 9px;
-  --radius-md: 14px;
-  --radius-lg: 18px;
-  --radius-xl: 24px;
+  /* Material Design 3 Shape Tokens */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 28px;
+  --radius-full: 9999px;
 
-  --sidebar-width: 252px;
-  --topbar-height: 60px;
+  --sidebar-width: 260px;
+  --topbar-height: 64px;
 
-  --glass-blur: 22px;
-  --glass-saturate: 1.6;
+  --glass-blur: 0px;
+  --glass-saturate: 1;
 }
 
-/* ---------- Light (vibrant glass) ---------- */
+/* ---------- Light (Material Design 3 Tonal Palette) ---------- */
 :root,
 [data-theme="light"] {
   color-scheme: light;
 
-  --bg: #eef3f6;
-  --bg-tint:
-    radial-gradient(1000px 560px at 12% -6%, rgba(45, 212, 191, 0.18), transparent 58%),
-    radial-gradient(900px 520px at 88% -12%, rgba(168, 85, 247, 0.18), transparent 55%),
-    radial-gradient(840px 470px at 96% 110%, rgba(249, 115, 22, 0.13), transparent 58%),
-    radial-gradient(780px 450px at -6% 106%, rgba(59, 130, 246, 0.15), transparent 55%);
+  /* M3 System Color Roles (Light) */
+  --md-sys-color-primary: #0b57d0;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: #d3e3fd;
+  --md-sys-color-on-primary-container: #041e49;
 
-  --surface: rgba(255, 255, 255, 0.72);
-  --surface-2: rgba(255, 255, 255, 0.55);
-  --surface-3: rgba(255, 255, 255, 0.42);
+  --md-sys-color-secondary: #00639b;
+  --md-sys-color-on-secondary: #ffffff;
+  --md-sys-color-secondary-container: #c2e7ff;
+  --md-sys-color-on-secondary-container: #001d35;
 
-  --text-1: #123040;
-  --text-2: #48596b;
-  --text-3: #8aa0b4;
+  --md-sys-color-tertiary: #5e52a7;
+  --md-sys-color-on-tertiary: #ffffff;
+  --md-sys-color-tertiary-container: #e6deff;
+  --md-sys-color-on-tertiary-container: #1b0261;
 
-  --border: rgba(20, 38, 58, 0.10);
-  --border-strong: rgba(20, 38, 58, 0.18);
+  --md-sys-color-error: #ba1a1a;
+  --md-sys-color-on-error: #ffffff;
+  --md-sys-color-error-container: #ffdad6;
+  --md-sys-color-on-error-container: #410002;
 
-  --accent: #0d9488;
-  --accent-2: #7c3aed;
-  --accent-strong: #0c7d73;
-  --accent-contrast: #ffffff;
-  --accent-soft: rgba(13, 148, 136, 0.14);
-  --accent-2-soft: rgba(124, 58, 237, 0.14);
-  --accent-glow: rgba(13, 148, 136, 0.30);
-  --grad-accent: linear-gradient(135deg, #0d9488, #7c3aed);
-  --grad-accent-strong: linear-gradient(135deg, #0c7d73, #6d28d9);
+  --md-sys-color-surface: #f8f9fa;
+  --md-sys-color-surface-dim: #ded8e1;
+  --md-sys-color-surface-bright: #f8f9fa;
+  --md-sys-color-surface-container-lowest: #ffffff;
+  --md-sys-color-surface-container-low: #f1f3f4;
+  --md-sys-color-surface-container: #edeef2;
+  --md-sys-color-surface-container-high: #e3e7ee;
+  --md-sys-color-surface-container-highest: #d9e2ec;
 
-  --danger: #d64545;
-  --danger-strong: #b83535;
-  --danger-soft: rgba(214, 69, 69, 0.12);
+  --md-sys-color-on-surface: #1f1f1f;
+  --md-sys-color-on-surface-variant: #444746;
+  --md-sys-color-outline: #747775;
+  --md-sys-color-outline-variant: #c4c7c5;
 
-  --mark-bg: rgba(45, 212, 191, 0.28);
+  --md-sys-color-inverse-surface: #2f3033;
+  --md-sys-color-inverse-on-surface: #f1f0f4;
+  --md-sys-color-inverse-primary: #a8c7fa;
 
-  --chrome: rgba(255, 255, 255, 0.58);
-  --chrome-border: rgba(255, 255, 255, 0.72);
-  --glass-edge: rgba(255, 255, 255, 0.6);
+  /* NoteFlow Component Aliases */
+  --bg: var(--md-sys-color-surface);
+  --bg-tint: none;
 
-  --overlay: rgba(30, 50, 70, 0.38);
-  --scrim: rgba(20, 34, 52, 0.42);
+  --surface: var(--md-sys-color-surface-container-lowest);
+  --surface-2: var(--md-sys-color-surface-container-low);
+  --surface-3: var(--md-sys-color-surface-container);
+  --surface-4: var(--md-sys-color-surface-container-high);
 
-  --shadow-sm: 0 1px 2px rgba(15, 30, 50, 0.06), 0 2px 10px rgba(15, 30, 50, 0.06);
-  --shadow-md: 0 6px 20px rgba(15, 30, 50, 0.10), 0 2px 6px rgba(15, 30, 50, 0.06);
-  --shadow-lg: 0 28px 66px rgba(15, 30, 50, 0.20), 0 6px 18px rgba(15, 30, 50, 0.10);
+  --text-1: var(--md-sys-color-on-surface);
+  --text-2: var(--md-sys-color-on-surface-variant);
+  --text-3: var(--md-sys-color-outline);
 
-  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent-glow);
+  --border: var(--md-sys-color-outline-variant);
+  --border-strong: var(--md-sys-color-outline);
+
+  --accent: var(--md-sys-color-primary);
+  --accent-2: #6750a4;
+  --accent-contrast: var(--md-sys-color-on-primary);
+  --accent-soft: var(--md-sys-color-secondary-container);
+  --accent-on-soft: var(--md-sys-color-on-secondary-container);
+  --accent-glow: rgba(11, 87, 208, 0.16);
+  --grad-accent: var(--md-sys-color-primary);
+  --grad-accent-strong: #0842a0;
+
+  --danger: var(--md-sys-color-error);
+  --danger-strong: #93000a;
+  --danger-soft: var(--md-sys-color-error-container);
+  --danger-on-soft: var(--md-sys-color-on-error-container);
+
+  --mark-bg: #ffe082;
+
+  --chrome: var(--md-sys-color-surface-container-low);
+  --chrome-border: var(--md-sys-color-outline-variant);
+  --glass-edge: transparent;
+
+  --overlay: rgba(15, 23, 42, 0.40);
+  --scrim: rgba(15, 23, 42, 0.45);
+
+  /* M3 Elevation Shadows (Clean light mode ambient + penumbra) */
+  --shadow-sm: 0 1px 2px 0 rgba(60, 64, 67, 0.30), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+  --shadow-md: 0 1px 3px 0 rgba(60, 64, 67, 0.30), 0 4px 8px 3px rgba(60, 64, 67, 0.15);
+  --shadow-lg: 0 2px 6px 2px rgba(60, 64, 67, 0.15), 0 8px 24px 6px rgba(60, 64, 67, 0.20);
+
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px rgba(11, 87, 208, 0.45);
 }
 
-/* ---------- Dark (refined, high-contrast modern desktop) ---------- */
+/* ---------- Dark (Material Design 3 Dark Tonal Palette) ---------- */
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --bg: #0d1117;
-  --bg-tint:
-    radial-gradient(1100px 600px at 15% -10%, rgba(45, 212, 191, 0.06), transparent 60%),
-    radial-gradient(900px 500px at 85% -10%, rgba(167, 139, 250, 0.05), transparent 55%),
-    radial-gradient(800px 450px at 90% 110%, rgba(59, 130, 246, 0.04), transparent 60%),
-    radial-gradient(750px 420px at -5% 105%, rgba(45, 212, 191, 0.04), transparent 55%);
+  /* M3 System Color Roles (Dark) */
+  --md-sys-color-primary: #a8c7fa;
+  --md-sys-color-on-primary: #062e6f;
+  --md-sys-color-primary-container: #0842a0;
+  --md-sys-color-on-primary-container: #d3e3fd;
 
-  --surface: rgba(22, 27, 38, 0.88);
-  --surface-2: rgba(30, 36, 50, 0.82);
-  --surface-3: rgba(38, 46, 64, 0.72);
+  --md-sys-color-secondary: #7fcfff;
+  --md-sys-color-on-secondary: #003453;
+  --md-sys-color-secondary-container: #004c75;
+  --md-sys-color-on-secondary-container: #c2e7ff;
 
-  --text-1: #f3f7fa;
-  --text-2: #cbd5e1;
-  --text-3: #94a3b8;
+  --md-sys-color-tertiary: #c9bfff;
+  --md-sys-color-on-tertiary: #2f2076;
+  --md-sys-color-tertiary-container: #46398e;
+  --md-sys-color-on-tertiary-container: #e6deff;
 
-  --border: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.16);
+  --md-sys-color-error: #ffb4ab;
+  --md-sys-color-on-error: #690005;
+  --md-sys-color-error-container: #93000a;
+  --md-sys-color-on-error-container: #ffdad6;
 
-  --accent: #2dd4bf;
-  --accent-2: #a78bfa;
-  --accent-strong: #5ce0cf;
-  --accent-contrast: #042623;
-  --accent-soft: rgba(45, 212, 191, 0.16);
-  --accent-2-soft: rgba(167, 139, 250, 0.16);
-  --accent-glow: rgba(45, 212, 191, 0.30);
-  --grad-accent: linear-gradient(135deg, #2dd4bf, #a78bfa);
-  --grad-accent-strong: linear-gradient(135deg, #2dd4bf, #8b5cf6);
+  --md-sys-color-surface: #131314;
+  --md-sys-color-surface-dim: #131314;
+  --md-sys-color-surface-bright: #37393b;
+  --md-sys-color-surface-container-lowest: #0e0e0f;
+  --md-sys-color-surface-container-low: #1b1c1d;
+  --md-sys-color-surface-container: #1f2022;
+  --md-sys-color-surface-container-high: #282a2c;
+  --md-sys-color-surface-container-highest: #333538;
 
-  --danger: #fb7185;
-  --danger-strong: #fda4af;
-  --danger-soft: rgba(251, 113, 133, 0.16);
+  --md-sys-color-on-surface: #e3e3e3;
+  --md-sys-color-on-surface-variant: #c4c7c5;
+  --md-sys-color-outline: #8e918f;
+  --md-sys-color-outline-variant: #444746;
 
-  --mark-bg: rgba(45, 212, 191, 0.32);
+  --md-sys-color-inverse-surface: #e3e3e3;
+  --md-sys-color-inverse-on-surface: #1f2022;
+  --md-sys-color-inverse-primary: #0b57d0;
 
-  --chrome: rgba(18, 23, 33, 0.90);
-  --chrome-border: rgba(255, 255, 255, 0.08);
-  --glass-edge: rgba(255, 255, 255, 0.06);
+  /* NoteFlow Component Aliases */
+  --bg: var(--md-sys-color-surface);
+  --bg-tint: none;
 
-  --overlay: rgba(4, 7, 13, 0.82);
-  --scrim: rgba(4, 7, 13, 0.78);
+  --surface: var(--md-sys-color-surface-container);
+  --surface-2: var(--md-sys-color-surface-container-low);
+  --surface-3: var(--md-sys-color-surface-container-high);
+  --surface-4: var(--md-sys-color-surface-container-highest);
 
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.55);
-  --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.75), 0 6px 18px rgba(0, 0, 0, 0.55);
+  --text-1: var(--md-sys-color-on-surface);
+  --text-2: var(--md-sys-color-on-surface-variant);
+  --text-3: var(--md-sys-color-outline);
+
+  --border: var(--md-sys-color-outline-variant);
+  --border-strong: var(--md-sys-color-outline);
+
+  --accent: var(--md-sys-color-primary);
+  --accent-2: #d0bcff;
+  --accent-contrast: var(--md-sys-color-on-primary);
+  --accent-soft: rgba(168, 199, 250, 0.16);
+  --accent-on-soft: var(--md-sys-color-on-primary-container);
+  --accent-glow: rgba(168, 199, 250, 0.22);
+  --grad-accent: var(--md-sys-color-primary);
+  --grad-accent-strong: #c2e7ff;
+
+  --danger: var(--md-sys-color-error);
+  --danger-strong: #ff897d;
+  --danger-soft: rgba(255, 180, 171, 0.16);
+  --danger-on-soft: var(--md-sys-color-on-error-container);
+
+  --mark-bg: rgba(255, 224, 130, 0.35);
+
+  --chrome: var(--md-sys-color-surface-container-low);
+  --chrome-border: var(--md-sys-color-outline-variant);
+  --glass-edge: transparent;
+
+  --overlay: rgba(0, 0, 0, 0.65);
+  --scrim: rgba(0, 0, 0, 0.70);
+
+  /* M3 Dark Elevation Shadows */
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.50), 0 1px 2px 0 rgba(0, 0, 0, 0.40);
+  --shadow-md: 0 4px 8px 0 rgba(0, 0, 0, 0.55), 0 2px 4px 0 rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 12px 28px 0 rgba(0, 0, 0, 0.65), 0 4px 10px 0 rgba(0, 0, 0, 0.50);
+
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px rgba(168, 199, 250, 0.50);
 }
 
 /* ---------- Reset & base ---------- */
@@ -141,9 +222,8 @@ body {
   line-height: 1.5;
   color: var(--text-1);
   background: var(--bg);
-  background-image: var(--bg-tint);
-  background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   overflow: hidden;
 }
 
@@ -172,8 +252,8 @@ textarea {
 mark {
   background: var(--mark-bg);
   color: inherit;
-  border-radius: 3px;
-  padding: 0 1px;
+  border-radius: var(--radius-xs);
+  padding: 0 2px;
 }
 
 :focus-visible {
@@ -186,86 +266,89 @@ mark {
   background: var(--accent-glow);
 }
 
-/* Slim scrollbars that match each theme */
+/* Clean M3 scrollbars */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--border-strong) transparent;
+  scrollbar-color: var(--border) transparent;
 }
 *::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 *::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: var(--radius-full);
+}
+*::-webkit-scrollbar-thumb:hover {
   background: var(--border-strong);
-  border-radius: 8px;
-  border: 3px solid transparent;
-  background-clip: content-box;
 }
 *::-webkit-scrollbar-track {
   background: transparent;
 }
 
-/* ---------- Glass surfaces (shared) ---------- */
+/* ---------- Surfaces ---------- */
 .glass {
   background: var(--chrome);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   border: 1px solid var(--chrome-border);
-  box-shadow:
-    inset 0 1px 0 var(--glass-edge),
-    var(--shadow-md);
+  box-shadow: var(--shadow-sm);
 }
 
-/* ---------- Shared controls ---------- */
+/* ---------- M3 Buttons & Controls ---------- */
 .btn {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 8px 14px;
-  border-radius: var(--radius-md);
-  font-weight: 560;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: var(--radius-full);
+  font-weight: 500;
   font-size: 13.5px;
+  letter-spacing: 0.01em;
   border: 1px solid transparent;
-  transition: background-color 0.15s ease, border-color 0.15s ease,
-    box-shadow 0.15s ease, transform 0.05s ease, filter 0.15s ease;
+  transition: background-color 0.18s cubic-bezier(0.2, 0, 0, 1),
+    border-color 0.18s cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 0.18s cubic-bezier(0.2, 0, 0, 1),
+    transform 0.08s ease,
+    filter 0.18s cubic-bezier(0.2, 0, 0, 1);
   white-space: nowrap;
 }
 .btn:active {
-  transform: translateY(0.5px);
+  transform: translateY(1px);
 }
 .btn-sm {
-  padding: 6px 11px;
+  padding: 6px 14px;
   font-size: 13px;
 }
 
-.btn-secondary,
-.btn-ghost {
-  background: var(--surface);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-}
-.btn-ghost {
-  color: var(--text-2);
-  border-color: var(--border);
-}
 .btn-secondary {
+  background: var(--surface-3);
   color: var(--text-1);
-  border-color: var(--border-strong);
+  border: 1px solid transparent;
 }
-.btn-secondary:hover,
+.btn-secondary:hover {
+  background: var(--surface-4);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--border);
+}
 .btn-ghost:hover {
-  background: var(--surface-2);
-  color: var(--text-1);
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .btn-primary {
-  background: var(--grad-accent);
+  background: var(--accent);
   color: var(--accent-contrast);
-  box-shadow: 0 4px 14px var(--accent-glow);
+  box-shadow: var(--shadow-sm);
 }
 .btn-primary:hover {
-  background: var(--grad-accent-strong);
-  filter: brightness(1.03);
+  box-shadow: var(--shadow-md);
+  filter: brightness(1.06);
 }
 
 .btn-ghost.danger,
@@ -274,32 +357,35 @@ mark {
 }
 .btn-ghost.danger:hover {
   background: var(--danger-soft);
-  border-color: transparent;
+  border-color: var(--danger);
   color: var(--danger-strong);
 }
 .btn-danger {
   background: var(--danger);
   color: #fff;
+  box-shadow: var(--shadow-sm);
 }
 .btn-danger:hover {
   background: var(--danger-strong);
+  box-shadow: var(--shadow-md);
 }
 .btn-danger:disabled,
 .btn-primary:disabled,
 .btn-secondary:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: var(--radius-sm);
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
   color: var(--text-2);
-  transition: background-color 0.14s ease, color 0.14s ease, box-shadow 0.14s ease;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
   flex: none;
 }
 .icon-btn:hover {
@@ -311,8 +397,8 @@ mark {
   color: var(--accent);
 }
 .icon-btn-sm {
-  width: 27px;
-  height: 27px;
+  width: 28px;
+  height: 28px;
 }
 .icon-btn.danger-hover:hover {
   background: var(--danger-soft);
@@ -322,29 +408,27 @@ mark {
 .kbd {
   font-size: 11px;
   font-weight: 600;
-  color: var(--text-3);
+  color: var(--text-2);
   border: 1px solid var(--border);
-  border-bottom-width: 2px;
-  border-radius: 5px;
-  padding: 1px 6px;
-  background: var(--surface);
+  border-radius: var(--radius-xs);
+  padding: 2px 6px;
+  background: var(--surface-2);
   letter-spacing: 0.02em;
 }
 
+/* ---------- M3 Chips ---------- */
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 11.5px;
-  font-weight: 560;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--text-2);
-  background: var(--surface-3);
-  -webkit-backdrop-filter: blur(8px) saturate(1.4);
-  backdrop-filter: blur(8px) saturate(1.4);
+  background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 2px 9px;
-  max-width: 130px;
+  border-radius: var(--radius-sm);
+  padding: 3px 10px;
+  max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -364,7 +448,7 @@ mark {
   background: var(--danger-soft);
 }
 
-/* ---------- Popovers ---------- */
+/* ---------- M3 Popovers / Menus ---------- */
 .popover {
   position: absolute;
   top: calc(100% + 6px);
@@ -372,19 +456,15 @@ mark {
   z-index: 60;
   min-width: 210px;
   background: var(--surface);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  box-shadow:
-    inset 0 1px 0 var(--glass-edge),
-    var(--shadow-lg);
-  padding: 5px;
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
 }
 [data-theme="dark"] .popover {
-  background: rgba(20, 26, 38, 0.96);
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), 0 2px 8px rgba(0, 0, 0, 0.4);
+  background: var(--md-sys-color-surface-container-high);
+  border-color: var(--border);
+  box-shadow: var(--shadow-lg);
 }
 
 .popover-list {
@@ -395,16 +475,17 @@ mark {
 .popover-item {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   width: 100%;
-  padding: 7px 9px;
+  padding: 8px 12px;
   border-radius: var(--radius-sm);
   color: var(--text-2);
-  font-size: 13px;
+  font-size: 13.5px;
   text-align: left;
+  transition: background-color 0.12s ease, color 0.12s ease;
 }
 .popover-item:hover {
-  background: var(--surface-2);
+  background: var(--surface-3);
   color: var(--text-1);
 }
 .popover-item-label {
@@ -414,7 +495,7 @@ mark {
   white-space: nowrap;
 }
 .popover-item-count {
-  font-size: 11px;
+  font-size: 11.5px;
   color: var(--text-3);
 }
 .popover-item-check {
@@ -423,6 +504,6 @@ mark {
 
 .popover-empty {
   padding: 10px 12px;
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--text-3);
 }
