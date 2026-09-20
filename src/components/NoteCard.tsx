@@ -1,8 +1,9 @@
+import { useState } from "react";
 import {
   Archive,
-  ArchiveRestore,
   Check,
   Circle,
+  Copy,
   ListChecks,
   Pin,
   PinOff,
@@ -17,6 +18,28 @@ import { formatRelativeTime } from "../utils/format";
 import { bodyPreview } from "../utils/highlight";
 import { Highlighted } from "./Highlighted";
 
+async function copyText(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.left = "-999999px";
+    textarea.style.top = "-999999px";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    const ok = document.execCommand("copy");
+    textarea.remove();
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
 interface NoteCardProps {
   note: Note;
   selected: boolean;
@@ -29,13 +52,39 @@ export function NoteCard({ note, selected, orderedIds, query }: NoteCardProps) {
   const openEditor = useUiStore((s) => s.openEditor);
   const selectionLength = useUiStore((s) => s.selection.length);
   const view = useUiStore((s) => s.view);
+  const showSnackbar = useUiStore((s) => s.showSnackbar);
   const setFlags = useNotesStore((s) => s.setFlags);
   const restoreNotes = useNotesStore((s) => s.restoreNotes);
+
+  const [copied, setCopied] = useState(false);
 
   const preview = bodyPreview(note.content);
   const doneCount = note.checklist.filter((c) => c.checked).length;
 
   const stop = (e: React.MouseEvent) => e.stopPropagation();
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    let text = note.content || "";
+    if (note.checklist && note.checklist.length > 0) {
+      const checklistText = note.checklist
+        .map((item) => `${item.checked ? "[x]" : "[ ]"} ${item.text}`)
+        .join("\n");
+      text = text ? `${text}\n\n${checklistText}` : checklistText;
+    }
+    if (!text.trim()) {
+      showSnackbar("Note has no content to copy");
+      return;
+    }
+    const ok = await copyText(text);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+      showSnackbar("Copied note content");
+    } else {
+      showSnackbar("Failed to copy note content");
+    }
+  };
 
   return (
     <article
@@ -125,11 +174,11 @@ export function NoteCard({ note, selected, orderedIds, query }: NoteCardProps) {
             <button
               type="button"
               className="icon-btn icon-btn-sm"
-              aria-label={note.archived ? "Unarchive note" : "Archive note"}
-              title={note.archived ? "Unarchive" : "Archive"}
-              onClick={() => void setFlags(note.id, { archived: !note.archived })}
+              aria-label="Copy note content"
+              title="Copy content"
+              onClick={handleCopy}
             >
-              {note.archived ? <ArchiveRestore size={14} /> : <Archive size={14} />}
+              {copied ? <Check size={14} /> : <Copy size={14} />}
             </button>
             <TrashActions noteId={note.id} single />
           </>
