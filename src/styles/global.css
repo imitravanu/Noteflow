@@ -290,16 +290,20 @@ mark {
   font-size: 13px;
   letter-spacing: -0.015em;
   border: 1px solid transparent;
-  transition: transform 0.12s var(--spring-easing),
+  transition: transform 0.16s var(--spring-bounce),
     background-color 0.18s ease,
     border-color 0.18s ease,
-    box-shadow 0.2s ease,
+    box-shadow 0.22s var(--spring-bounce),
     filter 0.18s ease;
   white-space: nowrap;
   user-select: none;
 }
+.btn:hover {
+  transform: translateY(-2px) scale(1.02);
+}
 .btn:active {
-  transform: scale(0.97);
+  transform: scale(0.95);
+  transition-duration: 0.08s;
 }
 .btn-sm {
   padding: 5px 12px;
@@ -316,6 +320,7 @@ mark {
 .btn-secondary:hover {
   background: var(--surface-3);
   border-color: var(--border-strong);
+  box-shadow: var(--specular-rim), var(--shadow-sm);
 }
 
 .btn-ghost {
@@ -326,6 +331,7 @@ mark {
 .btn-ghost:hover {
   background: var(--accent-soft);
   border-color: var(--accent);
+  box-shadow: 0 4px 12px var(--accent-glow);
 }
 
 .btn-primary {
@@ -335,8 +341,8 @@ mark {
   border: 1px solid rgba(255, 255, 255, 0.18);
 }
 .btn-primary:hover {
-  filter: brightness(1.06);
-  box-shadow: 0 2px 8px rgba(0, 113, 227, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.36);
+  filter: brightness(1.08);
+  box-shadow: 0 6px 18px rgba(0, 113, 227, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.42);
 }
 
 .btn-ghost.danger,
@@ -347,6 +353,7 @@ mark {
   background: var(--danger-soft);
   border-color: var(--danger);
   color: var(--danger-strong);
+  box-shadow: 0 4px 12px var(--danger-soft);
 }
 .btn-danger {
   background: var(--danger);
@@ -355,6 +362,7 @@ mark {
 }
 .btn-danger:hover {
   background: var(--danger-strong);
+  box-shadow: 0 6px 18px rgba(255, 59, 48, 0.4);
 }
 .btn-danger:disabled,
 .btn-primary:disabled,
@@ -362,6 +370,7 @@ mark {
   opacity: 0.55;
   cursor: not-allowed;
   box-shadow: none;
+  transform: none !important;
 }
 
 .icon-btn {
@@ -372,18 +381,25 @@ mark {
   height: 32px;
   border-radius: var(--radius-sm);
   color: var(--text-2);
-  transition: transform 0.1s var(--spring-easing),
+  transition: transform 0.18s var(--spring-bounce),
     background-color 0.15s ease,
-    color 0.15s ease;
+    color 0.15s ease,
+    box-shadow 0.2s ease;
   flex: none;
 }
 .icon-btn:hover {
   background: var(--surface-2);
   color: var(--text-1);
-  transform: translateY(-0.5px);
+  transform: translateY(-2px) scale(1.12);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+.icon-btn:hover svg {
+  transform: scale(1.06);
+  transition: transform 0.18s var(--spring-bounce);
 }
 .icon-btn:active {
-  transform: scale(0.92);
+  transform: scale(0.88);
+  transition-duration: 0.06s;
 }
 .icon-btn.active {
   background: var(--accent-soft);
@@ -396,6 +412,7 @@ mark {
 .icon-btn.danger-hover:hover {
   background: var(--danger-soft);
   color: var(--danger);
+  box-shadow: 0 4px 12px rgba(255, 59, 48, 0.18);
 }
 
 .kbd {
@@ -426,6 +443,17 @@ mark {
   text-overflow: ellipsis;
   white-space: nowrap;
   box-shadow: var(--specular-rim);
+  transition: transform 0.16s var(--spring-bounce),
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.18s ease;
+}
+.chip:hover {
+  transform: translateY(-1.5px) scale(1.05);
+  border-color: var(--border-strong);
+  color: var(--text-1);
+  box-shadow: var(--specular-rim), 0 4px 10px rgba(0, 0, 0, 0.08);
 }
 .chip-more {
   flex: none;
@@ -436,7 +464,12 @@ mark {
   border-radius: 50%;
   padding: 1px;
   color: var(--text-3);
-  transition: transform 0.1s var(--spring-easing);
+  transition: transform 0.18s var(--spring-bounce), color 0.12s ease;
+}
+.chip-removable button:hover {
+  transform: scale(1.25) rotate(90deg);
+  color: var(--danger);
+  background: var(--danger-soft);
 }
 .chip-removable button:active {
   transform: scale(0.88);

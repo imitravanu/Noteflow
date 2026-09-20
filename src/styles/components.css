@@ -56,11 +56,17 @@
   display: inline-flex;
   color: var(--text-2);
   border-radius: var(--radius-sm);
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: transform 0.18s var(--spring-bounce), background-color 0.15s ease, color 0.15s ease, box-shadow 0.18s ease;
 }
 .topbar-sidebar-btn:hover {
   color: var(--text-1);
   background: var(--surface-2);
+  transform: translateY(-2px) scale(1.10);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+}
+.topbar-sidebar-btn:hover svg {
+  transform: scale(1.08);
+  transition: transform 0.18s var(--spring-bounce);
 }
 .topbar-sidebar-btn.active {
   color: var(--accent);
@@ -75,16 +81,22 @@
   border-radius: var(--radius-md);
   cursor: pointer;
   user-select: none;
-  transition: opacity 0.15s ease;
+  transition: transform 0.2s var(--spring-bounce), opacity 0.15s ease;
 }
 .topbar-brand:hover {
-  opacity: 0.88;
+  opacity: 1;
+  transform: scale(1.03);
+}
+.topbar-brand:hover .logo {
+  transform: rotate(-4deg) scale(1.08);
+  filter: drop-shadow(0 4px 12px rgba(0, 113, 227, 0.35));
 }
 
 .logo {
   border-radius: 7px;
   flex: none;
   display: block;
+  transition: transform 0.22s var(--spring-bounce), filter 0.2s ease;
 }
 
 .topbar-title-wrap {
@@ -128,18 +140,22 @@
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03);
   position: relative;
   overflow: hidden;
-  transition: background-color 0.15s ease,
+  transition: transform 0.18s var(--spring-bounce),
+    background-color 0.15s ease,
     border-color 0.15s ease,
-    box-shadow 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+    box-shadow 0.2s ease;
 }
 .topbar-search:hover {
   background: var(--surface-3);
-  border-color: var(--border);
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03), 0 3px 10px rgba(0, 0, 0, 0.05);
 }
 .topbar-search:focus-within {
   background: var(--surface);
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-glow), inset 0 1px 1px rgba(0, 0, 0, 0.03);
+  transform: translateY(-1px) scale(1.008);
+  box-shadow: 0 0 0 3px var(--accent-glow), inset 0 1px 1px rgba(0, 0, 0, 0.03), 0 4px 14px rgba(0, 0, 0, 0.06);
 }
 
 .topbar-search::after {
@@ -235,7 +251,7 @@
   align-items: center;
   gap: 6px;
   height: 31px;
-  padding: 0 11px;
+  padding: 0 12px;
   font-size: 12.5px;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -246,15 +262,21 @@
   box-shadow: 0 1px 2px rgba(0, 113, 227, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.28);
   cursor: pointer;
   user-select: none;
-  transition: transform 0.12s ease, filter 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.18s var(--spring-bounce), filter 0.18s ease, box-shadow 0.22s var(--spring-bounce);
 }
 .topbar-compose-btn:hover {
-  filter: brightness(1.06);
-  box-shadow: 0 2px 6px rgba(0, 113, 227, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+  filter: brightness(1.08);
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 6px 20px rgba(0, 113, 227, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+.topbar-compose-btn:hover svg {
+  transform: rotate(-10deg) scale(1.12);
+  transition: transform 0.2s var(--spring-bounce);
 }
 .topbar-compose-btn:active {
-  transform: scale(0.97);
+  transform: scale(0.95);
   filter: brightness(0.96);
+  transition-duration: 0.08s;
 }
 
 .topbar-utility-pill {
@@ -278,12 +300,17 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: transform 0.16s var(--spring-bounce), background-color 0.15s ease, color 0.15s ease, box-shadow 0.18s ease;
 }
 .topbar-utility-pill .icon-btn:hover {
   background: var(--surface);
   color: var(--text-1);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transform: scale(1.14);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.topbar-utility-pill .icon-btn:active {
+  transform: scale(0.90);
+  transition-duration: 0.06s;
 }
 .topbar-utility-pill .icon-btn.active {
   background: var(--surface);
@@ -351,15 +378,21 @@
   color: var(--text-2);
   font-weight: 500;
   font-size: 13.5px;
-  transition: transform 0.1s var(--spring-easing), background-color 0.15s ease, color 0.15s ease;
-}
-.sidebar-item:active {
-  transform: scale(0.97);
-  transition-duration: 0.06s;
+  transition: transform 0.18s var(--spring-bounce), background-color 0.15s ease, color 0.15s ease, box-shadow 0.2s ease;
 }
 .sidebar-item:hover {
   background: var(--surface-2);
   color: var(--text-1);
+  transform: translateX(5px);
+}
+.sidebar-item:hover svg {
+  color: var(--accent);
+  transform: scale(1.14);
+  transition: transform 0.18s var(--spring-bounce), color 0.15s ease;
+}
+.sidebar-item:active {
+  transform: translateX(2px) scale(0.96);
+  transition-duration: 0.06s;
 }
 .sidebar-item.active {
   background: var(--surface);
@@ -400,6 +433,12 @@
   padding: 1px 7px;
   min-width: 20px;
   text-align: center;
+  transition: transform 0.18s var(--spring-bounce), background-color 0.15s ease, color 0.15s ease;
+}
+.sidebar-item:hover .sidebar-count {
+  transform: scale(1.12);
+  background: var(--surface-3);
+  color: var(--text-1);
 }
 .sidebar-item.active .sidebar-count {
   background: rgba(0, 113, 227, 0.15);
@@ -442,7 +481,7 @@
   padding: 0 !important;
   position: relative;
   border-radius: var(--radius-sm);
-  transition: background-color 0.12s ease;
+  transition: transform 0.18s var(--spring-bounce), background-color 0.14s ease;
 }
 .tag-item .sidebar-tag-button {
   display: flex;
@@ -461,6 +500,16 @@
 .tag-item:hover {
   background: var(--surface-2);
   color: var(--text-1);
+  transform: translateX(4px);
+}
+.tag-item:hover svg:not(.tag-delete svg) {
+  color: var(--accent);
+  transform: rotate(-10deg) scale(1.15);
+  transition: transform 0.18s var(--spring-bounce), color 0.15s ease;
+}
+.tag-item:active {
+  transform: translateX(2px) scale(0.97);
+  transition-duration: 0.06s;
 }
 .tag-item.active {
   background: var(--accent-soft);
@@ -616,16 +665,48 @@
   outline: none;
   overflow: visible;
   animation: card-enter 0.35s var(--spring-easing) both;
-  transition: box-shadow 0.24s var(--spring-easing),
-    transform 0.24s var(--spring-easing),
-    border-color 0.18s ease;
+  transition: box-shadow 0.28s var(--spring-bounce),
+    transform 0.26s var(--spring-bounce),
+    border-color 0.2s ease;
+}
+
+/* Diagonal glass light sheen glint across card surface on hover */
+.note-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.25) 0%,
+    rgba(255, 255, 255, 0.08) 35%,
+    transparent 60%
+  );
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+[data-theme="dark"] .note-card::after {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.15) 0%,
+    rgba(255, 255, 255, 0.04) 35%,
+    transparent 60%
+  );
 }
 
 .note-card:hover {
-  box-shadow: var(--specular-rim-card), var(--shadow-md), var(--card-glow);
-  transform: translateY(-4px) scale(1.008);
+  box-shadow: var(--specular-rim-card), var(--shadow-lg), 0 14px 36px var(--card-glow);
+  transform: translateY(-6px) scale(1.018);
   border-color: var(--liquid-border-hover);
   z-index: 5;
+}
+.note-card:hover::after {
+  opacity: 1;
+}
+.note-card:active {
+  transform: translateY(-2px) scale(0.99);
+  transition-duration: 0.08s;
 }
 .note-card.selected {
   border-color: var(--accent);
@@ -786,14 +867,14 @@
   border: 1px solid var(--border);
   box-shadow: var(--specular-rim), var(--shadow-sm);
   opacity: 0;
-  transform: translateY(-2px);
-  transition: opacity 0.14s ease, transform 0.14s var(--spring-easing);
+  transform: translateY(-6px) scale(0.90);
+  transition: opacity 0.18s ease, transform 0.22s var(--spring-bounce);
   z-index: 6;
 }
 .note-card:hover .note-card-actions,
 .note-card:focus-within .note-card-actions {
   opacity: 1;
-  transform: none;
+  transform: translateY(0) scale(1);
 }
 
 .note-card-title {
@@ -912,6 +993,11 @@
   box-shadow: var(--specular-rim), var(--shadow-liquid-floating);
   z-index: 70;
   animation: rise-in 0.22s var(--spring-easing);
+  transition: transform 0.22s var(--spring-bounce), box-shadow 0.24s var(--spring-bounce);
+}
+.selection-bar:hover {
+  transform: translateX(-50%) translateY(-3px) scale(1.015);
+  box-shadow: var(--specular-rim), 0 28px 72px rgba(25, 35, 65, 0.22), 0 6px 16px rgba(0, 0, 0, 0.08);
 }
 
 .selection-count {
@@ -1359,10 +1445,11 @@
   gap: 10px;
   padding: 6px 10px;
   border-radius: var(--radius-md);
-  transition: background-color 0.12s ease;
+  transition: transform 0.16s var(--spring-bounce), background-color 0.14s ease;
 }
 .checklist-item:hover {
   background: var(--surface-2);
+  transform: translateX(4px);
 }
 
 .checklist-toggle {
@@ -1377,15 +1464,21 @@
   border: 1.5px solid var(--border-strong);
   background: transparent;
   cursor: pointer;
-  transition: all 0.14s ease;
+  transition: transform 0.18s var(--spring-bounce), border-color 0.14s ease, background-color 0.14s ease, box-shadow 0.18s ease;
   padding: 0;
 }
 .checklist-toggle:hover {
   border-color: var(--accent);
+  transform: scale(1.18);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+.checklist-toggle:active {
+  transform: scale(0.92);
 }
 .checklist-toggle.checked {
   background: var(--accent);
   border-color: var(--accent);
+  animation: check-pop 0.25s var(--spring-bounce);
 }
 
 .checklist-text {
@@ -1817,13 +1910,21 @@
   background: var(--surface-2);
   color: var(--text-2);
   text-align: left;
-  transition: transform 0.1s var(--spring-easing), border-color 0.14s ease, background-color 0.14s ease;
-}
-.theme-option:active {
-  transform: scale(0.985);
+  transition: transform 0.18s var(--spring-bounce), border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.2s ease;
 }
 .theme-option:hover {
   background: var(--surface-3);
+  transform: translateY(-2.5px) scale(1.015);
+  box-shadow: var(--shadow-sm);
+  border-color: var(--border-strong);
+}
+.theme-option:hover .theme-option-icon {
+  transform: scale(1.12) rotate(-3deg);
+  transition: transform 0.2s var(--spring-bounce);
+}
+.theme-option:active {
+  transform: scale(0.975);
+  transition-duration: 0.06s;
 }
 .theme-option.active {
   border-color: var(--accent);
