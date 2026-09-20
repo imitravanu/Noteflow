@@ -4,6 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/imitravanu/Noteflow/releases/tag/v1.2.0"><img src="https://img.shields.io/badge/Release-v1.2.0-0071e3?style=flat-square" alt="Version"></a>
+  <a href="https://github.com/imitravanu/Noteflow/releases/download/v1.2.0/noteflow_1.2.0_amd64.deb"><img src="https://img.shields.io/badge/Download-.deb%20(v1.2.0)-34c759?style=flat-square&logo=debian&logoColor=white" alt="Download .deb"></a>
   <a href="https://www.linux.org/"><img src="https://img.shields.io/badge/Platform-Linux%20(Wayland%20%2F%20GNOME)-23272e?style=flat-square&logo=linux" alt="Linux"></a>
   <a href="https://tauri.app/"><img src="https://img.shields.io/badge/Tauri-v2.0-24c8db?style=flat-square&logo=tauri&logoColor=white" alt="Tauri"></a>
   <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/Rust-Backend-dea584?style=flat-square&logo=rust&logoColor=white" alt="Rust"></a>
@@ -108,9 +109,28 @@ src-tauri/src/            Rust backend
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Installation & Quick Start
 
-### Prerequisites
+### Option 1: 1-Click Install (.deb Package)
+For **Ubuntu**, **Debian**, **Linux Mint**, **Pop!_OS**, and Debian-based distributions:
+
+1. **Download the installer:**  
+   👉 **[Download NoteFlow v1.2.0 (.deb)](https://github.com/imitravanu/Noteflow/releases/download/v1.2.0/noteflow_1.2.0_amd64.deb)** (2.6 MB)
+
+2. **Install via terminal:**
+   ```bash
+   sudo dpkg -i noteflow_1.2.0_amd64.deb
+   ```
+   *Or simply double-click the `.deb` file in your Linux file manager (Nautilus/Dolphin).*
+
+3. **Launch:**  
+   Search for **NoteFlow** in your desktop application menu or run `noteflow` from the terminal.
+
+---
+
+### Option 2: Build from Source
+
+#### Prerequisites
 - Node.js 18+ and npm
 - Rust 1.80+ (`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`)
 - Linux build dependencies (Debian/Ubuntu):
@@ -118,7 +138,7 @@ src-tauri/src/            Rust backend
   sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
   ```
 
-### Development
+#### Clone & Run
 ```bash
 # Clone the repository
 git clone https://github.com/imitravanu/Noteflow.git
@@ -134,24 +154,18 @@ npm run dev
 npm run tauri dev
 ```
 
-### Quality & Tests
+#### Quality & Tests
 ```bash
-# Run TypeScript validation
-npm run typecheck
-
-# Run Vitest frontend test suite
-npm test
-
-# Run Rust SQLite integration tests
-cd src-tauri && cargo test
+npm run typecheck    # TypeScript verification
+npm test             # Vitest frontend tests
+cd src-tauri && cargo test   # Rust SQLite integration tests
 ```
 
-### Production Build
+#### Build Production Executable
 ```bash
-# Build desktop executable and packages (.deb and .AppImage)
 npm run build:app
 ```
-Binaries are output to `src-tauri/target/release/`.
+Binaries are output to `src-tauri/target/release/noteflow`.
 
 ---
 
