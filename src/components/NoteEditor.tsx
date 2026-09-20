@@ -3,7 +3,7 @@ import {
   Archive,
   ArchiveRestore,
   Check,
-  Circle,
+  Clock,
   Download,
   Hash,
   Palette,
@@ -18,7 +18,13 @@ import type { ChecklistItem, FlagPatch, Note, SaveStatus } from "../types";
 import { api } from "../services/api";
 import { useNotesStore } from "../store/notesStore";
 import { errText, useUiStore } from "../store/uiStore";
-import { countWordsAndChars, downloadFile, formatDateTime, noteToMarkdown } from "../utils/format";
+import {
+  countWordsAndChars,
+  downloadFile,
+  formatDateTime,
+  formatRelativeTime,
+  noteToMarkdown,
+} from "../utils/format";
 import { ColorPicker } from "./ColorPicker";
 import { TagPicker } from "./TagPicker";
 
@@ -59,6 +65,7 @@ export function NoteEditor() {
   });
   const [status, setStatus] = useState<SaveStatus>("saved");
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
+  const [inlineTagPickerOpen, setInlineTagPickerOpen] = useState(false);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
 
   const dirtyRef = useRef(false);
@@ -149,8 +156,9 @@ export function NoteEditor() {
     const el = bodyRef.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${Math.max(el.scrollHeight, 240)}px`;
-  }, [draft.content, note]);
+    const minH = draft.checklist.length > 0 ? 100 : 180;
+    el.style.height = `${Math.max(el.scrollHeight, minH)}px`;
+  }, [draft.content, draft.checklist.length, note]);
 
   // Also persist pending edits when the window loses focus / is hidden.
   useEffect(() => {
@@ -234,10 +242,22 @@ export function NoteEditor() {
     }
   };
 
+  const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) {
+      void flushAndCloseEditor();
+    }
+  };
+
   if (!noteId) return null;
   if (!note) {
     return (
-      <div className="editor-overlay" role="dialog" aria-modal="true" aria-label="Loading note">
+      <div
+        className="editor-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Loading note"
+        onClick={handleOverlayClick}
+      >
         <div className="editor">
           <div className="editor-loading">Loading note…</div>
         </div>
@@ -246,181 +266,286 @@ export function NoteEditor() {
   }
 
   const statusLabel =
-    status === "saving" ? "Saving…" : status === "offline" ? "Offline — retrying on next edit" : "Saved";
+    status === "saving" ? "Saving…" : status === "offline" ? "Offline" : "Saved";
+
+  const stats = countWordsAndChars(draft.content, draft.checklist);
 
   return (
-    <div className="editor-overlay" role="dialog" aria-modal="true" aria-label="Note editor">
-      <div className={`editor color-${draft.color}`}>
+    <div
+      className="editor-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Note editor"
+      onClick={handleOverlayClick}
+    >
+      <div className={`editor color-${draft.color}`} onClick={(e) => e.stopPropagation()}>
+        {/* Refined Header Toolbar */}
         <header className="editor-header">
           <div className="editor-header-left">
             <button
               type="button"
-              className="icon-btn"
+              className="icon-btn editor-close-btn"
               aria-label="Close editor (Esc)"
               title="Close (Esc)"
               onClick={() => void flushAndCloseEditor()}
             >
               <X size={18} />
             </button>
-            <span
-              className={`save-status status-${status}`}
+            <div
+              className={`save-status-pill status-${status}`}
               role="status"
               aria-live="polite"
+              title={`Save status: ${statusLabel}`}
             >
               <span className="save-status-dot" aria-hidden="true" />
-              {statusLabel}
-            </span>
+              <span className="save-status-text">{statusLabel}</span>
+            </div>
           </div>
 
           <div className="editor-header-actions">
-            <div className="editor-popover-wrap">
-              <button
-                type="button"
-                className="icon-btn"
-                aria-label="Change note color"
-                title="Color"
-                aria-expanded={colorPickerOpen}
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={() => {
-                  setColorPickerOpen((v) => !v);
-                  setTagPickerOpen(false);
-                }}
-              >
-                <Palette size={17} />
-              </button>
-              {colorPickerOpen && (
-                <ColorPicker
-                  value={draft.color}
-                  onChange={(color) => {
-                    edit({ color });
-                    dirtyRef.current = true;
+            {/* Group 1: Organization & Appearance */}
+            <div className="editor-toolbar-group">
+              <div className="editor-popover-wrap">
+                <button
+                  type="button"
+                  className="icon-btn"
+                  aria-label="Change note color"
+                  title="Note color"
+                  aria-expanded={colorPickerOpen}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={() => {
+                    setColorPickerOpen((v) => !v);
+                    setTagPickerOpen(false);
+                    setInlineTagPickerOpen(false);
                   }}
-                  onClose={() => setColorPickerOpen(false)}
-                />
-              )}
+                >
+                  <Palette size={16} />
+                </button>
+                {colorPickerOpen && (
+                  <ColorPicker
+                    value={draft.color}
+                    onChange={(color) => {
+                      edit({ color });
+                      dirtyRef.current = true;
+                    }}
+                    onClose={() => setColorPickerOpen(false)}
+                  />
+                )}
+              </div>
+
+              <div className="editor-popover-wrap">
+                <button
+                  type="button"
+                  className="icon-btn"
+                  aria-label="Manage tags"
+                  title="Tags"
+                  aria-expanded={tagPickerOpen}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={() => {
+                    setTagPickerOpen((v) => !v);
+                    setColorPickerOpen(false);
+                    setInlineTagPickerOpen(false);
+                  }}
+                >
+                  <Tag size={16} />
+                </button>
+                {tagPickerOpen && note && (
+                  <TagPicker
+                    appliedTagIds={new Set(note.tags.map((t) => t.id))}
+                    onToggle={(tag, apply) => void applyTags(tag.id, apply)}
+                    onCreate={(name) => createTag(name)}
+                    onClose={() => setTagPickerOpen(false)}
+                  />
+                )}
+              </div>
             </div>
 
-            <div className="editor-popover-wrap">
+            <span className="editor-toolbar-sep" aria-hidden="true" />
+
+            {/* Group 2: Document Flags & Export */}
+            <div className="editor-toolbar-group">
+              <button
+                type="button"
+                className={`icon-btn${note.pinned ? " active" : ""}`}
+                aria-label={note.pinned ? "Unpin note" : "Pin note"}
+                aria-pressed={note.pinned}
+                title={note.pinned ? "Unpin (Ctrl+Shift+P)" : "Pin (Ctrl+Shift+P)"}
+                onClick={() => void handleFlags({ pinned: !note.pinned })}
+              >
+                <Pin size={16} />
+              </button>
+              <button
+                type="button"
+                className={`icon-btn${note.favorite ? " active" : ""}`}
+                aria-label={note.favorite ? "Remove from favorites" : "Add to favorites"}
+                aria-pressed={note.favorite}
+                title={note.favorite ? "Unfavorite (Ctrl+Shift+F)" : "Favorite (Ctrl+Shift+F)"}
+                onClick={() => void handleFlags({ favorite: !note.favorite })}
+              >
+                <Star size={16} className={note.favorite ? "starred" : undefined} />
+              </button>
               <button
                 type="button"
                 className="icon-btn"
-                aria-label="Edit tags"
-                title="Tags"
-                aria-expanded={tagPickerOpen}
-                onMouseDown={(e) => e.stopPropagation()}
+                aria-label={note.archived ? "Unarchive note" : "Archive note"}
+                aria-pressed={note.archived}
+                title={note.archived ? "Unarchive" : "Archive"}
+                onClick={() => void handleFlags({ archived: !note.archived })}
+              >
+                {note.archived ? <ArchiveRestore size={16} /> : <Archive size={16} />}
+              </button>
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label="Export note as Markdown"
+                title="Export as Markdown (.md)"
                 onClick={() => {
-                  setTagPickerOpen((v) => !v);
-                  setColorPickerOpen(false);
+                  const md = noteToMarkdown({
+                    title: draft.title,
+                    content: draft.content,
+                    checklist: draft.checklist,
+                    tags: note.tags,
+                    createdAt: note.createdAt,
+                    updatedAt: note.updatedAt,
+                  });
+                  const cleanName = (draft.title || "note").trim().toLowerCase().replace(/[^a-z0-9_-]+/gi, "_");
+                  const filename = `${cleanName || "note"}.md`;
+                  downloadFile(filename, md, "text/markdown;charset=utf-8");
+                  showSnackbar(`Exported as ${filename}`);
                 }}
               >
-                <Tag size={17} />
+                <Download size={16} />
               </button>
-              {tagPickerOpen && note && (
-                <TagPicker
-                  appliedTagIds={new Set(note.tags.map((t) => t.id))}
-                  onToggle={(tag, apply) => void applyTags(tag.id, apply)}
-                  onCreate={(name) => createTag(name)}
-                  onClose={() => setTagPickerOpen(false)}
-                />
-              )}
             </div>
 
+            <span className="editor-toolbar-sep" aria-hidden="true" />
+
+            {/* Group 3: Destructive Action */}
+            <div className="editor-toolbar-group">
+              <button
+                type="button"
+                className="icon-btn danger-hover"
+                aria-label="Move note to trash"
+                title="Move to trash"
+                onClick={() =>
+                  askConfirm({
+                    title: "Move to trash?",
+                    message: "The note will move to Trash. You can restore it from there.",
+                    confirmLabel: "Move to trash",
+                    danger: true,
+                    onConfirm: async () => {
+                      await flush();
+                      await trashNotes([note.id]);
+                      closeEditor();
+                    },
+                  })
+                }
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+
+            <span className="editor-toolbar-sep" aria-hidden="true" />
+
+            {/* Group 4: Done finish button */}
             <button
               type="button"
-              className={`icon-btn${note.pinned ? " active" : ""}`}
-              aria-label={note.pinned ? "Unpin note" : "Pin note"}
-              aria-pressed={note.pinned}
-              title={note.pinned ? "Unpin (Ctrl+Shift+P)" : "Pin (Ctrl+Shift+P)"}
-              onClick={() => void handleFlags({ pinned: !note.pinned })}
+              className="editor-done-btn"
+              onClick={() => void flushAndCloseEditor()}
+              title="Done (Esc)"
             >
-              <Pin size={17} />
-            </button>
-            <button
-              type="button"
-              className={`icon-btn${note.favorite ? " active" : ""}`}
-              aria-label={note.favorite ? "Remove from favorites" : "Add to favorites"}
-              aria-pressed={note.favorite}
-              title={note.favorite ? "Unfavorite (Ctrl+Shift+F)" : "Favorite (Ctrl+Shift+F)"}
-              onClick={() => void handleFlags({ favorite: !note.favorite })}
-            >
-              <Star size={17} className={note.favorite ? "starred" : undefined} />
-            </button>
-            <button
-              type="button"
-              className="icon-btn"
-              aria-label={note.archived ? "Unarchive note" : "Archive note"}
-              aria-pressed={note.archived}
-              title={note.archived ? "Unarchive" : "Archive"}
-              onClick={() => void handleFlags({ archived: !note.archived })}
-            >
-              {note.archived ? <ArchiveRestore size={17} /> : <Archive size={17} />}
-            </button>
-            <button
-              type="button"
-              className="icon-btn"
-              aria-label="Export note as Markdown"
-              title="Export note as Markdown (.md)"
-              onClick={() => {
-                const md = noteToMarkdown({
-                  title: draft.title,
-                  content: draft.content,
-                  checklist: draft.checklist,
-                  tags: note.tags,
-                  createdAt: note.createdAt,
-                  updatedAt: note.updatedAt,
-                });
-                const cleanName = (draft.title || "note").trim().toLowerCase().replace(/[^a-z0-9_-]+/gi, "_");
-                const filename = `${cleanName || "note"}.md`;
-                downloadFile(filename, md, "text/markdown;charset=utf-8");
-                showSnackbar(`Exported as ${filename}`);
-              }}
-            >
-              <Download size={17} />
-            </button>
-            <button
-              type="button"
-              className="icon-btn danger-hover"
-              aria-label="Move note to trash"
-              title="Move to trash"
-              onClick={() =>
-                askConfirm({
-                  title: "Move to trash?",
-                  message: "The note will move to Trash. You can restore it from there.",
-                  confirmLabel: "Move to trash",
-                  danger: true,
-                  onConfirm: async () => {
-                    await flush();
-                    await trashNotes([note.id]);
-                    closeEditor();
-                  },
-                })
-              }
-            >
-              <Trash2 size={17} />
+              Done
             </button>
           </div>
         </header>
 
+        {/* Scrollable Editorial Canvas */}
         <div className="editor-scroll">
           <div className="editor-body">
-            <input
-              className="editor-title"
-              value={draft.title}
-              placeholder="Title"
-              aria-label="Note title"
-              autoFocus
-              onChange={(e) => edit({ title: e.target.value })}
-            />
+            {/* Document Header */}
+            <div className="editor-doc-header">
+              <input
+                className="editor-title"
+                value={draft.title}
+                placeholder="Untitled Note"
+                aria-label="Note title"
+                autoFocus
+                onChange={(e) => edit({ title: e.target.value })}
+              />
+
+              <div className="editor-meta-bar">
+                <div className="editor-meta-info">
+                  <Clock size={12} className="editor-meta-icon" aria-hidden="true" />
+                  <span>Edited {formatRelativeTime(note.updatedAt)}</span>
+                  <span className="editor-meta-bullet">·</span>
+                  <span>{stats.words} {stats.words === 1 ? "word" : "words"}</span>
+                </div>
+
+                <div className="editor-meta-tags">
+                  {note.tags.map((tag) => (
+                    <span key={tag.id} className="editor-tag-chip">
+                      <Hash size={11} aria-hidden="true" />
+                      <span className="editor-tag-name">{tag.name}</span>
+                      <button
+                        type="button"
+                        className="editor-tag-remove"
+                        aria-label={`Remove tag ${tag.name}`}
+                        title={`Remove tag ${tag.name}`}
+                        onClick={() => void applyTags(tag.id, false)}
+                      >
+                        <X size={11} />
+                      </button>
+                    </span>
+                  ))}
+                  <div className="editor-popover-wrap">
+                    <button
+                      type="button"
+                      className="editor-add-tag-btn"
+                      aria-label="Add tag"
+                      title="Add tag"
+                      onClick={() => {
+                        setInlineTagPickerOpen((v) => !v);
+                        setTagPickerOpen(false);
+                        setColorPickerOpen(false);
+                      }}
+                    >
+                      <Plus size={11} />
+                      <span>Tag</span>
+                    </button>
+                    {inlineTagPickerOpen && (
+                      <TagPicker
+                        appliedTagIds={new Set(note.tags.map((t) => t.id))}
+                        onToggle={(tag, apply) => void applyTags(tag.id, apply)}
+                        onCreate={(name) => createTag(name)}
+                        onClose={() => setInlineTagPickerOpen(false)}
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="editor-divider" />
+
+            {/* Note writing surface */}
             <textarea
               ref={bodyRef}
               className="editor-content"
               value={draft.content}
-              placeholder="Take a note…"
+              placeholder="Take a note, or add checklist items below…"
               aria-label="Note content"
               onChange={(e) => edit({ content: e.target.value })}
             />
 
+            {/* Checklist Section */}
             <section className="editor-checklist" aria-label="Checklist">
+              {draft.checklist.length > 0 && (
+                <div className="checklist-section-header">
+                  <span className="checklist-section-title">
+                    Checklist ({draft.checklist.filter((i) => i.checked).length}/{draft.checklist.length})
+                  </span>
+                </div>
+              )}
               {draft.checklist.map((item) => (
                 <div key={item.id} className="checklist-item">
                   <button
@@ -430,7 +555,7 @@ export function NoteEditor() {
                     aria-label={item.checked ? `Mark “${item.text}” unchecked` : `Mark “${item.text}” checked`}
                     onClick={() => setChecklistItem(item.id, { checked: !item.checked })}
                   >
-                    {item.checked ? <Check size={13} /> : <Circle size={13} />}
+                    {item.checked ? <Check size={12} /> : null}
                   </button>
                   <input
                     className={`checklist-text${item.checked ? " checked" : ""}`}
@@ -440,7 +565,7 @@ export function NoteEditor() {
                   />
                   <button
                     type="button"
-                    className="icon-btn icon-btn-sm danger-hover"
+                    className="icon-btn icon-btn-sm danger-hover checklist-delete"
                     aria-label={`Remove item ${item.text}`}
                     title="Remove item"
                     onClick={() => removeChecklistItem(item.id)}
@@ -450,10 +575,12 @@ export function NoteEditor() {
                 </div>
               ))}
               <div className="checklist-item checklist-add">
-                <Plus size={14} aria-hidden="true" />
+                <div className="checklist-add-icon">
+                  <Plus size={13} aria-hidden="true" />
+                </div>
                 <input
                   ref={newChecklistText}
-                  placeholder="Add checklist item…"
+                  placeholder="Add item (Enter to add)…"
                   aria-label="New checklist item"
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
@@ -465,43 +592,24 @@ export function NoteEditor() {
                 />
               </div>
             </section>
-
-            {note.tags.length > 0 && (
-              <div className="editor-tags">
-                {note.tags.map((tag) => (
-                  <span key={tag.id} className="chip chip-removable">
-                    <Hash size={11} aria-hidden="true" />
-                    {tag.name}
-                    <button
-                      type="button"
-                      aria-label={`Remove tag ${tag.name}`}
-                      onClick={() => void applyTags(tag.id, false)}
-                    >
-                      <X size={11} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
         </div>
 
+        {/* Calm Editorial Footer */}
         <footer className="editor-footer">
-          {(() => {
-            const stats = countWordsAndChars(draft.content, draft.checklist);
-            return (
-              <>
-                <span>
-                  {stats.words} {stats.words === 1 ? "word" : "words"} · {stats.chars}{" "}
-                  {stats.chars === 1 ? "char" : "chars"}
-                </span>
-                <span aria-hidden="true">·</span>
-              </>
-            );
-          })()}
-          <span>Created {formatDateTime(note.createdAt)}</span>
-          <span aria-hidden="true">·</span>
-          <span>Edited {formatDateTime(note.updatedAt)}</span>
+          <div className="editor-footer-left">
+            <span className="editor-stat-pill">
+              {stats.words} {stats.words === 1 ? "word" : "words"}
+            </span>
+            <span className="editor-stat-pill">
+              {stats.chars} {stats.chars === 1 ? "character" : "characters"}
+            </span>
+          </div>
+          <div className="editor-footer-right">
+            <span>Created {formatDateTime(note.createdAt)}</span>
+            <span className="editor-footer-sep">·</span>
+            <span>Last edited {formatDateTime(note.updatedAt)}</span>
+          </div>
         </footer>
       </div>
     </div>
