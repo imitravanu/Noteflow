@@ -180,7 +180,6 @@ export function NoteCard({ note, selected, orderedIds, query }: NoteCardProps) {
             >
               {copied ? <Check size={14} /> : <Copy size={14} />}
             </button>
-            <TrashActions noteId={note.id} single />
           </>
         )}
       </div>
