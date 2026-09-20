@@ -47,13 +47,14 @@ export function NotesGrid({ notes, showPinnedSection }: NotesGridProps) {
   const selectedSet = useMemo(() => new Set(selection), [selection]);
 
   const renderCards = (list: Note[]) =>
-    list.map((note) => (
+    list.map((note, i) => (
       <NoteCard
         key={note.id}
         note={note}
         selected={selectedSet.has(note.id)}
         orderedIds={orderedIds}
         query={query}
+        style={{ animationDelay: `${Math.min(i * 30, 600)}ms` }}
       />
     ));
 

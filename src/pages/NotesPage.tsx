@@ -57,9 +57,9 @@ export function NotesPage() {
     if (query) {
       return (
         <EmptyState
-          icon={<SearchX size={28} strokeWidth={1.5} />}
-          title={`No results for “${query}”`}
-          message="Check the spelling or try a different search."
+          icon={<SearchX size={32} strokeWidth={1.4} />}
+          title="No matches found"
+          message={`Nothing matched “${query}”. Try a different search.`}
         />
       );
     }
@@ -67,42 +67,42 @@ export function NotesPage() {
       case "all":
         return (
           <EmptyState
-            icon={<StickyNote size={28} strokeWidth={1.5} />}
-            title="No notes yet"
-            message="Create your first note to get started."
-            action={{ label: "New note", onClick: () => void createNote() }}
+            icon={<StickyNote size={32} strokeWidth={1.4} />}
+            title="Your workspace awaits"
+            message="Create your first note and start capturing ideas."
+            action={{ label: "Create Note", onClick: () => void createNote() }}
           />
         );
       case "pinned":
         return (
           <EmptyState
-            icon={<Pin size={28} strokeWidth={1.5} />}
-            title="No pinned notes"
-            message="Pin important notes to keep them at the top."
+            icon={<Pin size={32} strokeWidth={1.4} />}
+            title="Nothing pinned yet"
+            message="Pin your most important notes to keep them front and center."
           />
         );
       case "favorites":
         return (
           <EmptyState
-            icon={<Star size={28} strokeWidth={1.5} />}
-            title="No favorite notes"
-            message="Star notes you want to find quickly."
+            icon={<Star size={32} strokeWidth={1.4} />}
+            title="No favorites yet"
+            message="Star the notes you reach for most — they'll appear here."
           />
         );
       case "archive":
         return (
           <EmptyState
-            icon={<Archive size={28} strokeWidth={1.5} />}
-            title="No archived notes"
-            message="Archived notes are kept out of your main list."
+            icon={<Archive size={32} strokeWidth={1.4} />}
+            title="Archive is clear"
+            message="Notes you archive are tucked away but never deleted."
           />
         );
       case "trash":
         return (
           <EmptyState
-            icon={<Trash2 size={28} strokeWidth={1.5} />}
+            icon={<Trash2 size={32} strokeWidth={1.4} />}
             title="Trash is empty"
-            message="Deleted notes appear here before final removal."
+            message="Deleted notes rest here before permanent removal."
           />
         );
     }

@@ -45,9 +45,10 @@ interface NoteCardProps {
   selected: boolean;
   orderedIds: string[];
   query: string;
+  style?: React.CSSProperties;
 }
 
-export function NoteCard({ note, selected, orderedIds, query }: NoteCardProps) {
+export function NoteCard({ note, selected, orderedIds, query, style }: NoteCardProps) {
   const toggleSelect = useUiStore((s) => s.toggleSelect);
   const openEditor = useUiStore((s) => s.openEditor);
   const selectionLength = useUiStore((s) => s.selection.length);
@@ -93,6 +94,7 @@ export function NoteCard({ note, selected, orderedIds, query }: NoteCardProps) {
       tabIndex={0}
       role="button"
       aria-label={`Note: ${note.title || "Untitled"}`}
+      style={style}
       onClick={(e) => {
         if (view === "trash") {
           // Deleted notes are selected for restore/permanent delete, not edited.
