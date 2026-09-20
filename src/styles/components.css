@@ -870,24 +870,27 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 5px 14px;
+  padding: 5px 15px;
   font-size: 13px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--accent-contrast, #ffffff);
   background: var(--accent);
   border: 1px solid transparent;
   border-radius: var(--radius-full);
   cursor: pointer;
-  transition: background-color 0.14s ease, transform 0.1s ease, box-shadow 0.14s ease;
+  transition: background-color 0.14s ease, transform 0.1s ease, box-shadow 0.14s ease, filter 0.14s ease;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
   margin-left: 4px;
 }
 .editor-done-btn:hover {
-  background: var(--accent-hover);
+  background: var(--accent-hover, #0077ed);
+  filter: brightness(1.06);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+  color: var(--accent-contrast, #ffffff);
 }
 .editor-done-btn:active {
   transform: scale(0.97);
+  filter: brightness(0.96);
 }
 
 .editor-popover-wrap {
