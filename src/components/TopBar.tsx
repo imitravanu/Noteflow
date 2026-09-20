@@ -8,6 +8,7 @@ export function TopBar() {
   const theme = useUiStore((s) => s.theme);
   const cycleTheme = useUiStore((s) => s.cycleTheme);
   const setPage = useUiStore((s) => s.setPage);
+  const sidebarOpen = useUiStore((s) => s.sidebarOpen);
   const setSidebarOpen = useUiStore((s) => s.setSidebarOpen);
   const setShortcutsOpen = useUiStore((s) => s.setShortcutsOpen);
   const page = useUiStore((s) => s.page);
@@ -20,10 +21,11 @@ export function TopBar() {
     <header className="topbar">
       <button
         type="button"
-        className="icon-btn sidebar-toggle"
-        aria-label="Toggle sidebar"
-        title="Toggle sidebar"
-        onClick={() => setSidebarOpen(true)}
+        className={`icon-btn sidebar-toggle${sidebarOpen ? " active" : ""}`}
+        aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+        aria-expanded={sidebarOpen}
+        title={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+        onClick={() => setSidebarOpen(!sidebarOpen)}
       >
         <Menu size={18} />
       </button>

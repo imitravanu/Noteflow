@@ -75,6 +75,12 @@ export function useKeyboardShortcuts() {
         return;
       }
 
+      if (mod && (key === "\\" || key === "b")) {
+        e.preventDefault();
+        ui.setSidebarOpen(!ui.sidebarOpen);
+        return;
+      }
+
       if ((e.key === "?" && !editable) || (mod && e.key === "/")) {
         e.preventDefault();
         ui.setShortcutsOpen(!ui.shortcutsOpen);

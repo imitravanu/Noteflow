@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Archive,
   Hash,
@@ -40,11 +40,28 @@ export function Sidebar() {
 
   const [addingTag, setAddingTag] = useState(false);
   const [newTagName, setNewTagName] = useState("");
+  const [hovered, setHovered] = useState(false);
+  const hoverTimeoutRef = useRef<number | undefined>(undefined);
+
+  const isVisible = sidebarOpen || hovered || addingTag;
+
+  const handleMouseEnter = () => {
+    window.clearTimeout(hoverTimeoutRef.current);
+    setHovered(true);
+  };
+
+  const handleMouseLeave = () => {
+    window.clearTimeout(hoverTimeoutRef.current);
+    hoverTimeoutRef.current = window.setTimeout(() => {
+      setHovered(false);
+    }, 280);
+  };
 
   const navigate = (fn: () => void) => {
     void flushAndCloseEditor().finally(() => {
       fn();
       setSidebarOpen(false);
+      setHovered(false);
     });
   };
 
@@ -58,14 +75,34 @@ export function Sidebar() {
 
   return (
     <>
-      {sidebarOpen && (
+      {/* Edge Sensor Zone: when mouse moves to the left edge of the screen, slide show */}
+      {!isVisible && (
         <div
-          className="sidebar-scrim"
-          onClick={() => setSidebarOpen(false)}
+          className="sidebar-edge-sensor"
+          onMouseEnter={handleMouseEnter}
           aria-hidden="true"
         />
       )}
-      <aside className="sidebar" data-open={sidebarOpen || undefined} aria-label="Main navigation">
+
+      {/* Dimmed scrim when pinned open via button */}
+      {sidebarOpen && (
+        <div
+          className="sidebar-scrim"
+          onClick={() => {
+            setSidebarOpen(false);
+            setHovered(false);
+          }}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside
+        className="sidebar"
+        data-open={isVisible || undefined}
+        aria-label="Main navigation"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
         <nav className="sidebar-nav" aria-label="Note views">
           {NAV_ITEMS.map(({ view: v, label, icon: Icon }) => {
             const count =

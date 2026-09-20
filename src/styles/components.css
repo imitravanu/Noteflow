@@ -44,7 +44,7 @@
 }
 
 .sidebar-toggle {
-  display: none;
+  display: inline-flex;
 }
 
 .topbar-brand {
@@ -119,20 +119,39 @@
   margin-left: auto;
 }
 
-/* ---------- Sidebar (Apple Notes Nav Drawer) ---------- */
+/* ---------- Sidebar edge hover sensor (mouse side reveal) ---------- */
+.sidebar-edge-sensor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 14px;
+  z-index: 45;
+  cursor: pointer;
+}
+
+/* ---------- Sidebar (Apple Notes Nav Drawer / Slide-out Panel) ---------- */
 .sidebar {
-  width: var(--sidebar-width);
-  flex: none;
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: min(var(--sidebar-width), 80vw);
   display: flex;
   flex-direction: column;
   gap: 4px;
   padding: 14px 10px;
   background: var(--chrome);
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
   border-right: 1px solid var(--chrome-border);
+  box-shadow: 8px 0 32px rgba(0, 0, 0, 0.16);
   overflow-y: auto;
-  z-index: 40;
+  z-index: 50;
+  transform: translateX(-100%);
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease;
+}
+
+.sidebar[data-open] {
+  transform: translateX(0);
 }
 
 .sidebar-nav {
@@ -281,7 +300,13 @@
 }
 
 .sidebar-scrim {
-  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 48;
+  background: var(--scrim);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  animation: fade-in 0.15s ease;
 }
 
 /* ---------- Page header ---------- */
@@ -1592,27 +1617,6 @@
 
 /* ---------- Responsive (narrow windows) ---------- */
 @media (max-width: 900px) {
-  .sidebar {
-    position: fixed;
-    inset: 0 auto 0 0;
-    transform: translateX(-100%);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    width: min(var(--sidebar-width), 80vw);
-    box-shadow: var(--shadow-lg);
-  }
-  .sidebar[data-open] {
-    transform: translateX(0);
-  }
-  .sidebar-scrim {
-    display: block;
-    position: fixed;
-    inset: 0;
-    z-index: 35;
-    background: var(--scrim);
-  }
-  .sidebar-toggle {
-    display: inline-flex;
-  }
   .content {
     padding: 16px 16px 80px;
   }
