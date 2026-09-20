@@ -620,26 +620,6 @@
     border-color 0.18s ease;
 }
 
-/* Accent bar — tinted top edge for instant color identity */
-.note-card::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 14px;
-  right: 14px;
-  height: 3px;
-  border-radius: 0 0 3px 3px;
-  background: var(--card-accent);
-  opacity: 0.65;
-  transition: opacity 0.18s ease;
-}
-.note-card:hover::before {
-  opacity: 0.95;
-}
-.note-card.color-default::before {
-  opacity: 0;
-}
-
 .note-card:hover {
   box-shadow: var(--specular-rim-card), var(--shadow-md);
   transform: translateY(-4px) scale(1.008);
