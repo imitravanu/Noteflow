@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Archive,
   Check,
@@ -49,6 +49,7 @@ interface NoteCardProps {
 }
 
 export function NoteCard({ note, selected, orderedIds, query, style }: NoteCardProps) {
+  const cardRef = useRef<HTMLElement>(null);
   const toggleSelect = useUiStore((s) => s.toggleSelect);
   const openEditor = useUiStore((s) => s.openEditor);
   const selectionLength = useUiStore((s) => s.selection.length);
@@ -63,6 +64,32 @@ export function NoteCard({ note, selected, orderedIds, query, style }: NoteCardP
   const doneCount = note.checklist.filter((c) => c.checked).length;
 
   const stop = (e: React.MouseEvent) => e.stopPropagation();
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
+    const card = cardRef.current;
+    if (!card) return;
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+
+    // Organic 3D perspective tilt (subtle & responsive)
+    const rotateX = ((centerY - y) / centerY) * 6.5;
+    const rotateY = ((x - centerX) / centerX) * 6.5;
+
+    card.style.setProperty("--tilt-x", `${rotateX.toFixed(2)}deg`);
+    card.style.setProperty("--tilt-y", `${rotateY.toFixed(2)}deg`);
+    card.style.setProperty("--mouse-x", `${x.toFixed(1)}px`);
+    card.style.setProperty("--mouse-y", `${y.toFixed(1)}px`);
+  };
+
+  const handleMouseLeave = () => {
+    const card = cardRef.current;
+    if (!card) return;
+    card.style.setProperty("--tilt-x", "0deg");
+    card.style.setProperty("--tilt-y", "0deg");
+  };
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -89,12 +116,15 @@ export function NoteCard({ note, selected, orderedIds, query, style }: NoteCardP
 
   return (
     <article
+      ref={cardRef}
       className={`note-card color-${note.color}${selected ? " selected" : ""}`}
       data-selected={selected || undefined}
       tabIndex={0}
       role="button"
       aria-label={`Note: ${note.title || "Untitled"}`}
       style={style}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
       onClick={(e) => {
         if (view === "trash") {
           // Deleted notes are selected for restore/permanent delete, not edited.

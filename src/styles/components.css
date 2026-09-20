@@ -664,54 +664,63 @@
   cursor: pointer;
   outline: none;
   overflow: visible;
+  transform-style: preserve-3d;
+  perspective: 1000px;
+  will-change: transform, box-shadow;
   animation: card-enter 0.35s var(--spring-easing) both;
   transition: box-shadow 0.28s var(--spring-bounce),
-    transform 0.26s var(--spring-bounce),
+    transform 0.35s var(--spring-bounce),
     border-color 0.2s ease;
 }
 
-/* Diagonal glass light sheen glint across card surface on hover */
+/* Dynamic liquid glass spotlight reflection tracking cursor across surface */
 .note-card::after {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.25) 0%,
-    rgba(255, 255, 255, 0.08) 35%,
-    transparent 60%
+  background: radial-gradient(
+    circle 240px at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(255, 255, 255, 0.40) 0%,
+    rgba(255, 255, 255, 0.12) 40%,
+    transparent 75%
   );
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s ease;
 }
 [data-theme="dark"] .note-card::after {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.15) 0%,
-    rgba(255, 255, 255, 0.04) 35%,
-    transparent 60%
+  background: radial-gradient(
+    circle 240px at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(255, 255, 255, 0.22) 0%,
+    rgba(255, 255, 255, 0.06) 45%,
+    transparent 75%
   );
 }
 
 .note-card:hover {
-  box-shadow: var(--specular-rim-card), var(--shadow-lg), 0 14px 36px var(--card-glow);
-  transform: translateY(-6px) scale(1.018);
+  box-shadow: var(--specular-rim-card), var(--shadow-lg), 0 16px 42px var(--card-glow);
+  transform: translateY(-8px) scale(1.025) perspective(1000px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
   border-color: var(--liquid-border-hover);
   z-index: 5;
+  transition: box-shadow 0.25s var(--spring-bounce),
+    transform 0.08s ease-out,
+    border-color 0.2s ease;
 }
 .note-card:hover::after {
   opacity: 1;
 }
 .note-card:active {
-  transform: translateY(-2px) scale(0.99);
-  transition-duration: 0.08s;
+  transform: translateY(-2px) scale(0.985) perspective(1000px) rotateX(0deg) rotateY(0deg);
+  transition-duration: 0.06s;
 }
 .note-card.selected {
   border-color: var(--accent);
   box-shadow: 0 0 0 2.5px var(--accent), var(--specular-rim-card), var(--shadow-md);
   z-index: 4;
+}
+.note-card.selected:hover {
+  box-shadow: 0 0 0 2.5px var(--accent), var(--specular-rim-card), var(--shadow-lg), 0 16px 42px var(--card-glow);
 }
 .note-card:focus {
   outline: none;
@@ -837,7 +846,7 @@
   background: var(--surface);
   border: 1.5px solid var(--border-strong);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.14);
-  transition: opacity 0.14s ease, background-color 0.14s ease, color 0.14s ease, transform 0.14s ease;
+  transition: opacity 0.14s ease, background-color 0.14s ease, color 0.14s ease, transform 0.18s var(--spring-bounce), box-shadow 0.18s ease;
   z-index: 10;
 }
 .note-card:hover .note-card-check,
@@ -845,6 +854,15 @@
 .app[data-selection-active] .note-card-check {
   opacity: 1;
   transform: scale(1);
+}
+.note-card-check:hover {
+  transform: scale(1.22) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+  color: var(--accent);
+}
+.note-card-check:active {
+  transform: scale(0.92) !important;
+  transition-duration: 0.05s;
 }
 .note-card.selected .note-card-check {
   background: var(--accent);
@@ -876,6 +894,23 @@
   opacity: 1;
   transform: translateY(0) scale(1);
 }
+.note-card-actions .icon-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  color: var(--text-2);
+  transition: transform 0.16s var(--spring-bounce), background-color 0.14s ease, color 0.14s ease, box-shadow 0.16s ease;
+}
+.note-card-actions .icon-btn:hover {
+  transform: scale(1.18);
+  color: var(--text-1);
+  background: var(--surface);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.10);
+}
+.note-card-actions .icon-btn:active {
+  transform: scale(0.92);
+  transition-duration: 0.06s;
+}
 
 .note-card-title {
   font-size: 14.5px;
@@ -891,6 +926,10 @@
   overflow-wrap: anywhere;
   max-height: 42px;
   flex: none;
+  transition: color 0.18s ease, transform 0.22s var(--spring-bounce);
+}
+.note-card:hover .note-card-title {
+  transform: translateX(2px);
 }
 .note-card-title-untitled {
   color: var(--text-3);
@@ -913,16 +952,33 @@
   position: relative;
   -webkit-mask-image: linear-gradient(to bottom, black 65%, transparent 100%);
   mask-image: linear-gradient(to bottom, black 65%, transparent 100%);
+  transition: color 0.2s ease;
+}
+.note-card:hover .note-card-preview {
+  color: var(--text-1);
 }
 
 .note-card-checklist {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   font-size: 12px;
   font-weight: 500;
   color: var(--text-2);
   flex: none;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  background: var(--liquid-glass-elevated);
+  border: 1px solid var(--border-subtle);
+  width: fit-content;
+  transition: background-color 0.18s ease, color 0.18s ease, transform 0.2s var(--spring-bounce), box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.note-card:hover .note-card-checklist {
+  background: var(--surface);
+  color: var(--text-1);
+  border-color: var(--border);
+  transform: scale(1.04);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .note-card-tags {
@@ -932,6 +988,16 @@
   gap: 5px;
   max-height: 24px;
   flex: none;
+}
+.note-card .chip {
+  transition: transform 0.18s var(--spring-bounce), background-color 0.15s ease, box-shadow 0.18s ease;
+}
+.note-card:hover .chip {
+  transform: translateY(-1px);
+}
+.note-card .chip:hover {
+  transform: translateY(-2px) scale(1.06);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 .note-card-footer {
@@ -948,6 +1014,10 @@
   align-items: center;
   gap: 5px;
   color: var(--text-3);
+  transition: color 0.18s ease;
+}
+.note-card:hover .note-card-flags {
+  color: var(--text-2);
 }
 .note-card-flags:not(:empty)::after {
   content: "·";
@@ -973,6 +1043,11 @@
   font-size: 11.5px;
   color: var(--text-3);
   margin-left: auto;
+  transition: color 0.18s ease, transform 0.2s var(--spring-bounce);
+}
+.note-card:hover .note-card-time {
+  color: var(--text-2);
+  transform: translateX(-1px);
 }
 
 /* ---------- Selection bar (Apple OS 27 Liquid Glass Floating Pill) ---------- */
