@@ -1,0 +1,126 @@
+<svg width="880" height="260" viewBox="0 0 880 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Background Gradients -->
+    <linearGradient id="bg-grad" x1="0" y1="0" x2="880" y2="260" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stopColor="#0b0e17" />
+      <stop offset="50%" stopColor="#121626" />
+      <stop offset="100%" stopColor="#090b12" />
+    </linearGradient>
+
+    <!-- Aurora Glows -->
+    <radialGradient id="glow-cyan" cx="180" cy="90" r="220" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stopColor="#0071e3" stopOpacity="0.40" />
+      <stop offset="50%" stopColor="#0071e3" stopOpacity="0.12" />
+      <stop offset="100%" stopColor="#0071e3" stopOpacity="0" />
+    </radialGradient>
+    <radialGradient id="glow-purple" cx="720" cy="160" r="240" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stopColor="#a046eb" stopOpacity="0.30" />
+      <stop offset="50%" stopColor="#5856d6" stopOpacity="0.10" />
+      <stop offset="100%" stopColor="#5856d6" stopOpacity="0" />
+    </radialGradient>
+
+    <!-- Logo Gradients -->
+    <linearGradient id="logo-bg" x1="60" y1="50" x2="160" y2="150" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stopColor="#0071e3" />
+      <stop offset="100%" stopColor="#5856d6" />
+    </linearGradient>
+    <linearGradient id="logo-sheet" x1="84" y1="70" x2="136" y2="122" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stopColor="#ffffff" stopOpacity="0.45" />
+      <stop offset="100%" stopColor="#ffffff" stopOpacity="0.12" />
+    </linearGradient>
+    <linearGradient id="logo-wave" x1="90" y1="120" x2="130" y2="90" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stopColor="#0071e3" />
+      <stop offset="100%" stopColor="#ff9f0a" />
+    </linearGradient>
+
+    <filter id="card-shadow" x="40" y="30" width="140" height="140" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" floodColor="#000000" floodOpacity="0.45" />
+      <feDropShadow dx="0" dy="4" stdDeviation="6" floodColor="#0071e3" floodOpacity="0.25" />
+    </filter>
+
+    <filter id="pill-shadow" x="-10%" y="-20%" width="120%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#000000" floodOpacity="0.20" />
+    </filter>
+  </defs>
+
+  <!-- Canvas Surface -->
+  <rect width="880" height="260" rx="20" fill="url(#bg-grad)" />
+  <rect x="0.5" y="0.5" width="879" height="259" rx="19.5" stroke="rgba(255, 255, 255, 0.10)" stroke-width="1" />
+
+  <!-- Aurora Glows -->
+  <circle cx="180" cy="90" r="220" fill="url(#glow-cyan)" />
+  <circle cx="720" cy="160" r="240" fill="url(#glow-purple)" />
+
+  <!-- App Icon Squircle (Left Hero) -->
+  <g filter="url(#card-shadow)">
+    <rect x="60" y="55" width="90" height="90" rx="22" fill="url(#logo-bg)" />
+    <rect x="60.75" y="55.75" width="88.5" height="88.5" rx="21.25" stroke="rgba(255, 255, 255, 0.35)" stroke-width="1.5" />
+
+    <!-- Back Sheet (Tilted) -->
+    <rect x="80" y="70" width="48" height="58" rx="7" transform="rotate(-6 105 100)" fill="url(#logo-sheet)" />
+    <!-- Front Sheet (Main) -->
+    <rect x="80" y="72" width="50" height="60" rx="7" fill="#ffffff" />
+
+    <!-- Ruled Sheet Lines -->
+    <rect x="88" y="82" width="34" height="2.5" rx="1.2" fill="#0071e3" />
+    <rect x="88" y="89" width="26" height="2" rx="1" fill="#8e8e93" />
+    <rect x="88" y="95" width="32" height="2" rx="1" fill="#c7c7cc" />
+    <rect x="88" y="101" width="20" height="2" rx="1" fill="#c7c7cc" />
+
+    <!-- Dynamic Flow Wave -->
+    <path d="M86 118 C96 110, 114 126, 126 114" stroke="url(#logo-wave)" stroke-width="3" stroke-linecap="round" fill="none" />
+  </g>
+
+  <!-- Typography -->
+  <g font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Segoe UI', sans-serif">
+    <!-- Title -->
+    <text x="175" y="94" font-size="40" font-weight="750" letter-spacing="-0.03em" fill="#ffffff">NoteFlow</text>
+
+    <!-- Version Pill -->
+    <g transform="translate(355, 68)">
+      <rect width="64" height="24" rx="12" fill="rgba(0, 113, 227, 0.25)" stroke="rgba(0, 113, 227, 0.6)" stroke-width="1" />
+      <text x="32" y="16.5" font-size="11.5" font-weight="650" fill="#2997ff" text-anchor="middle">v1.2.0</text>
+    </g>
+
+    <!-- Subtitle -->
+    <text x="175" y="126" font-size="16" font-weight="450" fill="#a1a1aa" letter-spacing="-0.01em">
+      Offline-first, keyboard-friendly desktop notes with Apple OS 27 Liquid Glass UI
+    </text>
+
+    <!-- Tech & Feature Pills -->
+    <!-- Pill 1: Tauri 2 + Rust -->
+    <g transform="translate(175, 155)">
+      <rect width="124" height="28" rx="8" fill="rgba(255, 255, 255, 0.06)" stroke="rgba(255, 255, 255, 0.14)" stroke-width="1" />
+      <text x="62" y="18" font-size="12" font-weight="550" fill="#f4f4f5" text-anchor="middle">🦀 Tauri 2 · Rust</text>
+    </g>
+
+    <!-- Pill 2: React 18 + TypeScript -->
+    <g transform="translate(309, 155)">
+      <rect width="144" height="28" rx="8" fill="rgba(255, 255, 255, 0.06)" stroke="rgba(255, 255, 255, 0.14)" stroke-width="1" />
+      <text x="72" y="18" font-size="12" font-weight="550" fill="#f4f4f5" text-anchor="middle">⚛️ React · TypeScript</text>
+    </g>
+
+    <!-- Pill 3: SQLite WAL -->
+    <g transform="translate(463, 155)">
+      <rect width="118" height="28" rx="8" fill="rgba(255, 255, 255, 0.06)" stroke="rgba(255, 255, 255, 0.14)" stroke-width="1" />
+      <text x="59" y="18" font-size="12" font-weight="550" fill="#f4f4f5" text-anchor="middle">🗄️ SQLite WAL</text>
+    </g>
+
+    <!-- Pill 4: 3D Tilt & Spotlights -->
+    <g transform="translate(591, 155)">
+      <rect width="138" height="28" rx="8" fill="rgba(255, 255, 255, 0.06)" stroke="rgba(255, 255, 255, 0.14)" stroke-width="1" />
+      <text x="69" y="18" font-size="12" font-weight="550" fill="#f4f4f5" text-anchor="middle">✨ 3D Tilt Physics</text>
+    </g>
+
+    <!-- Pill 5: 100% Offline -->
+    <g transform="translate(739, 155)">
+      <rect width="90" height="28" rx="8" fill="rgba(255, 255, 255, 0.06)" stroke="rgba(255, 255, 255, 0.14)" stroke-width="1" />
+      <text x="45" y="18" font-size="12" font-weight="550" fill="#34c759" text-anchor="middle">🔒 Offline</text>
+    </g>
+
+    <!-- Bottom Metric / Tagline -->
+    <text x="175" y="218" font-size="13" font-weight="400" fill="#71717a">
+      Designed for Linux (Wayland / GNOME) • Instant Local Search • Zero Telemetry
+    </text>
+  </g>
+</svg>

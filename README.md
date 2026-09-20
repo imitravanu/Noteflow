@@ -1,63 +1,160 @@
-# NoteFlow
+<p align="center">
+  <img src="assets/banner.svg" alt="NoteFlow Banner" width="100%">
+</p>
 
-Offline-first, keyboard-friendly notes for the Linux desktop (GNOME / Wayland).
+<p align="center">
+  <a href="https://github.com/imitravanu/Noteflow/releases/tag/v1.2.0"><img src="https://img.shields.io/badge/Release-v1.2.0-0071e3?style=flat-square" alt="Version"></a>
+  <a href="https://www.linux.org/"><img src="https://img.shields.io/badge/Platform-Linux%20(Wayland%20%2F%20GNOME)-23272e?style=flat-square&logo=linux" alt="Linux"></a>
+  <a href="https://tauri.app/"><img src="https://img.shields.io/badge/Tauri-v2.0-24c8db?style=flat-square&logo=tauri&logoColor=white" alt="Tauri"></a>
+  <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/Rust-Backend-dea584?style=flat-square&logo=rust&logoColor=white" alt="Rust"></a>
+  <a href="https://react.dev/"><img src="https://img.shields.io/badge/React-18-61dafb?style=flat-square&logo=react&logoColor=black" alt="React"></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.6-3178c6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript"></a>
+  <a href="https://www.sqlite.org/"><img src="https://img.shields.io/badge/SQLite-WAL%20Mode-003b57?style=flat-square&logo=sqlite" alt="SQLite"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-34c759?style=flat-square" alt="MIT License"></a>
+</p>
 
-Built with **Tauri 2 · Rust · React · TypeScript · Vite**. Notes live in a local
-**SQLite** database (WAL mode) accessed through Rust — nothing leaves the machine.
+<p align="center">
+  <b>NoteFlow</b> is a fast, offline-first, keyboard-centric notes app for the Linux desktop.<br>
+  Engineered with <b>Tauri 2 · Rust · React · TypeScript · SQLite</b>, featuring an <b>Apple OS 27 Liquid Glass</b> design system, hardware-accelerated 3D perspective tilt, and dynamic cursor-tracking specular lighting.
+</p>
 
-## Development
+---
 
-```bash
-npm install            # frontend dependencies
-npm run dev            # vite dev server
-npx tauri dev          # run the desktop app with hot reload
+## ✨ Features at a Glance
 
-npm run typecheck      # tsc --noEmit
-npm test               # vitest unit tests
-cd src-tauri && cargo test   # Rust integration tests (real SQLite on disk)
+### 🧲 Living 3D Perspective Tilt & Specular Spotlights
+- **Dynamic 3D Tilt:** Hardware-accelerated perspective tilt (`perspective: 1000px`) that pitches and rolls cards with mouse movement and smoothly springs back on mouse leave.
+- **Dual-Layer Cursor Spotlight:** An interactive optical spotlight (sharp crystal specular core + chromatic halo) tracks the cursor across frosted glass in both **Light** and **Dark** modes.
+- **Tactile Element Micro-Interactions:** Action pills, checklist capsules, tag chips, selection rings, and titles elevate and react organically when hovered.
 
-npx tauri build        # release build (.deb and .AppImage bundles)
+### 💎 Apple OS 27 Liquid Glass Design System
+- **Continuous Squircle Geometry:** Smooth continuous curvature with macOS-inspired precision radii.
+- **Refractive Frosted Blur:** Deep multi-layer backdrop filters (`blur(28px) saturate(190%)`) with specular rim lighting and ambient luminous card glows.
+- **Luminous Jewel Tints:** 8 vibrant color personalities (Default, Crimson Red, Amber Tangerine, Sun Gold, Emerald Apple Green, Cyan Ocean, Sapphire Blue, Electric Violet).
+- **Adaptive Canvas Theme:** Seamless Light, Dark, and System theme synchronizations.
+
+### ⚡ Offline-First SQLite Engine (Zero Telemetry)
+- **Local SQLite Database (WAL Mode):** Reads and writes execute at sub-millisecond local speed via Rust and `rusqlite`.
+- **Debounced Safe Autosave:** Real-time autosave indicator with zero data loss. `Ctrl+S` forces immediate SQLite flush.
+- **100% Private:** Zero analytics, zero cloud lock-in, zero telemetry. Your notes stay exclusively on your hardware at `~/.local/share/com.noteflow.app/noteflow.db`.
+
+### 🔍 Instant Spotlight Search (`Ctrl+K`)
+- Substring and keyword search across title, body content, checklist items, and tags with real-time match highlighting.
+
+### 🛡️ Safety, Multi-Select & Undo
+- **Safety Stack:** Full undo stack (`Ctrl+Z`) and undo snackbar notifications.
+- **Soft Trash Recovery:** Deleted notes move to Trash with 1-click restore or permanent delete confirmation.
+- **Batch Selection:** Multi-select notes via `Shift+Click`, `Ctrl+Click`, or `Ctrl+A` for bulk tagging, coloring, archiving, or deletion.
+- **Export & Backup:** Export individual notes as clean Markdown (`.md`) or export the entire workspace as JSON.
+
+---
+
+## ⌨️ Keyboard Shortcuts
+
+| Shortcut | Action | Scope |
+| :--- | :--- | :--- |
+| <kbd>Ctrl</kbd> + <kbd>N</kbd> | Create new note | Global |
+| <kbd>Ctrl</kbd> + <kbd>K</kbd> | Focus instant search | Global |
+| <kbd>Ctrl</kbd> + <kbd>S</kbd> | Save / flush editor immediately | Editor |
+| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> | Toggle Pin status | Editor / Selection |
+| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F</kbd> | Toggle Favorite (Star) | Editor / Selection |
+| <kbd>Ctrl</kbd> + <kbd>Z</kbd> | Undo last action | Global |
+| <kbd>Ctrl</kbd> + <kbd>A</kbd> | Select all notes | Grid |
+| <kbd>Delete</kbd> | Move selected note(s) to Trash | Grid |
+| <kbd>Esc</kbd> | Close Editor / Clear search / Exit selection | Modal / Global |
+| <kbd>?</kbd> or <kbd>Ctrl</kbd> + <kbd>/</kbd> | Open Keyboard Shortcuts Cheat Sheet | Global |
+
+---
+
+## 🏗️ Architecture
+
 ```
-
-## Architecture
-
-```
-React UI  →  Tauri commands  →  Rust services  →  SQLite (WAL)
+┌────────────────────────────────────────────────────────┐
+│               React 18 + TypeScript UI                 │
+│      Zustand Stores · Apple OS 27 CSS Glass System     │
+└──────────────────────────┬─────────────────────────────┘
+                           │ Typed Tauri IPC Invoke
+                           ▼
+┌────────────────────────────────────────────────────────┐
+│                   Tauri 2 / Rust Core                  │
+│       Command Handlers · Validation · Business Logic   │
+└──────────────────────────┬─────────────────────────────┘
+                           │ rusqlite Connection
+                           ▼
+┌────────────────────────────────────────────────────────┐
+│                  Local SQLite Database                 │
+│         WAL Journaling · Foreign Keys · Migrations     │
+│         Path: ~/.local/share/com.noteflow.app          │
+└────────────────────────────────────────────────────────┘
 ```
 
 ```
 src/                      React frontend
-  components/             Sidebar, TopBar, NoteCard, NoteEditor, ShortcutsModal, …
+  components/             NoteCard, NoteEditor, TopBar, Sidebar, ShortcutsModal, SelectionBar…
   pages/                  NotesPage, SettingsPage
   hooks/                  useTheme, useKeyboardShortcuts, useAppInit
-  store/                  zustand stores (uiStore, notesStore)
-  services/api.ts         typed invoke wrappers
-  types/                  shared Note/Tag models
-  styles/                 design tokens (global.css) + components.css
-  utils/                  highlight, undo stack, formatting, markdown exporter (unit-tested)
+  store/                  Zustand state management (uiStore, notesStore)
+  services/api.ts         Typed Tauri command invocations
+  styles/                 Apple OS 27 design tokens (global.css) & components.css
+  utils/                  Highlighting, undo stack, formatting, markdown exporter
 
 src-tauri/src/            Rust backend
-  commands/               thin #[tauri::command] handlers
-  services/               note/tag/settings business logic
-  database/               connection + migrations (user_version based)
-  models/                 Note, Tag, ChecklistItem, patches
-  error/                  AppError → user-facing messages
+  commands/               Tauri command interfaces (notes, tags, settings)
+  services/               Note & tag query operations and business logic
+  database/               Connection management (WAL mode) & SQL migrations
+  models/                 Note, Tag, ChecklistItem structs & patches
+  error/                  Error mapping to user-friendly messages
 ```
 
-## Features
+---
 
-- **Rich Notes**: Title, body, colors, checklist items, tags, pinning, favorites, archiving, and trash.
-- **Instant Search**: Local multi-field search (title, body, checklist, tag names) with match highlighting (`Ctrl+K`).
-- **Autosave with Peace of Mind**: Debounced autosave with live status indicator; `Ctrl+S` forces immediate persistence.
-- **Export & Backup**: Export individual notes as clean Markdown (`.md`) or export the entire workspace as a portable JSON backup.
-- **Editor Statistics**: Live word count and character count in the editor footer.
-- **Keyboard-First Workflow**: Comprehensive shortcut support (`Ctrl+N`, `Ctrl+K`, `Ctrl+S`, `Ctrl+Shift+P`, `Ctrl+Shift+F`, `Ctrl+A`, `Ctrl+Z`, `Delete`, `Esc`) plus a built-in shortcuts cheat sheet modal (`?` or `Ctrl+/`).
-- **Safety & Undo**: Undo snackbar and `Ctrl+Z` stack for undoing actions, plus trash recovery with permanent deletion confirmation.
-- **Multi-Selection**: Select multiple notes with click, `Ctrl+click`, `Shift+range`, or `Ctrl+A` for batch actions.
-- **Appearance & Privacy**: Light, Dark, and System theme support with zero telemetry and 100% offline local SQLite storage (WAL mode).
-- **Data Location**: `~/.local/share/com.noteflow.app/noteflow.db`
+## 🚀 Getting Started
 
-## License
+### Prerequisites
+- Node.js 18+ and npm
+- Rust 1.80+ (`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`)
+- Linux build dependencies (Debian/Ubuntu):
+  ```bash
+  sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+  ```
 
-[MIT License](LICENSE)
+### Development
+```bash
+# Clone the repository
+git clone https://github.com/imitravanu/Noteflow.git
+cd Noteflow
 
+# Install frontend dependencies
+npm install
+
+# Run Vite development server
+npm run dev
+
+# Run desktop application with live reload
+npm run tauri dev
+```
+
+### Quality & Tests
+```bash
+# Run TypeScript validation
+npm run typecheck
+
+# Run Vitest frontend test suite
+npm test
+
+# Run Rust SQLite integration tests
+cd src-tauri && cargo test
+```
+
+### Production Build
+```bash
+# Build desktop executable and packages (.deb and .AppImage)
+npm run build:app
+```
+Binaries are output to `src-tauri/target/release/`.
+
+---
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE) — Copyright (c) 2026 Mitravanu.
