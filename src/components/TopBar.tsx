@@ -77,7 +77,7 @@ export function TopBar() {
             }
           }}
         />
-        {query ? (
+        {query && (
           <button
             type="button"
             className="icon-btn icon-btn-sm topbar-clear-search"
@@ -86,11 +86,6 @@ export function TopBar() {
           >
             <X size={13} />
           </button>
-        ) : (
-          <div className="topbar-kbd-group" aria-hidden="true">
-            <kbd className="topbar-kbd">Ctrl</kbd>
-            <kbd className="topbar-kbd">K</kbd>
-          </div>
         )}
       </div>
 
