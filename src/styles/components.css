@@ -598,6 +598,7 @@
   --card-bg: var(--liquid-glass-surface);
   --card-border: var(--liquid-border);
   --card-accent: var(--accent);
+  --card-glow: 0 0 0 transparent;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -610,7 +611,7 @@
   backdrop-filter: blur(24px) saturate(190%);
   border: 1px solid var(--card-border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--specular-rim-card), var(--shadow-sm);
+  box-shadow: var(--specular-rim-card), var(--shadow-sm), var(--card-glow);
   cursor: pointer;
   outline: none;
   overflow: visible;
@@ -621,7 +622,7 @@
 }
 
 .note-card:hover {
-  box-shadow: var(--specular-rim-card), var(--shadow-md);
+  box-shadow: var(--specular-rim-card), var(--shadow-md), var(--card-glow);
   transform: translateY(-4px) scale(1.008);
   border-color: var(--liquid-border-hover);
   z-index: 5;
@@ -639,88 +640,104 @@
   box-shadow: var(--focus-ring), var(--shadow-md);
 }
 
-/* Apple OS 27 Luminous Liquid Glass Tints (Light) */
+/* Apple OS 27 Luminous Liquid Glass Tints (Light) — Rich & Vibrant */
 [data-theme="light"] .note-card.color-default {
-  --card-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.88) 0%, rgba(255, 255, 255, 0.58) 100%);
+  --card-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.90) 0%, rgba(255, 255, 255, 0.65) 100%);
   --card-border: rgba(255, 255, 255, 0.90);
   --card-accent: #0071e3;
+  --card-glow: 0 2px 8px rgba(0, 0, 0, 0.03);
 }
 [data-theme="light"] .note-card.color-red {
-  --card-bg: linear-gradient(145deg, rgba(255, 236, 239, 0.88) 0%, rgba(255, 222, 226, 0.62) 100%);
-  --card-border: rgba(255, 90, 110, 0.36);
-  --card-accent: #e05260;
+  --card-bg: linear-gradient(145deg, rgba(255, 195, 206, 0.95) 0%, rgba(255, 160, 178, 0.88) 100%);
+  --card-border: rgba(235, 60, 85, 0.55);
+  --card-accent: #d92038;
+  --card-glow: 0 8px 24px rgba(235, 60, 85, 0.18);
 }
 [data-theme="light"] .note-card.color-orange {
-  --card-bg: linear-gradient(145deg, rgba(255, 244, 232, 0.88) 0%, rgba(255, 232, 212, 0.62) 100%);
-  --card-border: rgba(255, 149, 0, 0.36);
-  --card-accent: #e67e22;
+  --card-bg: linear-gradient(145deg, rgba(255, 218, 185, 0.95) 0%, rgba(255, 185, 138, 0.88) 100%);
+  --card-border: rgba(240, 120, 20, 0.55);
+  --card-accent: #c95500;
+  --card-glow: 0 8px 24px rgba(240, 120, 20, 0.18);
 }
 [data-theme="light"] .note-card.color-yellow {
-  --card-bg: linear-gradient(145deg, rgba(255, 252, 232, 0.88) 0%, rgba(255, 244, 208, 0.62) 100%);
-  --card-border: rgba(255, 204, 0, 0.38);
-  --card-accent: #d4a017;
+  --card-bg: linear-gradient(145deg, rgba(255, 244, 175, 0.95) 0%, rgba(255, 222, 125, 0.88) 100%);
+  --card-border: rgba(215, 160, 0, 0.58);
+  --card-accent: #aa7c00;
+  --card-glow: 0 8px 24px rgba(215, 160, 0, 0.18);
 }
 [data-theme="light"] .note-card.color-green {
-  --card-bg: linear-gradient(145deg, rgba(236, 252, 241, 0.88) 0%, rgba(216, 248, 226, 0.62) 100%);
-  --card-border: rgba(52, 199, 89, 0.36);
-  --card-accent: #34c759;
+  --card-bg: linear-gradient(145deg, rgba(198, 246, 214, 0.95) 0%, rgba(155, 234, 182, 0.88) 100%);
+  --card-border: rgba(35, 180, 80, 0.55);
+  --card-accent: #198038;
+  --card-glow: 0 8px 24px rgba(35, 180, 80, 0.18);
 }
 [data-theme="light"] .note-card.color-teal {
-  --card-bg: linear-gradient(145deg, rgba(234, 251, 253, 0.88) 0%, rgba(212, 246, 249, 0.62) 100%);
-  --card-border: rgba(48, 209, 88, 0.36);
-  --card-accent: #17a2b8;
+  --card-bg: linear-gradient(145deg, rgba(192, 244, 250, 0.95) 0%, rgba(145, 230, 240, 0.88) 100%);
+  --card-border: rgba(15, 170, 190, 0.55);
+  --card-accent: #007d8a;
+  --card-glow: 0 8px 24px rgba(15, 170, 190, 0.18);
 }
 [data-theme="light"] .note-card.color-blue {
-  --card-bg: linear-gradient(145deg, rgba(236, 246, 255, 0.88) 0%, rgba(216, 236, 255, 0.62) 100%);
-  --card-border: rgba(0, 113, 227, 0.36);
-  --card-accent: #0071e3;
+  --card-bg: linear-gradient(145deg, rgba(205, 230, 255, 0.95) 0%, rgba(165, 210, 255, 0.88) 100%);
+  --card-border: rgba(0, 122, 255, 0.55);
+  --card-accent: #0062cc;
+  --card-glow: 0 8px 24px rgba(0, 122, 255, 0.18);
 }
 [data-theme="light"] .note-card.color-purple {
-  --card-bg: linear-gradient(145deg, rgba(248, 240, 255, 0.88) 0%, rgba(236, 222, 255, 0.62) 100%);
-  --card-border: rgba(175, 82, 222, 0.36);
-  --card-accent: #8a50e3;
+  --card-bg: linear-gradient(145deg, rgba(235, 212, 255, 0.95) 0%, rgba(210, 175, 255, 0.88) 100%);
+  --card-border: rgba(160, 70, 235, 0.55);
+  --card-accent: #7a22d6;
+  --card-glow: 0 8px 24px rgba(160, 70, 235, 0.18);
 }
 
-/* Apple OS 27 Luminous Liquid Glass Tints (Dark) */
+/* Apple OS 27 Luminous Liquid Glass Tints (Dark) — Vivid Jewel Glass */
 [data-theme="dark"] .note-card.color-default {
-  --card-bg: linear-gradient(145deg, rgba(32, 35, 48, 0.82) 0%, rgba(18, 20, 28, 0.70) 100%);
-  --card-border: rgba(255, 255, 255, 0.14);
+  --card-bg: linear-gradient(145deg, rgba(34, 38, 52, 0.86) 0%, rgba(20, 22, 32, 0.78) 100%);
+  --card-border: rgba(255, 255, 255, 0.16);
   --card-accent: #2997ff;
+  --card-glow: 0 0 0 transparent;
 }
 [data-theme="dark"] .note-card.color-red {
-  --card-bg: linear-gradient(145deg, rgba(54, 24, 30, 0.82) 0%, rgba(32, 14, 18, 0.70) 100%);
-  --card-border: rgba(255, 69, 58, 0.38);
-  --card-accent: #ff6b7b;
+  --card-bg: linear-gradient(145deg, rgba(105, 24, 38, 0.92) 0%, rgba(62, 14, 24, 0.86) 100%);
+  --card-border: rgba(255, 75, 95, 0.60);
+  --card-accent: #ff526a;
+  --card-glow: 0 8px 28px rgba(255, 60, 85, 0.32);
 }
 [data-theme="dark"] .note-card.color-orange {
-  --card-bg: linear-gradient(145deg, rgba(54, 30, 18, 0.82) 0%, rgba(32, 16, 10, 0.70) 100%);
-  --card-border: rgba(255, 159, 10, 0.38);
-  --card-accent: #ff9f43;
+  --card-bg: linear-gradient(145deg, rgba(100, 44, 14, 0.92) 0%, rgba(58, 24, 8, 0.86) 100%);
+  --card-border: rgba(255, 155, 40, 0.60);
+  --card-accent: #ffa03b;
+  --card-glow: 0 8px 28px rgba(255, 140, 30, 0.32);
 }
 [data-theme="dark"] .note-card.color-yellow {
-  --card-bg: linear-gradient(145deg, rgba(50, 42, 18, 0.82) 0%, rgba(30, 24, 10, 0.70) 100%);
-  --card-border: rgba(255, 214, 10, 0.38);
-  --card-accent: #ffd32a;
+  --card-bg: linear-gradient(145deg, rgba(92, 70, 14, 0.92) 0%, rgba(54, 40, 8, 0.86) 100%);
+  --card-border: rgba(255, 215, 35, 0.62);
+  --card-accent: #ffd83b;
+  --card-glow: 0 8px 28px rgba(255, 210, 30, 0.30);
 }
 [data-theme="dark"] .note-card.color-green {
-  --card-bg: linear-gradient(145deg, rgba(22, 48, 30, 0.82) 0%, rgba(12, 28, 18, 0.70) 100%);
-  --card-border: rgba(52, 199, 89, 0.38);
-  --card-accent: #34c759;
+  --card-bg: linear-gradient(145deg, rgba(22, 84, 42, 0.92) 0%, rgba(12, 48, 24, 0.86) 100%);
+  --card-border: rgba(52, 215, 105, 0.60);
+  --card-accent: #3ade6e;
+  --card-glow: 0 8px 28px rgba(50, 210, 100, 0.30);
 }
 [data-theme="dark"] .note-card.color-teal {
-  --card-bg: linear-gradient(145deg, rgba(20, 46, 48, 0.82) 0%, rgba(10, 26, 28, 0.70) 100%);
-  --card-border: rgba(48, 209, 88, 0.38);
-  --card-accent: #30d158;
+  --card-bg: linear-gradient(145deg, rgba(18, 78, 88, 0.92) 0%, rgba(10, 46, 54, 0.86) 100%);
+  --card-border: rgba(45, 215, 230, 0.60);
+  --card-accent: #2dd8e4;
+  --card-glow: 0 8px 28px rgba(40, 210, 225, 0.30);
 }
 [data-theme="dark"] .note-card.color-blue {
-  --card-bg: linear-gradient(145deg, rgba(22, 40, 68, 0.82) 0%, rgba(12, 22, 40, 0.70) 100%);
-  --card-border: rgba(41, 151, 255, 0.38);
-  --card-accent: #2997ff;
+  --card-bg: linear-gradient(145deg, rgba(24, 62, 120, 0.92) 0%, rgba(14, 35, 74, 0.86) 100%);
+  --card-border: rgba(65, 165, 255, 0.60);
+  --card-accent: #47a8ff;
+  --card-glow: 0 8px 28px rgba(60, 160, 255, 0.32);
 }
 [data-theme="dark"] .note-card.color-purple {
-  --card-bg: linear-gradient(145deg, rgba(44, 26, 62, 0.82) 0%, rgba(26, 14, 38, 0.70) 100%);
-  --card-border: rgba(191, 90, 242, 0.38);
-  --card-accent: #bf5af2;
+  --card-bg: linear-gradient(145deg, rgba(76, 30, 115, 0.92) 0%, rgba(44, 16, 70, 0.86) 100%);
+  --card-border: rgba(205, 105, 255, 0.60);
+  --card-accent: #d06cff;
+  --card-glow: 0 8px 28px rgba(200, 100, 255, 0.32);
 }
 
 .note-card-check {
@@ -1001,24 +1018,24 @@
 }
 
 /* Editorial Liquid Glass Tint Palettes (Light) */
-[data-theme="light"] .editor.color-default { --editor-bg: rgba(255, 255, 255, 0.94); --editor-accent: #0071e3; }
-[data-theme="light"] .editor.color-red    { --editor-bg: rgba(255, 246, 247, 0.94); --editor-accent: #e05260; }
-[data-theme="light"] .editor.color-orange { --editor-bg: rgba(255, 249, 242, 0.94); --editor-accent: #e67e22; }
-[data-theme="light"] .editor.color-yellow { --editor-bg: rgba(255, 254, 242, 0.94); --editor-accent: #d4a017; }
-[data-theme="light"] .editor.color-green  { --editor-bg: rgba(244, 254, 246, 0.94); --editor-accent: #34c759; }
-[data-theme="light"] .editor.color-teal   { --editor-bg: rgba(242, 253, 254, 0.94); --editor-accent: #17a2b8; }
-[data-theme="light"] .editor.color-blue   { --editor-bg: rgba(244, 250, 255, 0.94); --editor-accent: #0071e3; }
-[data-theme="light"] .editor.color-purple { --editor-bg: rgba(250, 246, 255, 0.94); --editor-accent: #8a50e3; }
+[data-theme="light"] .editor.color-default { --editor-bg: rgba(255, 255, 255, 0.96); --editor-accent: #0071e3; }
+[data-theme="light"] .editor.color-red    { --editor-bg: rgba(255, 222, 228, 0.96); --editor-accent: #d92038; }
+[data-theme="light"] .editor.color-orange { --editor-bg: rgba(255, 230, 212, 0.96); --editor-accent: #c95500; }
+[data-theme="light"] .editor.color-yellow { --editor-bg: rgba(255, 246, 202, 0.96); --editor-accent: #aa7c00; }
+[data-theme="light"] .editor.color-green  { --editor-bg: rgba(222, 250, 232, 0.96); --editor-accent: #198038; }
+[data-theme="light"] .editor.color-teal   { --editor-bg: rgba(216, 248, 252, 0.96); --editor-accent: #007d8a; }
+[data-theme="light"] .editor.color-blue   { --editor-bg: rgba(222, 238, 255, 0.96); --editor-accent: #0062cc; }
+[data-theme="light"] .editor.color-purple { --editor-bg: rgba(242, 228, 255, 0.96); --editor-accent: #7a22d6; }
 
 /* Editorial Liquid Glass Tint Palettes (Dark) */
-[data-theme="dark"] .editor.color-default { --editor-bg: rgba(28, 30, 36, 0.92); --editor-accent: #2997ff; }
-[data-theme="dark"] .editor.color-red    { --editor-bg: rgba(38, 22, 26, 0.92); --editor-accent: #ff6b7b; }
-[data-theme="dark"] .editor.color-orange { --editor-bg: rgba(38, 24, 18, 0.92); --editor-accent: #ff9f43; }
-[data-theme="dark"] .editor.color-yellow { --editor-bg: rgba(34, 30, 18, 0.92); --editor-accent: #ffd32a; }
-[data-theme="dark"] .editor.color-green  { --editor-bg: rgba(18, 34, 22, 0.92); --editor-accent: #34c759; }
-[data-theme="dark"] .editor.color-teal   { --editor-bg: rgba(16, 32, 34, 0.92); --editor-accent: #30d158; }
-[data-theme="dark"] .editor.color-blue   { --editor-bg: rgba(18, 28, 44, 0.92); --editor-accent: #2997ff; }
-[data-theme="dark"] .editor.color-purple { --editor-bg: rgba(30, 22, 42, 0.92); --editor-accent: #bf5af2; }
+[data-theme="dark"] .editor.color-default { --editor-bg: rgba(28, 30, 36, 0.94); --editor-accent: #2997ff; }
+[data-theme="dark"] .editor.color-red    { --editor-bg: rgba(68, 16, 26, 0.94); --editor-accent: #ff526a; }
+[data-theme="dark"] .editor.color-orange { --editor-bg: rgba(65, 28, 10, 0.94); --editor-accent: #ffa03b; }
+[data-theme="dark"] .editor.color-yellow { --editor-bg: rgba(60, 45, 10, 0.94); --editor-accent: #ffd83b; }
+[data-theme="dark"] .editor.color-green  { --editor-bg: rgba(14, 54, 28, 0.94); --editor-accent: #3ade6e; }
+[data-theme="dark"] .editor.color-teal   { --editor-bg: rgba(12, 50, 58, 0.94); --editor-accent: #2dd8e4; }
+[data-theme="dark"] .editor.color-blue   { --editor-bg: rgba(16, 40, 78, 0.94); --editor-accent: #47a8ff; }
+[data-theme="dark"] .editor.color-purple { --editor-bg: rgba(50, 20, 76, 0.94); --editor-accent: #d06cff; }
 
 /* Header & Toolbar */
 .editor-header {
@@ -1525,35 +1542,35 @@
   background: transparent;
 }
 
-[data-theme="light"] .color-red    { background: #fdf5f5; border-color: #f8d5d8; }
-[data-theme="light"] .color-red::before { background: #e05260; }
-[data-theme="light"] .color-orange { background: #fdf8f3; border-color: #f9e2cf; }
-[data-theme="light"] .color-orange::before { background: #e67e22; }
-[data-theme="light"] .color-yellow { background: #fdfcf2; border-color: #f6eed0; }
-[data-theme="light"] .color-yellow::before { background: #d4a017; }
-[data-theme="light"] .color-green  { background: #f4f9f5; border-color: #d4edd9; }
-[data-theme="light"] .color-green::before { background: #34c759; }
-[data-theme="light"] .color-teal   { background: #f3f9f9; border-color: #d0eded; }
-[data-theme="light"] .color-teal::before { background: #17a2b8; }
-[data-theme="light"] .color-blue   { background: #f4f8fe; border-color: #d2e3fc; }
-[data-theme="light"] .color-blue::before { background: #0071e3; }
-[data-theme="light"] .color-purple { background: #f9f5fd; border-color: #e9d9fb; }
-[data-theme="light"] .color-purple::before { background: #8a50e3; }
+[data-theme="light"] .color-red    { background: #ffe0e6; border-color: rgba(235, 60, 85, 0.45); }
+[data-theme="light"] .color-red::before { background: #d92038; }
+[data-theme="light"] .color-orange { background: #ffebd8; border-color: rgba(240, 120, 20, 0.45); }
+[data-theme="light"] .color-orange::before { background: #c95500; }
+[data-theme="light"] .color-yellow { background: #fff4ca; border-color: rgba(215, 160, 0, 0.45); }
+[data-theme="light"] .color-yellow::before { background: #aa7c00; }
+[data-theme="light"] .color-green  { background: #dbfae5; border-color: rgba(35, 180, 80, 0.45); }
+[data-theme="light"] .color-green::before { background: #198038; }
+[data-theme="light"] .color-teal   { background: #d4f7fa; border-color: rgba(15, 170, 190, 0.45); }
+[data-theme="light"] .color-teal::before { background: #007d8a; }
+[data-theme="light"] .color-blue   { background: #d8ecff; border-color: rgba(0, 122, 255, 0.45); }
+[data-theme="light"] .color-blue::before { background: #0062cc; }
+[data-theme="light"] .color-purple { background: #eedcff; border-color: rgba(160, 70, 235, 0.45); }
+[data-theme="light"] .color-purple::before { background: #7a22d6; }
 
-[data-theme="dark"] .color-red    { background: #26181b; border-color: rgba(255, 107, 123, 0.4); }
-[data-theme="dark"] .color-red::before { background: #ff6b7b; }
-[data-theme="dark"] .color-orange { background: #261a13; border-color: rgba(255, 159, 67, 0.4); }
-[data-theme="dark"] .color-orange::before { background: #ff9f43; }
-[data-theme="dark"] .color-yellow { background: #242012; border-color: rgba(255, 211, 42, 0.4); }
-[data-theme="dark"] .color-yellow::before { background: #ffd32a; }
-[data-theme="dark"] .color-green  { background: #15241a; border-color: rgba(52, 199, 89, 0.4); }
-[data-theme="dark"] .color-green::before { background: #34c759; }
-[data-theme="dark"] .color-teal   { background: #132224; border-color: rgba(48, 209, 88, 0.4); }
-[data-theme="dark"] .color-teal::before { background: #30d158; }
-[data-theme="dark"] .color-blue   { background: #14202e; border-color: rgba(41, 151, 255, 0.4); }
-[data-theme="dark"] .color-blue::before { background: #2997ff; }
-[data-theme="dark"] .color-purple { background: #20172b; border-color: rgba(191, 90, 242, 0.4); }
-[data-theme="dark"] .color-purple::before { background: #bf5af2; }
+[data-theme="dark"] .color-red    { background: #5c1822; border-color: rgba(255, 75, 95, 0.55); }
+[data-theme="dark"] .color-red::before { background: #ff526a; }
+[data-theme="dark"] .color-orange { background: #54250e; border-color: rgba(255, 155, 40, 0.55); }
+[data-theme="dark"] .color-orange::before { background: #ffa03b; }
+[data-theme="dark"] .color-yellow { background: #4e3c0c; border-color: rgba(255, 215, 35, 0.55); }
+[data-theme="dark"] .color-yellow::before { background: #ffd83b; }
+[data-theme="dark"] .color-green  { background: #154524; border-color: rgba(52, 215, 105, 0.55); }
+[data-theme="dark"] .color-green::before { background: #3ade6e; }
+[data-theme="dark"] .color-teal   { background: #124048; border-color: rgba(45, 215, 230, 0.55); }
+[data-theme="dark"] .color-teal::before { background: #2dd8e4; }
+[data-theme="dark"] .color-blue   { background: #163660; border-color: rgba(65, 165, 255, 0.55); }
+[data-theme="dark"] .color-blue::before { background: #47a8ff; }
+[data-theme="dark"] .color-purple { background: #421c60; border-color: rgba(205, 105, 255, 0.55); }
+[data-theme="dark"] .color-purple::before { background: #d06cff; }
 
 .tag-picker {
   min-width: 230px;
