@@ -40,7 +40,7 @@
   -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
   backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
   border-bottom: 1px solid var(--chrome-border);
-  box-shadow: var(--specular-rim);
+  box-shadow: var(--specular-rim), 0 4px 20px rgba(0, 0, 0, 0.04);
   position: relative;
   z-index: 30;
 }
@@ -526,7 +526,7 @@
 /* ---------- Note card (Apple OS 27 Liquid Glass Index Card) ---------- */
 .note-card {
   --card-bg: var(--liquid-glass-surface);
-  --card-border: var(--border);
+  --card-border: var(--liquid-border);
   --card-accent: var(--accent);
   position: relative;
   display: flex;
@@ -536,28 +536,28 @@
   box-sizing: border-box;
   padding: 16px 18px 14px;
   background: var(--card-bg);
-  -webkit-backdrop-filter: blur(18px) saturate(180%);
-  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  backdrop-filter: blur(24px) saturate(190%);
   border: 1px solid var(--card-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--specular-rim-card), var(--shadow-sm);
   cursor: pointer;
   outline: none;
   overflow: visible;
-  transition: box-shadow 0.22s var(--spring-easing),
-    transform 0.22s var(--spring-easing),
+  transition: box-shadow 0.24s var(--spring-easing),
+    transform 0.24s var(--spring-easing),
     border-color 0.18s ease;
 }
 
 .note-card:hover {
   box-shadow: var(--specular-rim-card), var(--shadow-md);
-  transform: translateY(-3px);
-  border-color: var(--card-border);
+  transform: translateY(-4px) scale(1.008);
+  border-color: var(--liquid-border-hover);
   z-index: 5;
 }
 .note-card.selected {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent), var(--specular-rim-card), var(--shadow-md);
+  box-shadow: 0 0 0 2.5px var(--accent), var(--specular-rim-card), var(--shadow-md);
   z-index: 4;
 }
 .note-card:focus {
@@ -568,87 +568,87 @@
   box-shadow: var(--focus-ring), var(--shadow-md);
 }
 
-/* Apple OS 27 Organic Liquid Glass Tints (Light) */
+/* Apple OS 27 Luminous Liquid Glass Tints (Light) */
 [data-theme="light"] .note-card.color-default {
-  --card-bg: rgba(255, 255, 255, 0.78);
-  --card-border: rgba(0, 0, 0, 0.07);
+  --card-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.88) 0%, rgba(255, 255, 255, 0.58) 100%);
+  --card-border: rgba(255, 255, 255, 0.90);
   --card-accent: #0071e3;
 }
 [data-theme="light"] .note-card.color-red {
-  --card-bg: rgba(255, 243, 244, 0.82);
-  --card-border: rgba(255, 59, 48, 0.20);
+  --card-bg: linear-gradient(145deg, rgba(255, 236, 239, 0.88) 0%, rgba(255, 222, 226, 0.62) 100%);
+  --card-border: rgba(255, 90, 110, 0.36);
   --card-accent: #e05260;
 }
 [data-theme="light"] .note-card.color-orange {
-  --card-bg: rgba(255, 247, 238, 0.82);
-  --card-border: rgba(255, 149, 0, 0.20);
+  --card-bg: linear-gradient(145deg, rgba(255, 244, 232, 0.88) 0%, rgba(255, 232, 212, 0.62) 100%);
+  --card-border: rgba(255, 149, 0, 0.36);
   --card-accent: #e67e22;
 }
 [data-theme="light"] .note-card.color-yellow {
-  --card-bg: rgba(255, 253, 238, 0.82);
-  --card-border: rgba(255, 204, 0, 0.22);
+  --card-bg: linear-gradient(145deg, rgba(255, 252, 232, 0.88) 0%, rgba(255, 244, 208, 0.62) 100%);
+  --card-border: rgba(255, 204, 0, 0.38);
   --card-accent: #d4a017;
 }
 [data-theme="light"] .note-card.color-green {
-  --card-bg: rgba(242, 253, 244, 0.82);
-  --card-border: rgba(52, 199, 89, 0.20);
+  --card-bg: linear-gradient(145deg, rgba(236, 252, 241, 0.88) 0%, rgba(216, 248, 226, 0.62) 100%);
+  --card-border: rgba(52, 199, 89, 0.36);
   --card-accent: #34c759;
 }
 [data-theme="light"] .note-card.color-teal {
-  --card-bg: rgba(240, 252, 253, 0.82);
-  --card-border: rgba(48, 209, 88, 0.20);
+  --card-bg: linear-gradient(145deg, rgba(234, 251, 253, 0.88) 0%, rgba(212, 246, 249, 0.62) 100%);
+  --card-border: rgba(48, 209, 88, 0.36);
   --card-accent: #17a2b8;
 }
 [data-theme="light"] .note-card.color-blue {
-  --card-bg: rgba(242, 248, 255, 0.82);
-  --card-border: rgba(0, 113, 227, 0.20);
+  --card-bg: linear-gradient(145deg, rgba(236, 246, 255, 0.88) 0%, rgba(216, 236, 255, 0.62) 100%);
+  --card-border: rgba(0, 113, 227, 0.36);
   --card-accent: #0071e3;
 }
 [data-theme="light"] .note-card.color-purple {
-  --card-bg: rgba(248, 244, 255, 0.82);
-  --card-border: rgba(175, 82, 222, 0.20);
+  --card-bg: linear-gradient(145deg, rgba(248, 240, 255, 0.88) 0%, rgba(236, 222, 255, 0.62) 100%);
+  --card-border: rgba(175, 82, 222, 0.36);
   --card-accent: #8a50e3;
 }
 
-/* Apple OS 27 Organic Liquid Glass Tints (Dark) */
+/* Apple OS 27 Luminous Liquid Glass Tints (Dark) */
 [data-theme="dark"] .note-card.color-default {
-  --card-bg: rgba(26, 28, 34, 0.74);
-  --card-border: rgba(255, 255, 255, 0.09);
+  --card-bg: linear-gradient(145deg, rgba(32, 35, 48, 0.82) 0%, rgba(18, 20, 28, 0.70) 100%);
+  --card-border: rgba(255, 255, 255, 0.14);
   --card-accent: #2997ff;
 }
 [data-theme="dark"] .note-card.color-red {
-  --card-bg: rgba(44, 22, 26, 0.75);
-  --card-border: rgba(255, 69, 58, 0.28);
+  --card-bg: linear-gradient(145deg, rgba(54, 24, 30, 0.82) 0%, rgba(32, 14, 18, 0.70) 100%);
+  --card-border: rgba(255, 69, 58, 0.38);
   --card-accent: #ff6b7b;
 }
 [data-theme="dark"] .note-card.color-orange {
-  --card-bg: rgba(44, 26, 16, 0.75);
-  --card-border: rgba(255, 159, 10, 0.28);
+  --card-bg: linear-gradient(145deg, rgba(54, 30, 18, 0.82) 0%, rgba(32, 16, 10, 0.70) 100%);
+  --card-border: rgba(255, 159, 10, 0.38);
   --card-accent: #ff9f43;
 }
 [data-theme="dark"] .note-card.color-yellow {
-  --card-bg: rgba(40, 34, 16, 0.75);
-  --card-border: rgba(255, 214, 10, 0.28);
+  --card-bg: linear-gradient(145deg, rgba(50, 42, 18, 0.82) 0%, rgba(30, 24, 10, 0.70) 100%);
+  --card-border: rgba(255, 214, 10, 0.38);
   --card-accent: #ffd32a;
 }
 [data-theme="dark"] .note-card.color-green {
-  --card-bg: rgba(18, 38, 24, 0.75);
-  --card-border: rgba(52, 199, 89, 0.28);
+  --card-bg: linear-gradient(145deg, rgba(22, 48, 30, 0.82) 0%, rgba(12, 28, 18, 0.70) 100%);
+  --card-border: rgba(52, 199, 89, 0.38);
   --card-accent: #34c759;
 }
 [data-theme="dark"] .note-card.color-teal {
-  --card-bg: rgba(16, 36, 38, 0.75);
-  --card-border: rgba(48, 209, 88, 0.28);
+  --card-bg: linear-gradient(145deg, rgba(20, 46, 48, 0.82) 0%, rgba(10, 26, 28, 0.70) 100%);
+  --card-border: rgba(48, 209, 88, 0.38);
   --card-accent: #30d158;
 }
 [data-theme="dark"] .note-card.color-blue {
-  --card-bg: rgba(18, 32, 52, 0.75);
-  --card-border: rgba(41, 151, 255, 0.28);
+  --card-bg: linear-gradient(145deg, rgba(22, 40, 68, 0.82) 0%, rgba(12, 22, 40, 0.70) 100%);
+  --card-border: rgba(41, 151, 255, 0.38);
   --card-accent: #2997ff;
 }
 [data-theme="dark"] .note-card.color-purple {
-  --card-bg: rgba(34, 22, 48, 0.75);
-  --card-border: rgba(191, 90, 242, 0.28);
+  --card-bg: linear-gradient(145deg, rgba(44, 26, 62, 0.82) 0%, rgba(26, 14, 38, 0.70) 100%);
+  --card-border: rgba(191, 90, 242, 0.38);
   --card-accent: #bf5af2;
 }
 
