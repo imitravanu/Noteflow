@@ -369,10 +369,11 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   cursor: pointer;
+  outline: none;
+  overflow: visible;
   transition: box-shadow 0.18s ease,
     transform 0.18s ease,
     border-color 0.18s ease;
-  overflow: hidden;
 }
 
 /* Signature Apple / Craft Color Tab Indicator */
@@ -396,6 +397,7 @@
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
   border-color: var(--card-border);
+  z-index: 5;
 }
 .note-card:hover::before {
   opacity: 1;
@@ -403,8 +405,13 @@
 .note-card.selected {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent), var(--shadow-md);
+  z-index: 4;
+}
+.note-card:focus {
+  outline: none;
 }
 .note-card:focus-visible {
+  outline: none;
   box-shadow: var(--focus-ring), var(--shadow-md);
 }
 
@@ -494,26 +501,28 @@
 
 .note-card-check {
   position: absolute;
-  top: 10px;
-  left: 10px;
+  top: -8px;
+  left: -8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   color: var(--text-3);
   opacity: 0;
+  transform: scale(0.85);
   background: var(--surface);
   border: 1.5px solid var(--border-strong);
-  box-shadow: var(--shadow-sm);
-  transition: opacity 0.14s ease, background-color 0.14s ease, color 0.14s ease;
-  z-index: 2;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.14);
+  transition: opacity 0.14s ease, background-color 0.14s ease, color 0.14s ease, transform 0.14s ease;
+  z-index: 10;
 }
 .note-card:hover .note-card-check,
 .note-card.selected .note-card-check,
 .app[data-selection-active] .note-card-check {
   opacity: 1;
+  transform: scale(1);
 }
 .note-card.selected .note-card-check {
   background: var(--accent);
@@ -535,7 +544,7 @@
   opacity: 0;
   transform: translateY(-2px);
   transition: opacity 0.14s ease, transform 0.14s ease;
-  z-index: 2;
+  z-index: 6;
 }
 .note-card:hover .note-card-actions,
 .note-card:focus-within .note-card-actions {
@@ -548,7 +557,7 @@
   font-weight: 600;
   letter-spacing: -0.015em;
   line-height: 1.35;
-  padding-right: 28px;
+  padding-right: 90px;
   color: var(--text-1);
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -566,14 +575,14 @@
 .note-card-preview {
   font-size: 13px;
   color: var(--text-2);
-  line-height: 1.55;
+  line-height: 1.5;
   display: -webkit-box;
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
   overflow-wrap: anywhere;
-  white-space: pre-wrap;
-  flex: 1 1 auto;
+  max-height: calc(1.5em * 4);
+  flex: 0 1 auto;
   min-height: 0;
 }
 

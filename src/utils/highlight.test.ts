@@ -47,5 +47,9 @@ describe("bodyPreview", () => {
   it("returns short bodies untouched", () => {
     expect(bodyPreview("short note")).toBe("short note");
   });
+
+  it("strips common markdown formatting from previews", () => {
+    expect(bodyPreview("# Title\n**bold** and `code`")).toBe("Title\nbold and code");
+  });
 });
 

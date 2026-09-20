@@ -35,9 +35,18 @@ export function highlightParts(
   return parts.some((p) => p.match) ? parts : null;
 }
 
-/** Plain-text preview of a note body: first non-empty lines, collapsed. */
+/** Plain-text preview of a note body: first non-empty lines, collapsed and markdown cleaned. */
 export function bodyPreview(content: string, maxChars = 220): string {
-  const collapsed = content.replace(/\s+\n/g, "\n").trim();
+  const cleaned = content
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
+    .replace(/__([^_]+)__/g, "$1")
+    .replace(/_([^_]+)_/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/^>\s+/gm, "");
+
+  const collapsed = cleaned.replace(/\s+\n/g, "\n").trim();
   if (collapsed.length <= maxChars) return collapsed;
   return collapsed.slice(0, maxChars).trimEnd() + "…";
 }
