@@ -22,11 +22,11 @@ fn validate_name(name: &str) -> AppResult<String> {
 /// the tag actually lists in the All view.
 pub fn list_tags(conn: &Connection) -> AppResult<Vec<Tag>> {
     let mut stmt = conn.prepare(
-        "SELECT t.id, t.name,
-                (SELECT COUNT(*)
-                   FROM note_tags nt JOIN notes n ON n.id = nt.note_id
-                  WHERE nt.tag_id = t.id AND n.deleted = 0 AND n.archived = 0) AS note_count
+        "SELECT t.id, t.name, COUNT(n.id) AS note_count
          FROM tags t
+         LEFT JOIN note_tags nt ON nt.tag_id = t.id
+         LEFT JOIN notes n ON n.id = nt.note_id AND n.deleted = 0 AND n.archived = 0
+         GROUP BY t.id, t.name
          ORDER BY t.name COLLATE NOCASE",
     )?;
     let tags = stmt

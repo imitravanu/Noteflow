@@ -74,38 +74,43 @@ fn row_to_note(row: &Row) -> rusqlite::Result<Note> {
     })
 }
 
-/// Attaches tag lists to notes in a single extra query instead of N+1.
+const CHUNK_SIZE: usize = 500;
+
+/// Attaches tag lists to notes in batched queries instead of N+1, chunked
+/// to guarantee we never exceed SQLite parameter limits.
 fn attach_tags(conn: &Connection, mut notes: Vec<Note>) -> AppResult<Vec<Note>> {
     if notes.is_empty() {
         return Ok(notes);
     }
 
-    let placeholders = vec!["?"; notes.len()].join(",");
-    let sql = format!(
-        "SELECT nt.note_id, t.id, t.name
-         FROM note_tags nt
-         JOIN tags t ON t.id = nt.tag_id
-         WHERE nt.note_id IN ({placeholders})
-         ORDER BY t.name COLLATE NOCASE"
-    );
-
     let ids: Vec<String> = notes.iter().map(|n| n.id.clone()).collect();
     let mut tags_by_note: HashMap<String, Vec<Tag>> = HashMap::new();
 
-    let mut stmt = conn.prepare(&sql)?;
-    let rows = stmt.query_map(rusqlite::params_from_iter(ids.iter()), |row| {
-        Ok((
-            row.get::<_, String>(0)?,
-            Tag {
-                id: row.get(1)?,
-                name: row.get(2)?,
-                note_count: None,
-            },
-        ))
-    })?;
-    for entry in rows {
-        let (note_id, tag) = entry?;
-        tags_by_note.entry(note_id).or_default().push(tag);
+    for chunk in ids.chunks(CHUNK_SIZE) {
+        let placeholders = vec!["?"; chunk.len()].join(",");
+        let sql = format!(
+            "SELECT nt.note_id, t.id, t.name
+             FROM note_tags nt
+             JOIN tags t ON t.id = nt.tag_id
+             WHERE nt.note_id IN ({placeholders})
+             ORDER BY t.name COLLATE NOCASE"
+        );
+
+        let mut stmt = conn.prepare(&sql)?;
+        let rows = stmt.query_map(rusqlite::params_from_iter(chunk.iter()), |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                Tag {
+                    id: row.get(1)?,
+                    name: row.get(2)?,
+                    note_count: None,
+                },
+            ))
+        })?;
+        for entry in rows {
+            let (note_id, tag) = entry?;
+            tags_by_note.entry(note_id).or_default().push(tag);
+        }
     }
 
     for note in &mut notes {
@@ -236,19 +241,23 @@ pub fn trash_notes(conn: &Connection, ids: &[String]) -> AppResult<usize> {
         return Ok(0);
     }
     let tx = conn.unchecked_transaction()?;
-    let sql = format!(
-        "UPDATE notes SET deleted = 1, deleted_at = ?1 WHERE id IN ({}) AND deleted = 0",
-        ids_placeholders(ids)
-    );
-    let mut stmt = tx.prepare(&sql)?;
-    let bound = std::iter::once(rusqlite::types::Value::Integer(now_millis())).chain(
-        ids.iter()
-            .map(|id| rusqlite::types::Value::Text(id.clone())),
-    );
-    let count = stmt.execute(rusqlite::params_from_iter(bound))?;
-    drop(stmt);
+    let now = now_millis();
+    let mut total = 0;
+    for chunk in ids.chunks(CHUNK_SIZE) {
+        let sql = format!(
+            "UPDATE notes SET deleted = 1, deleted_at = ?1 WHERE id IN ({}) AND deleted = 0",
+            ids_placeholders(chunk)
+        );
+        let mut stmt = tx.prepare(&sql)?;
+        let bound = std::iter::once(rusqlite::types::Value::Integer(now)).chain(
+            chunk
+                .iter()
+                .map(|id| rusqlite::types::Value::Text(id.clone())),
+        );
+        total += stmt.execute(rusqlite::params_from_iter(bound))?;
+    }
     tx.commit()?;
-    Ok(count)
+    Ok(total)
 }
 
 /// Restores trashed notes to the active list. `archived` is cleared too, so
@@ -259,16 +268,18 @@ pub fn restore_notes(conn: &Connection, ids: &[String]) -> AppResult<usize> {
         return Ok(0);
     }
     let tx = conn.unchecked_transaction()?;
-    let sql = format!(
-        "UPDATE notes SET deleted = 0, deleted_at = NULL, archived = 0
-         WHERE id IN ({}) AND deleted = 1",
-        ids_placeholders(ids)
-    );
-    let mut stmt = tx.prepare(&sql)?;
-    let count = stmt.execute(rusqlite::params_from_iter(ids))?;
-    drop(stmt);
+    let mut total = 0;
+    for chunk in ids.chunks(CHUNK_SIZE) {
+        let sql = format!(
+            "UPDATE notes SET deleted = 0, deleted_at = NULL, archived = 0
+             WHERE id IN ({}) AND deleted = 1",
+            ids_placeholders(chunk)
+        );
+        let mut stmt = tx.prepare(&sql)?;
+        total += stmt.execute(rusqlite::params_from_iter(chunk))?;
+    }
     tx.commit()?;
-    Ok(count)
+    Ok(total)
 }
 
 /// Hard delete. `note_tags` rows cascade automatically via foreign keys.
@@ -277,12 +288,17 @@ pub fn delete_notes_permanent(conn: &Connection, ids: &[String]) -> AppResult<us
         return Ok(0);
     }
     let tx = conn.unchecked_transaction()?;
-    let sql = format!("DELETE FROM notes WHERE id IN ({})", ids_placeholders(ids));
-    let mut stmt = tx.prepare(&sql)?;
-    let count = stmt.execute(rusqlite::params_from_iter(ids))?;
-    drop(stmt);
+    let mut total = 0;
+    for chunk in ids.chunks(CHUNK_SIZE) {
+        let sql = format!(
+            "DELETE FROM notes WHERE id IN ({})",
+            ids_placeholders(chunk)
+        );
+        let mut stmt = tx.prepare(&sql)?;
+        total += stmt.execute(rusqlite::params_from_iter(chunk))?;
+    }
     tx.commit()?;
-    Ok(count)
+    Ok(total)
 }
 
 pub fn empty_trash(conn: &Connection) -> AppResult<usize> {
@@ -408,16 +424,22 @@ pub struct Counts {
 }
 
 pub fn get_counts(conn: &Connection) -> AppResult<Counts> {
-    let count_where = |sql: &str| -> AppResult<i64> { Ok(conn.query_row(sql, [], |r| r.get(0))?) };
+    let (all, pinned, favorites, archived, trash) = conn.query_row(
+        "SELECT
+            COUNT(CASE WHEN deleted = 0 AND archived = 0 THEN 1 END),
+            COUNT(CASE WHEN deleted = 0 AND archived = 0 AND pinned = 1 THEN 1 END),
+            COUNT(CASE WHEN deleted = 0 AND archived = 0 AND favorite = 1 THEN 1 END),
+            COUNT(CASE WHEN deleted = 0 AND archived = 1 THEN 1 END),
+            COUNT(CASE WHEN deleted = 1 THEN 1 END)
+         FROM notes",
+        [],
+        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
+    )?;
     Ok(Counts {
-        all: count_where("SELECT COUNT(*) FROM notes WHERE deleted = 0 AND archived = 0")?,
-        pinned: count_where(
-            "SELECT COUNT(*) FROM notes WHERE deleted = 0 AND archived = 0 AND pinned = 1",
-        )?,
-        favorites: count_where(
-            "SELECT COUNT(*) FROM notes WHERE deleted = 0 AND archived = 0 AND favorite = 1",
-        )?,
-        archived: count_where("SELECT COUNT(*) FROM notes WHERE deleted = 0 AND archived = 1")?,
-        trash: count_where("SELECT COUNT(*) FROM notes WHERE deleted = 1")?,
+        all,
+        pinned,
+        favorites,
+        archived,
+        trash,
     })
 }

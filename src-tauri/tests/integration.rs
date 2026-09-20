@@ -633,3 +633,64 @@ fn tag_counts_exclude_archived_notes() {
     let filtered = note_service::list_notes(&conn, NoteView::All, Some(&tag.id), None).unwrap();
     assert_eq!(filtered.len(), 1);
 }
+
+#[test]
+fn batch_operations_and_tag_attachments_handle_large_collections() {
+    let conn = temp_db();
+    let tag = tag_service::create_tag(&conn, "batch-tag").unwrap();
+
+    // Create 600 notes inside a transaction for speed, which exceeds CHUNK_SIZE (500).
+    let mut ids = Vec::with_capacity(600);
+    {
+        let tx = conn.unchecked_transaction().unwrap();
+        for i in 0..600 {
+            let id = uuid::Uuid::new_v4().to_string();
+            let now = note_service::now_millis();
+            tx.execute(
+                "INSERT INTO notes (id, title, content, color, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, 'default', ?4, ?4)",
+                rusqlite::params![id, format!("Note {i}"), "content", now],
+            )
+            .unwrap();
+            tx.execute(
+                "INSERT INTO note_tags (note_id, tag_id) VALUES (?1, ?2)",
+                rusqlite::params![id, tag.id],
+            )
+            .unwrap();
+            ids.push(id);
+        }
+        tx.commit().unwrap();
+    }
+
+    // 1. Verify attach_tags handles 600 notes without variable overflow
+    let listed = note_service::list_notes(&conn, NoteView::All, None, None).unwrap();
+    assert_eq!(listed.len(), 600);
+    assert_eq!(listed[0].tags.len(), 1);
+    assert_eq!(listed[0].tags[0].id, tag.id);
+
+    // 2. Verify get_counts single-query aggregation with 600 notes
+    let counts = note_service::get_counts(&conn).unwrap();
+    assert_eq!(counts.all, 600);
+    assert_eq!(counts.trash, 0);
+
+    // 3. Verify trash_notes chunking with 600 IDs
+    let trashed_count = note_service::trash_notes(&conn, &ids).unwrap();
+    assert_eq!(trashed_count, 600);
+    let counts_after_trash = note_service::get_counts(&conn).unwrap();
+    assert_eq!(counts_after_trash.all, 0);
+    assert_eq!(counts_after_trash.trash, 600);
+
+    // 4. Verify restore_notes chunking with 600 IDs
+    let restored_count = note_service::restore_notes(&conn, &ids).unwrap();
+    assert_eq!(restored_count, 600);
+    let counts_after_restore = note_service::get_counts(&conn).unwrap();
+    assert_eq!(counts_after_restore.all, 600);
+    assert_eq!(counts_after_restore.trash, 0);
+
+    // 5. Verify delete_notes_permanent chunking with 600 IDs
+    let deleted_count = note_service::delete_notes_permanent(&conn, &ids).unwrap();
+    assert_eq!(deleted_count, 600);
+    let counts_after_delete = note_service::get_counts(&conn).unwrap();
+    assert_eq!(counts_after_delete.all, 0);
+    assert_eq!(counts_after_delete.trash, 0);
+}
