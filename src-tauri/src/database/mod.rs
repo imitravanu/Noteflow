@@ -17,6 +17,7 @@ pub fn open_db(dir: &Path) -> AppResult<Connection> {
     fs::create_dir_all(dir)?;
     let db_path = dir.join("noteflow.db");
     let conn = Connection::open(&db_path)?;
+    conn.busy_timeout(std::time::Duration::from_secs(5))?;
     conn.pragma_update(None, "journal_mode", "WAL")?;
     conn.pragma_update(None, "synchronous", "NORMAL")?;
     conn.pragma_update(None, "foreign_keys", "ON")?;

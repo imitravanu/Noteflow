@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countWordsAndChars, formatRelativeTime, noteToMarkdown } from "./format";
+import { countWordsAndChars, formatDateTime, formatRelativeTime, noteToMarkdown } from "./format";
 
 const NOW = new Date("2026-08-23T12:00:00Z").getTime();
 
@@ -60,5 +60,21 @@ describe("noteToMarkdown", () => {
     expect(md).toContain("- [x] Item 2");
   });
 });
+
+describe("timestamp resilience", () => {
+  it("formatRelativeTime safely handles NaN and negative timestamps without RangeError", () => {
+    expect(formatRelativeTime(NaN, NOW)).toBe("just now");
+    expect(formatRelativeTime(-100, NOW)).toBe("just now");
+    expect(formatRelativeTime(0, NOW)).toBe("just now");
+  });
+
+  it("formatDateTime safely handles NaN and non-finite timestamps", () => {
+    expect(formatDateTime(NaN)).toBe("—");
+    expect(formatDateTime(0)).toBe("—");
+    expect(formatDateTime(-999)).toBe("—");
+    expect(formatDateTime(NOW)).toMatch(/2026/);
+  });
+});
+
 
 

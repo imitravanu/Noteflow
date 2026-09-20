@@ -190,9 +190,10 @@ export function NoteCard({ note, selected, orderedIds, query }: NoteCardProps) {
         </span>
         <time
           className="note-card-time"
-          dateTime={new Date(
-            view === "trash" ? (note.deletedAt ?? note.updatedAt) : note.updatedAt,
-          ).toISOString()}
+          dateTime={(() => {
+            const t = view === "trash" ? (note.deletedAt ?? note.updatedAt) : note.updatedAt;
+            return Number.isFinite(t) && t > 0 ? new Date(t).toISOString() : new Date().toISOString();
+          })()}
         >
           {formatRelativeTime(
             view === "trash" ? (note.deletedAt ?? note.updatedAt) : note.updatedAt,

@@ -74,7 +74,8 @@ export const useNotesStore = create<NotesState>((set, get) => ({
         notes: get().notes.map((n) => (n.id === id ? updated : n)),
       });
       return updated;
-    } catch {
+    } catch (e) {
+      useUiStore.getState().showSnackbar(errText(e));
       return null;
     }
   },

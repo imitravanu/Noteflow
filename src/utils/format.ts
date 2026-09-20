@@ -3,6 +3,7 @@ export function formatRelativeTime(
   timestamp: number,
   now: number = Date.now(),
 ): string {
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return "just now";
   const diff = Math.max(0, now - timestamp);
   const minute = 60_000;
   const hour = 60 * minute;
@@ -14,6 +15,7 @@ export function formatRelativeTime(
   if (diff < 7 * day) return `${Math.floor(diff / day)} d ago`;
 
   const date = new Date(timestamp);
+  if (isNaN(date.getTime())) return "just now";
   const sameYear = date.getFullYear() === new Date(now).getFullYear();
   return date.toLocaleDateString(undefined, {
     month: "short",
@@ -23,7 +25,10 @@ export function formatRelativeTime(
 }
 
 export function formatDateTime(timestamp: number): string {
-  return new Date(timestamp).toLocaleString(undefined, {
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return "—";
+  const date = new Date(timestamp);
+  if (isNaN(date.getTime())) return "—";
+  return date.toLocaleString(undefined, {
     dateStyle: "medium",
     timeStyle: "short",
   });
