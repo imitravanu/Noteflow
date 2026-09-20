@@ -28,72 +28,125 @@
   scroll-behavior: smooth;
 }
 
-/* ---------- Top bar (Apple Translucent Header) ---------- */
+/* ---------- Top bar (Apple Translucent Desktop Header) ---------- */
 .topbar {
   display: flex;
   align-items: center;
-  gap: 14px;
+  justify-content: space-between;
+  gap: 12px;
   height: var(--topbar-height);
-  padding: 0 18px 0 16px;
+  padding: 0 16px;
   background: var(--chrome);
   -webkit-backdrop-filter: blur(var(--glass-blur));
   backdrop-filter: blur(var(--glass-blur));
   border-bottom: 1px solid var(--chrome-border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
   position: relative;
   z-index: 30;
 }
 
-.sidebar-toggle {
-  display: inline-flex;
-}
-
-.topbar-brand {
+.topbar-left {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-width: 0;
-}
-
-.logo {
-  border-radius: var(--radius-sm);
   flex: none;
 }
 
+.topbar-sidebar-btn {
+  display: inline-flex;
+  color: var(--text-2);
+  border-radius: var(--radius-sm);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.topbar-sidebar-btn:hover {
+  color: var(--text-1);
+  background: var(--surface-2);
+}
+.topbar-sidebar-btn.active {
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.topbar-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 3px 6px 3px 2px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.15s ease;
+}
+.topbar-brand:hover {
+  opacity: 0.88;
+}
+
+.logo {
+  border-radius: 7px;
+  flex: none;
+  display: block;
+}
+
+.topbar-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .topbar-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 650;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
   color: var(--text-1);
 }
 
+.topbar-version-pill {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 1.5px 5.5px;
+  border-radius: 9999px;
+  background: var(--surface-2);
+  color: var(--text-3);
+  border: 1px solid var(--border-subtle);
+  line-height: 1.2;
+}
+
+/* ---------- Spotlight Command Search ---------- */
 .topbar-search {
   flex: 1;
-  max-width: 480px;
+  max-width: 440px;
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 36px;
-  margin: 0 auto 0 20px;
-  padding: 0 12px;
+  height: 34px;
+  margin: 0 12px;
+  padding: 0 10px 0 11px;
   background: var(--surface-2);
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  border-radius: 9999px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03);
   transition: background-color 0.15s ease,
     border-color 0.15s ease,
-    box-shadow 0.15s ease;
+    box-shadow 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .topbar-search:hover {
   background: var(--surface-3);
+  border-color: var(--border);
 }
 .topbar-search:focus-within {
   background: var(--surface);
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-glow);
+  box-shadow: 0 0 0 3px var(--accent-glow), inset 0 1px 1px rgba(0, 0, 0, 0.03);
 }
 
 .topbar-search-icon {
   color: var(--text-3);
   flex: none;
+  transition: color 0.15s ease;
+}
+.topbar-search:focus-within .topbar-search-icon {
+  color: var(--accent);
 }
 
 .topbar-search input {
@@ -102,21 +155,136 @@
   border: none;
   outline: none;
   background: transparent;
-  font-size: 13.5px;
+  font-size: 13px;
   color: var(--text-1);
 }
 .topbar-search input::placeholder {
   color: var(--text-3);
+  font-weight: 450;
 }
 .topbar-search input::-webkit-search-cancel-button {
   display: none;
 }
 
-.topbar-actions {
+.topbar-clear-search {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--text-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.topbar-clear-search:hover {
+  color: var(--text-1);
+  background: var(--surface-3);
+}
+
+.topbar-kbd-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+  user-select: none;
+  pointer-events: none;
+}
+
+.topbar-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  min-width: 18px;
+  padding: 0 4.5px;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-bottom-width: 1.5px;
+  border-radius: 4px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+/* ---------- Topbar Right Actions ---------- */
+.topbar-right {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-left: auto;
+  gap: 8px;
+  flex: none;
+}
+
+.topbar-compose-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 31px;
+  padding: 0 11px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+  background: linear-gradient(180deg, #0a84ff 0%, #0071e3 100%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 9999px;
+  box-shadow: 0 1px 2px rgba(0, 113, 227, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.12s ease, filter 0.15s ease, box-shadow 0.15s ease;
+}
+.topbar-compose-btn:hover {
+  filter: brightness(1.06);
+  box-shadow: 0 2px 6px rgba(0, 113, 227, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+.topbar-compose-btn:active {
+  transform: scale(0.97);
+  filter: brightness(0.96);
+}
+
+.topbar-utility-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 31px;
+  padding: 0 3px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: 9999px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.topbar-utility-pill .icon-btn {
+  width: 27px;
+  height: 25px;
+  border-radius: 9999px;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.topbar-utility-pill .icon-btn:hover {
+  background: var(--surface);
+  color: var(--text-1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+.topbar-utility-pill .icon-btn.active {
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.topbar-utility-sep {
+  width: 1px;
+  height: 14px;
+  background: var(--border-subtle);
+  margin: 0 1px;
+  flex: none;
 }
 
 /* ---------- Sidebar edge hover sensor (mouse side reveal) ---------- */
