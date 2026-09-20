@@ -648,6 +648,8 @@
   --card-border: var(--liquid-border);
   --card-accent: var(--accent);
   --card-glow: 0 0 0 transparent;
+  --card-spotlight: rgba(0, 113, 227, 0.32);
+  --card-spotlight-soft: rgba(0, 113, 227, 0.12);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -679,12 +681,19 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: radial-gradient(
-    circle 240px at var(--mouse-x, 50%) var(--mouse-y, 50%),
-    rgba(255, 255, 255, 0.40) 0%,
-    rgba(255, 255, 255, 0.12) 40%,
-    transparent 75%
-  );
+  background:
+    radial-gradient(
+      circle 120px at var(--mouse-x, 50%) var(--mouse-y, 50%),
+      rgba(255, 255, 255, 0.70) 0%,
+      rgba(255, 255, 255, 0.20) 60%,
+      transparent 100%
+    ),
+    radial-gradient(
+      circle 260px at var(--mouse-x, 50%) var(--mouse-y, 50%),
+      var(--card-spotlight, rgba(0, 113, 227, 0.32)) 0%,
+      var(--card-spotlight-soft, rgba(0, 113, 227, 0.12)) 45%,
+      transparent 75%
+    );
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s ease;
@@ -730,54 +739,70 @@
   box-shadow: var(--focus-ring), var(--shadow-md);
 }
 
-/* Apple OS 27 Luminous Liquid Glass Tints (Light) — Rich & Vibrant */
+/* Apple OS 27 Luminous Liquid Glass Tints (Light) — Rich, Vibrant & Luminous Mouse Glow */
 [data-theme="light"] .note-card.color-default {
-  --card-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.90) 0%, rgba(255, 255, 255, 0.65) 100%);
+  --card-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.88) 0%, rgba(242, 246, 254, 0.72) 100%);
   --card-border: rgba(255, 255, 255, 0.90);
   --card-accent: #0071e3;
-  --card-glow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  --card-spotlight: rgba(0, 113, 227, 0.32);
+  --card-spotlight-soft: rgba(0, 113, 227, 0.12);
+  --card-glow: 0 12px 36px rgba(0, 113, 227, 0.22);
 }
 [data-theme="light"] .note-card.color-red {
   --card-bg: linear-gradient(145deg, rgba(255, 195, 206, 0.95) 0%, rgba(255, 160, 178, 0.88) 100%);
   --card-border: rgba(235, 60, 85, 0.55);
   --card-accent: #d92038;
-  --card-glow: 0 8px 24px rgba(235, 60, 85, 0.18);
+  --card-spotlight: rgba(235, 60, 85, 0.36);
+  --card-spotlight-soft: rgba(235, 60, 85, 0.14);
+  --card-glow: 0 12px 36px rgba(235, 60, 85, 0.26);
 }
 [data-theme="light"] .note-card.color-orange {
   --card-bg: linear-gradient(145deg, rgba(255, 218, 185, 0.95) 0%, rgba(255, 185, 138, 0.88) 100%);
   --card-border: rgba(240, 120, 20, 0.55);
   --card-accent: #c95500;
-  --card-glow: 0 8px 24px rgba(240, 120, 20, 0.18);
+  --card-spotlight: rgba(240, 120, 20, 0.36);
+  --card-spotlight-soft: rgba(240, 120, 20, 0.14);
+  --card-glow: 0 12px 36px rgba(240, 120, 20, 0.26);
 }
 [data-theme="light"] .note-card.color-yellow {
   --card-bg: linear-gradient(145deg, rgba(255, 244, 175, 0.95) 0%, rgba(255, 222, 125, 0.88) 100%);
   --card-border: rgba(215, 160, 0, 0.58);
   --card-accent: #aa7c00;
-  --card-glow: 0 8px 24px rgba(215, 160, 0, 0.18);
+  --card-spotlight: rgba(215, 160, 0, 0.38);
+  --card-spotlight-soft: rgba(215, 160, 0, 0.15);
+  --card-glow: 0 12px 36px rgba(215, 160, 0, 0.26);
 }
 [data-theme="light"] .note-card.color-green {
   --card-bg: linear-gradient(145deg, rgba(198, 246, 214, 0.95) 0%, rgba(155, 234, 182, 0.88) 100%);
   --card-border: rgba(35, 180, 80, 0.55);
   --card-accent: #198038;
-  --card-glow: 0 8px 24px rgba(35, 180, 80, 0.18);
+  --card-spotlight: rgba(35, 180, 80, 0.36);
+  --card-spotlight-soft: rgba(35, 180, 80, 0.14);
+  --card-glow: 0 12px 36px rgba(35, 180, 80, 0.26);
 }
 [data-theme="light"] .note-card.color-teal {
   --card-bg: linear-gradient(145deg, rgba(192, 244, 250, 0.95) 0%, rgba(145, 230, 240, 0.88) 100%);
   --card-border: rgba(15, 170, 190, 0.55);
   --card-accent: #007d8a;
-  --card-glow: 0 8px 24px rgba(15, 170, 190, 0.18);
+  --card-spotlight: rgba(15, 170, 190, 0.36);
+  --card-spotlight-soft: rgba(15, 170, 190, 0.14);
+  --card-glow: 0 12px 36px rgba(15, 170, 190, 0.26);
 }
 [data-theme="light"] .note-card.color-blue {
   --card-bg: linear-gradient(145deg, rgba(205, 230, 255, 0.95) 0%, rgba(165, 210, 255, 0.88) 100%);
   --card-border: rgba(0, 122, 255, 0.55);
   --card-accent: #0062cc;
-  --card-glow: 0 8px 24px rgba(0, 122, 255, 0.18);
+  --card-spotlight: rgba(0, 122, 255, 0.36);
+  --card-spotlight-soft: rgba(0, 122, 255, 0.14);
+  --card-glow: 0 12px 36px rgba(0, 122, 255, 0.26);
 }
 [data-theme="light"] .note-card.color-purple {
   --card-bg: linear-gradient(145deg, rgba(235, 212, 255, 0.95) 0%, rgba(210, 175, 255, 0.88) 100%);
   --card-border: rgba(160, 70, 235, 0.55);
   --card-accent: #7a22d6;
-  --card-glow: 0 8px 24px rgba(160, 70, 235, 0.18);
+  --card-spotlight: rgba(160, 70, 235, 0.36);
+  --card-spotlight-soft: rgba(160, 70, 235, 0.14);
+  --card-glow: 0 12px 36px rgba(160, 70, 235, 0.26);
 }
 
 /* Apple OS 27 Luminous Liquid Glass Tints (Dark) — Vivid Jewel Glass */
