@@ -71,35 +71,35 @@
   --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent-glow);
 }
 
-/* ---------- Dark (vibrant glass) ---------- */
+/* ---------- Dark (refined, high-contrast modern desktop) ---------- */
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --bg: #0a0f1c;
+  --bg: #0d1117;
   --bg-tint:
-    radial-gradient(1120px 620px at 10% -8%, rgba(45, 212, 191, 0.20), transparent 58%),
-    radial-gradient(980px 560px at 90% -10%, rgba(167, 139, 250, 0.20), transparent 55%),
-    radial-gradient(860px 480px at 96% 110%, rgba(236, 72, 153, 0.12), transparent 58%),
-    radial-gradient(820px 460px at -8% 106%, rgba(59, 130, 246, 0.16), transparent 56%);
+    radial-gradient(1100px 600px at 15% -10%, rgba(45, 212, 191, 0.06), transparent 60%),
+    radial-gradient(900px 500px at 85% -10%, rgba(167, 139, 250, 0.05), transparent 55%),
+    radial-gradient(800px 450px at 90% 110%, rgba(59, 130, 246, 0.04), transparent 60%),
+    radial-gradient(750px 420px at -5% 105%, rgba(45, 212, 191, 0.04), transparent 55%);
 
-  --surface: rgba(22, 32, 48, 0.62);
-  --surface-2: rgba(28, 39, 58, 0.52);
-  --surface-3: rgba(34, 47, 70, 0.44);
+  --surface: rgba(22, 27, 38, 0.88);
+  --surface-2: rgba(30, 36, 50, 0.82);
+  --surface-3: rgba(38, 46, 64, 0.72);
 
-  --text-1: #eaf3f7;
-  --text-2: #a9c0d4;
-  --text-3: #6c83a0;
+  --text-1: #f3f7fa;
+  --text-2: #cbd5e1;
+  --text-3: #94a3b8;
 
-  --border: rgba(120, 150, 190, 0.14);
-  --border-strong: rgba(120, 150, 190, 0.26);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
 
   --accent: #2dd4bf;
   --accent-2: #a78bfa;
   --accent-strong: #5ce0cf;
-  --accent-contrast: #062e2b;
+  --accent-contrast: #042623;
   --accent-soft: rgba(45, 212, 191, 0.16);
   --accent-2-soft: rgba(167, 139, 250, 0.16);
-  --accent-glow: rgba(45, 212, 191, 0.34);
+  --accent-glow: rgba(45, 212, 191, 0.30);
   --grad-accent: linear-gradient(135deg, #2dd4bf, #a78bfa);
   --grad-accent-strong: linear-gradient(135deg, #2dd4bf, #8b5cf6);
 
@@ -107,18 +107,18 @@
   --danger-strong: #fda4af;
   --danger-soft: rgba(251, 113, 133, 0.16);
 
-  --mark-bg: rgba(45, 212, 191, 0.30);
+  --mark-bg: rgba(45, 212, 191, 0.32);
 
-  --chrome: rgba(14, 20, 34, 0.64);
-  --chrome-border: rgba(255, 255, 255, 0.09);
-  --glass-edge: rgba(255, 255, 255, 0.10);
+  --chrome: rgba(18, 23, 33, 0.90);
+  --chrome-border: rgba(255, 255, 255, 0.08);
+  --glass-edge: rgba(255, 255, 255, 0.06);
 
-  --overlay: rgba(4, 10, 20, 0.62);
-  --scrim: rgba(3, 8, 18, 0.62);
+  --overlay: rgba(4, 7, 13, 0.82);
+  --scrim: rgba(4, 7, 13, 0.78);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 6px 22px rgba(0, 0, 0, 0.45);
-  --shadow-lg: 0 26px 64px rgba(0, 0, 0, 0.6), 0 6px 20px rgba(0, 0, 0, 0.45);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.75), 0 6px 18px rgba(0, 0, 0, 0.55);
 }
 
 /* ---------- Reset & base ---------- */
@@ -380,6 +380,11 @@ mark {
     inset 0 1px 0 var(--glass-edge),
     var(--shadow-lg);
   padding: 5px;
+}
+[data-theme="dark"] .popover {
+  background: rgba(20, 26, 38, 0.96);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 .popover-list {
