@@ -376,31 +376,11 @@
     border-color 0.18s ease;
 }
 
-/* Signature Apple / Craft Color Tab Indicator */
-.note-card::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 18px;
-  right: 18px;
-  height: 3px;
-  border-radius: 0 0 3px 3px;
-  background: var(--card-accent);
-  opacity: 0.9;
-  transition: opacity 0.16s ease;
-}
-.note-card.color-default::before {
-  opacity: 0;
-}
-
 .note-card:hover {
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
   border-color: var(--card-border);
   z-index: 5;
-}
-.note-card:hover::before {
-  opacity: 1;
 }
 .note-card.selected {
   border-color: var(--accent);
@@ -752,24 +732,6 @@
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22), 0 4px 16px rgba(0, 0, 0, 0.08);
   overflow: hidden;
   animation: rise-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/* Signature Apple / Craft Color Tab Indicator on opened card */
-.editor::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 24px;
-  right: 24px;
-  height: 3.5px;
-  border-radius: 0 0 3px 3px;
-  background: var(--editor-accent);
-  opacity: 0.95;
-  z-index: 10;
-  transition: opacity 0.16s ease, background-color 0.16s ease;
-}
-.editor.color-default::before {
-  opacity: 0;
 }
 
 /* Editorial Tint Palettes (Light) */
