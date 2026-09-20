@@ -9,6 +9,7 @@ import {
   Moon,
   Palette,
   ShieldCheck,
+  Sparkles,
   Sun,
 } from "lucide-react";
 import type { Theme } from "../types";
@@ -111,6 +112,13 @@ export function SettingsPage() {
               <span className="theme-option-description">{description}</span>
             </button>
           ))}
+        </div>
+        <div className="settings-glass-banner">
+          <Sparkles size={15} className="theme-accent-color" aria-hidden="true" />
+          <div className="settings-glass-banner-text">
+            <strong>Liquid Glass Active</strong>
+            <span>Apple OS 27 design language with continuous squircles, optical blur, and specular rim highlights.</span>
+          </div>
         </div>
       </section>
 

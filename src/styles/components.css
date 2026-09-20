@@ -36,11 +36,11 @@
   gap: 12px;
   height: var(--topbar-height);
   padding: 0 16px;
-  background: var(--chrome);
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  backdrop-filter: blur(var(--glass-blur));
+  background: var(--liquid-glass-chrome);
+  -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+  backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
   border-bottom: 1px solid var(--chrome-border);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow: var(--specular-rim);
   position: relative;
   z-index: 30;
 }
@@ -281,15 +281,15 @@
   flex-direction: column;
   gap: 4px;
   padding: 14px 10px;
-  background: var(--chrome);
-  -webkit-backdrop-filter: blur(24px);
-  backdrop-filter: blur(24px);
+  background: var(--liquid-glass-chrome);
+  -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+  backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
   border-right: 1px solid var(--chrome-border);
-  box-shadow: 8px 0 32px rgba(0, 0, 0, 0.16);
+  box-shadow: 12px 0 40px rgba(0, 0, 0, 0.16), var(--specular-rim);
   overflow-y: auto;
   z-index: 50;
   transform: translateX(-100%);
-  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease;
+  transition: transform 0.24s var(--spring-easing), box-shadow 0.22s ease;
 }
 
 .sidebar[data-open] {
@@ -313,16 +313,20 @@
   color: var(--text-2);
   font-weight: 500;
   font-size: 13.5px;
-  transition: background-color 0.12s ease, color 0.12s ease;
+  transition: transform 0.1s var(--spring-easing), background-color 0.15s ease, color 0.15s ease;
+}
+.sidebar-item:active {
+  transform: scale(0.98);
 }
 .sidebar-item:hover {
   background: var(--surface-2);
   color: var(--text-1);
 }
 .sidebar-item.active {
-  background: var(--accent-soft);
+  background: var(--surface);
   color: var(--accent);
   font-weight: 600;
+  box-shadow: var(--specular-rim), var(--shadow-sm);
 }
 .sidebar-item-label {
   flex: 1;
@@ -519,9 +523,9 @@
   display: none;
 }
 
-/* ---------- Note card (Apple Notes / Craft Index Card) ---------- */
+/* ---------- Note card (Apple OS 27 Liquid Glass Index Card) ---------- */
 .note-card {
-  --card-bg: var(--surface);
+  --card-bg: var(--liquid-glass-surface);
   --card-border: var(--border);
   --card-accent: var(--accent);
   position: relative;
@@ -532,26 +536,28 @@
   box-sizing: border-box;
   padding: 16px 18px 14px;
   background: var(--card-bg);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  backdrop-filter: blur(18px) saturate(180%);
   border: 1px solid var(--card-border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--specular-rim-card), var(--shadow-sm);
   cursor: pointer;
   outline: none;
   overflow: visible;
-  transition: box-shadow 0.18s ease,
-    transform 0.18s ease,
+  transition: box-shadow 0.22s var(--spring-easing),
+    transform 0.22s var(--spring-easing),
     border-color 0.18s ease;
 }
 
 .note-card:hover {
-  box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
+  box-shadow: var(--specular-rim-card), var(--shadow-md);
+  transform: translateY(-3px);
   border-color: var(--card-border);
   z-index: 5;
 }
 .note-card.selected {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent), var(--shadow-md);
+  box-shadow: 0 0 0 2px var(--accent), var(--specular-rim-card), var(--shadow-md);
   z-index: 4;
 }
 .note-card:focus {
@@ -562,87 +568,87 @@
   box-shadow: var(--focus-ring), var(--shadow-md);
 }
 
-/* Luminous Subtle Modern Card Tints (Light) */
+/* Apple OS 27 Organic Liquid Glass Tints (Light) */
 [data-theme="light"] .note-card.color-default {
-  --card-bg: #ffffff;
-  --card-border: rgba(0, 0, 0, 0.08);
+  --card-bg: rgba(255, 255, 255, 0.78);
+  --card-border: rgba(0, 0, 0, 0.07);
   --card-accent: #0071e3;
 }
 [data-theme="light"] .note-card.color-red {
-  --card-bg: #fdf5f5;
-  --card-border: #f8d5d8;
+  --card-bg: rgba(255, 243, 244, 0.82);
+  --card-border: rgba(255, 59, 48, 0.20);
   --card-accent: #e05260;
 }
 [data-theme="light"] .note-card.color-orange {
-  --card-bg: #fdf8f3;
-  --card-border: #f9e2cf;
+  --card-bg: rgba(255, 247, 238, 0.82);
+  --card-border: rgba(255, 149, 0, 0.20);
   --card-accent: #e67e22;
 }
 [data-theme="light"] .note-card.color-yellow {
-  --card-bg: #fdfcf2;
-  --card-border: #f6eed0;
+  --card-bg: rgba(255, 253, 238, 0.82);
+  --card-border: rgba(255, 204, 0, 0.22);
   --card-accent: #d4a017;
 }
 [data-theme="light"] .note-card.color-green {
-  --card-bg: #f4f9f5;
-  --card-border: #d4edd9;
+  --card-bg: rgba(242, 253, 244, 0.82);
+  --card-border: rgba(52, 199, 89, 0.20);
   --card-accent: #34c759;
 }
 [data-theme="light"] .note-card.color-teal {
-  --card-bg: #f3f9f9;
-  --card-border: #d0eded;
+  --card-bg: rgba(240, 252, 253, 0.82);
+  --card-border: rgba(48, 209, 88, 0.20);
   --card-accent: #17a2b8;
 }
 [data-theme="light"] .note-card.color-blue {
-  --card-bg: #f4f8fe;
-  --card-border: #d2e3fc;
+  --card-bg: rgba(242, 248, 255, 0.82);
+  --card-border: rgba(0, 113, 227, 0.20);
   --card-accent: #0071e3;
 }
 [data-theme="light"] .note-card.color-purple {
-  --card-bg: #f9f5fd;
-  --card-border: #e9d9fb;
+  --card-bg: rgba(248, 244, 255, 0.82);
+  --card-border: rgba(175, 82, 222, 0.20);
   --card-accent: #8a50e3;
 }
 
-/* Luminous Subtle Modern Card Tints (Dark) */
+/* Apple OS 27 Organic Liquid Glass Tints (Dark) */
 [data-theme="dark"] .note-card.color-default {
-  --card-bg: #1e1e22;
+  --card-bg: rgba(26, 28, 34, 0.74);
   --card-border: rgba(255, 255, 255, 0.09);
   --card-accent: #2997ff;
 }
 [data-theme="dark"] .note-card.color-red {
-  --card-bg: #26181b;
-  --card-border: rgba(255, 107, 123, 0.32);
+  --card-bg: rgba(44, 22, 26, 0.75);
+  --card-border: rgba(255, 69, 58, 0.28);
   --card-accent: #ff6b7b;
 }
 [data-theme="dark"] .note-card.color-orange {
-  --card-bg: #261a13;
-  --card-border: rgba(255, 159, 67, 0.32);
+  --card-bg: rgba(44, 26, 16, 0.75);
+  --card-border: rgba(255, 159, 10, 0.28);
   --card-accent: #ff9f43;
 }
 [data-theme="dark"] .note-card.color-yellow {
-  --card-bg: #242012;
-  --card-border: rgba(255, 211, 42, 0.32);
+  --card-bg: rgba(40, 34, 16, 0.75);
+  --card-border: rgba(255, 214, 10, 0.28);
   --card-accent: #ffd32a;
 }
 [data-theme="dark"] .note-card.color-green {
-  --card-bg: #15241a;
-  --card-border: rgba(52, 199, 89, 0.32);
+  --card-bg: rgba(18, 38, 24, 0.75);
+  --card-border: rgba(52, 199, 89, 0.28);
   --card-accent: #34c759;
 }
 [data-theme="dark"] .note-card.color-teal {
-  --card-bg: #132224;
-  --card-border: rgba(48, 209, 88, 0.32);
+  --card-bg: rgba(16, 36, 38, 0.75);
+  --card-border: rgba(48, 209, 88, 0.28);
   --card-accent: #30d158;
 }
 [data-theme="dark"] .note-card.color-blue {
-  --card-bg: #14202e;
-  --card-border: rgba(41, 151, 255, 0.32);
+  --card-bg: rgba(18, 32, 52, 0.75);
+  --card-border: rgba(41, 151, 255, 0.28);
   --card-accent: #2997ff;
 }
 [data-theme="dark"] .note-card.color-purple {
-  --card-bg: #20172b;
-  --card-border: rgba(191, 90, 242, 0.32);
+  --card-bg: rgba(34, 22, 48, 0.75);
+  --card-border: rgba(191, 90, 242, 0.28);
   --card-accent: #bf5af2;
 }
 
@@ -685,12 +691,14 @@
   gap: 2px;
   padding: 2px 4px;
   border-radius: var(--radius-full);
-  background: var(--surface);
+  background: var(--liquid-glass-elevated);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
   border: 1px solid var(--border);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--specular-rim), var(--shadow-sm);
   opacity: 0;
   transform: translateY(-2px);
-  transition: opacity 0.14s ease, transform 0.14s ease;
+  transition: opacity 0.14s ease, transform 0.14s var(--spring-easing);
   z-index: 6;
 }
 .note-card:hover .note-card-actions,
@@ -786,7 +794,7 @@
   margin-left: auto;
 }
 
-/* ---------- Selection bar (Apple Floating Pill) ---------- */
+/* ---------- Selection bar (Apple OS 27 Liquid Glass Floating Pill) ---------- */
 .selection-bar {
   position: fixed;
   left: 50%;
@@ -796,14 +804,14 @@
   align-items: center;
   gap: 10px;
   padding: 8px 14px 8px 18px;
-  background: var(--surface);
-  -webkit-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
+  background: var(--liquid-glass-elevated);
+  -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+  backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
   border: 1px solid var(--border);
   border-radius: var(--radius-full);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--specular-rim), var(--shadow-liquid-floating);
   z-index: 70;
-  animation: rise-in 0.18s ease;
+  animation: rise-in 0.22s var(--spring-easing);
 }
 
 .selection-count {
@@ -869,7 +877,7 @@
   margin-top: 6px;
 }
 
-/* ---------- Editor overlay (Craft / Apple Document Sheet) ---------- */
+/* ---------- Editor overlay (Apple OS 27 Liquid Glass Sheet) ---------- */
 .editor-overlay {
   position: fixed;
   inset: 0;
@@ -878,14 +886,14 @@
   align-items: center;
   justify-content: center;
   background: var(--overlay);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  animation: fade-in 0.15s ease;
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  animation: fade-in 0.18s var(--spring-easing);
   padding: 16px;
 }
 
 .editor {
-  --editor-bg: var(--surface);
+  --editor-bg: var(--liquid-glass-elevated);
   --editor-accent: var(--accent);
   position: relative;
   display: flex;
@@ -894,32 +902,34 @@
   max-height: min(88vh, 840px);
   height: min(88vh, 840px);
   background: var(--editor-bg);
+  -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+  backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22), 0 4px 16px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--specular-rim-strong), var(--shadow-liquid-floating);
   overflow: hidden;
-  animation: rise-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: rise-in 0.24s var(--spring-easing);
 }
 
-/* Editorial Tint Palettes (Light) */
-[data-theme="light"] .editor.color-default { --editor-bg: #ffffff; --editor-accent: #0071e3; }
-[data-theme="light"] .editor.color-red    { --editor-bg: #fdf5f5; --editor-accent: #e05260; }
-[data-theme="light"] .editor.color-orange { --editor-bg: #fdf8f3; --editor-accent: #e67e22; }
-[data-theme="light"] .editor.color-yellow { --editor-bg: #fdfcf2; --editor-accent: #d4a017; }
-[data-theme="light"] .editor.color-green  { --editor-bg: #f4f9f5; --editor-accent: #34c759; }
-[data-theme="light"] .editor.color-teal   { --editor-bg: #f3f9f9; --editor-accent: #17a2b8; }
-[data-theme="light"] .editor.color-blue   { --editor-bg: #f4f8fe; --editor-accent: #0071e3; }
-[data-theme="light"] .editor.color-purple { --editor-bg: #f9f5fd; --editor-accent: #8a50e3; }
+/* Editorial Liquid Glass Tint Palettes (Light) */
+[data-theme="light"] .editor.color-default { --editor-bg: rgba(255, 255, 255, 0.94); --editor-accent: #0071e3; }
+[data-theme="light"] .editor.color-red    { --editor-bg: rgba(255, 246, 247, 0.94); --editor-accent: #e05260; }
+[data-theme="light"] .editor.color-orange { --editor-bg: rgba(255, 249, 242, 0.94); --editor-accent: #e67e22; }
+[data-theme="light"] .editor.color-yellow { --editor-bg: rgba(255, 254, 242, 0.94); --editor-accent: #d4a017; }
+[data-theme="light"] .editor.color-green  { --editor-bg: rgba(244, 254, 246, 0.94); --editor-accent: #34c759; }
+[data-theme="light"] .editor.color-teal   { --editor-bg: rgba(242, 253, 254, 0.94); --editor-accent: #17a2b8; }
+[data-theme="light"] .editor.color-blue   { --editor-bg: rgba(244, 250, 255, 0.94); --editor-accent: #0071e3; }
+[data-theme="light"] .editor.color-purple { --editor-bg: rgba(250, 246, 255, 0.94); --editor-accent: #8a50e3; }
 
-/* Editorial Tint Palettes (Dark) */
-[data-theme="dark"] .editor.color-default { --editor-bg: #1c1c1e; --editor-accent: #2997ff; }
-[data-theme="dark"] .editor.color-red    { --editor-bg: #221517; --editor-accent: #ff6b7b; }
-[data-theme="dark"] .editor.color-orange { --editor-bg: #221711; --editor-accent: #ff9f43; }
-[data-theme="dark"] .editor.color-yellow { --editor-bg: #201c0f; --editor-accent: #ffd32a; }
-[data-theme="dark"] .editor.color-green  { --editor-bg: #121f16; --editor-accent: #34c759; }
-[data-theme="dark"] .editor.color-teal   { --editor-bg: #101e1f; --editor-accent: #30d158; }
-[data-theme="dark"] .editor.color-blue   { --editor-bg: #111a26; --editor-accent: #2997ff; }
-[data-theme="dark"] .editor.color-purple { --editor-bg: #1c1426; --editor-accent: #bf5af2; }
+/* Editorial Liquid Glass Tint Palettes (Dark) */
+[data-theme="dark"] .editor.color-default { --editor-bg: rgba(28, 30, 36, 0.92); --editor-accent: #2997ff; }
+[data-theme="dark"] .editor.color-red    { --editor-bg: rgba(38, 22, 26, 0.92); --editor-accent: #ff6b7b; }
+[data-theme="dark"] .editor.color-orange { --editor-bg: rgba(38, 24, 18, 0.92); --editor-accent: #ff9f43; }
+[data-theme="dark"] .editor.color-yellow { --editor-bg: rgba(34, 30, 18, 0.92); --editor-accent: #ffd32a; }
+[data-theme="dark"] .editor.color-green  { --editor-bg: rgba(18, 34, 22, 0.92); --editor-accent: #34c759; }
+[data-theme="dark"] .editor.color-teal   { --editor-bg: rgba(16, 32, 34, 0.92); --editor-accent: #30d158; }
+[data-theme="dark"] .editor.color-blue   { --editor-bg: rgba(18, 28, 44, 0.92); --editor-accent: #2997ff; }
+[data-theme="dark"] .editor.color-purple { --editor-bg: rgba(30, 22, 42, 0.92); --editor-accent: #bf5af2; }
 
 /* Header & Toolbar */
 .editor-header {
@@ -930,6 +940,7 @@
   padding: 12px 18px;
   border-bottom: 1px solid var(--border);
   background: var(--editor-bg);
+  box-shadow: var(--specular-rim);
   z-index: 5;
   flex: none;
 }
@@ -1473,7 +1484,7 @@
   color: var(--text-1);
 }
 
-/* ---------- Dialog / Shortcuts modal ---------- */
+/* ---------- Dialog / Shortcuts modal (Apple OS 27 Liquid Glass) ---------- */
 .dialog-overlay {
   position: fixed;
   inset: 0;
@@ -1483,18 +1494,20 @@
   justify-content: center;
   padding: 20px;
   background: var(--overlay);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  animation: fade-in 0.15s ease;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  animation: fade-in 0.18s var(--spring-easing);
 }
 .dialog {
   width: min(440px, 100%);
-  background: var(--surface);
+  background: var(--liquid-glass-elevated);
+  -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+  backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--specular-rim-strong), var(--shadow-liquid-floating);
   padding: 22px 24px;
-  animation: rise-in 0.18s ease;
+  animation: rise-in 0.22s var(--spring-easing);
 }
 
 .dialog-title {
@@ -1571,7 +1584,7 @@
   color: var(--accent);
 }
 
-/* ---------- Snackbar ---------- */
+/* ---------- Snackbar (Apple OS 27 Floating Capsule) ---------- */
 .snackbar {
   position: fixed;
   left: 50%;
@@ -1581,19 +1594,20 @@
   align-items: center;
   gap: 14px;
   padding: 10px 16px 10px 20px;
-  background: rgba(28, 28, 30, 0.92);
+  background: rgba(26, 28, 34, 0.88);
   color: #ffffff;
-  -webkit-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+  backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: var(--radius-full);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--specular-rim), 0 16px 40px rgba(0, 0, 0, 0.45);
   z-index: 100;
-  animation: rise-in 0.18s ease;
+  animation: rise-in 0.22s var(--spring-easing);
 }
 [data-theme="light"] .snackbar {
-  background: rgba(30, 30, 32, 0.90);
+  background: rgba(30, 32, 38, 0.88);
   color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.22);
 }
 .snackbar-message {
   font-size: 13px;
@@ -1614,7 +1628,7 @@
   background: rgba(255, 255, 255, 0.12);
 }
 
-/* ---------- Settings page ---------- */
+/* ---------- Settings page (Apple OS 27 Grouped Cards) ---------- */
 .settings-page {
   display: flex;
   flex-direction: column;
@@ -1635,11 +1649,13 @@
   color: var(--text-1);
 }
 .settings-card {
-  background: var(--surface);
+  background: var(--liquid-glass-surface);
+  -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+  backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 18px 20px;
-  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-lg);
+  padding: 20px 22px;
+  box-shadow: var(--specular-rim), var(--shadow-liquid-sm);
 }
 .settings-card h2 {
   display: flex;
@@ -1687,20 +1703,24 @@
   gap: 12px;
   width: 100%;
   padding: 12px 14px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--surface-2);
   color: var(--text-2);
   text-align: left;
-  transition: border-color 0.14s ease, background-color 0.14s ease;
+  transition: transform 0.1s var(--spring-easing), border-color 0.14s ease, background-color 0.14s ease;
+}
+.theme-option:active {
+  transform: scale(0.985);
 }
 .theme-option:hover {
   background: var(--surface-3);
 }
 .theme-option.active {
   border-color: var(--accent);
-  background: var(--accent-soft);
+  background: var(--surface);
   color: var(--accent);
+  box-shadow: var(--specular-rim), var(--shadow-sm);
 }
 .theme-option-icon {
   position: relative;
@@ -1741,6 +1761,35 @@
   border-radius: 50%;
   background: var(--accent);
   color: #ffffff;
+}
+
+.settings-glass-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--specular-rim);
+}
+.settings-glass-banner svg {
+  flex: none;
+  margin-top: 2px;
+}
+.settings-glass-banner-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--text-2);
+  line-height: 1.45;
+}
+.settings-glass-banner-text strong {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-1);
 }
 
 /* ---------- Keyframes ---------- */

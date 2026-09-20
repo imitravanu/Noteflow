@@ -6,40 +6,62 @@
 :root {
   --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", "Segoe UI", system-ui, sans-serif;
 
-  /* Modern Desktop Shape Tokens */
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 18px;
+  /* Apple OS 27 Continuous Squircle Geometry */
+  --radius-xs: 5px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
   --radius-full: 9999px;
 
-  --sidebar-width: 250px;
-  --topbar-height: 56px;
+  /* Apple OS 27 Fluid Spring Physics */
+  --spring-easing: cubic-bezier(0.16, 1, 0.3, 1);
+  --spring-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --spring-smooth: 0.24s cubic-bezier(0.16, 1, 0.3, 1);
 
-  --glass-blur: 16px;
-  --glass-saturate: 1.2;
+  --sidebar-width: 250px;
+  --topbar-height: 54px;
+
+  /* Optical Refractive Blur */
+  --glass-blur: 28px;
+  --glass-saturate: 1.9;
+  --liquid-blur: 28px;
+  --liquid-saturate: 190%;
 }
 
-/* ---------- Light (Apple Notes / Craft Editorial Canvas) ---------- */
+/* ---------- Light (Apple OS 27 Frosted Quartz Canvas) ---------- */
 :root,
 [data-theme="light"] {
   color-scheme: light;
 
-  --bg: #f5f5f7;
+  --bg: #f2f3f7;
+  --canvas-bg: #f2f3f7;
+  --canvas-ambient: radial-gradient(130% 120% at 50% 0%, #ffffff 0%, #f1f3f8 45%, #e5e8f0 100%);
   --bg-tint: none;
 
-  --surface: #ffffff;
-  --surface-2: #eeeeef;
-  --surface-3: #e5e5ea;
-  --surface-4: #d1d1d6;
+  /* Liquid Glass Material Surfaces */
+  --surface: rgba(255, 255, 255, 0.78);
+  --surface-2: rgba(238, 240, 246, 0.78);
+  --surface-3: rgba(226, 229, 238, 0.85);
+  --surface-4: rgba(210, 214, 226, 0.90);
+
+  --liquid-glass-surface: rgba(255, 255, 255, 0.74);
+  --liquid-glass-elevated: rgba(255, 255, 255, 0.90);
+  --liquid-glass-chrome: rgba(246, 247, 250, 0.82);
 
   --text-1: #1d1d1f;
-  --text-2: #6e6e73;
+  --text-2: #515156;
   --text-3: #86868b;
 
-  --border: rgba(0, 0, 0, 0.08);
-  --border-strong: rgba(0, 0, 0, 0.16);
+  --border: rgba(0, 0, 0, 0.07);
+  --border-strong: rgba(0, 0, 0, 0.14);
+
+  /* Specular Rim Light & Borders */
+  --specular-rim: inset 0 1px 0.5px rgba(255, 255, 255, 0.85), inset 0 -0.5px 0.5px rgba(0, 0, 0, 0.04);
+  --specular-rim-card: inset 0 1px 0.75px rgba(255, 255, 255, 0.92), inset 0 -0.5px 0.5px rgba(0, 0, 0, 0.04);
+  --specular-rim-strong: inset 0 1.5px 1px rgba(255, 255, 255, 0.96), inset 0 -1px 0.5px rgba(0, 0, 0, 0.06);
+  --liquid-border: 1px solid rgba(0, 0, 0, 0.07);
+  --liquid-border-hover: 1px solid rgba(0, 0, 0, 0.13);
 
   --accent: #0071e3;
   --accent-hover: #0077ed;
@@ -47,7 +69,7 @@
   --accent-contrast: #ffffff;
   --accent-soft: rgba(0, 113, 227, 0.09);
   --accent-on-soft: #0071e3;
-  --accent-glow: rgba(0, 113, 227, 0.16);
+  --accent-glow: rgba(0, 113, 227, 0.18);
   --grad-accent: #0071e3;
   --grad-accent-strong: #005bb5;
 
@@ -58,32 +80,40 @@
 
   --mark-bg: rgba(255, 204, 0, 0.35);
 
-  --chrome: rgba(245, 245, 247, 0.85);
-  --chrome-border: rgba(0, 0, 0, 0.08);
-  --glass-edge: transparent;
+  --chrome: rgba(246, 247, 250, 0.82);
+  --chrome-border: rgba(0, 0, 0, 0.07);
+  --glass-edge: rgba(255, 255, 255, 0.6);
 
-  --overlay: rgba(20, 20, 24, 0.38);
-  --scrim: rgba(20, 20, 24, 0.42);
+  --overlay: rgba(20, 20, 24, 0.32);
+  --scrim: rgba(20, 20, 24, 0.38);
 
-  /* Apple Ambient Elevation Shadows */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 4px rgba(0, 0, 0, 0.03);
-  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.10), 0 2px 8px rgba(0, 0, 0, 0.05);
+  /* Apple OS 27 Multi-Stop Ambient & Contact Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 6px rgba(0, 0, 0, 0.02);
+  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.05), 0 20px 48px rgba(0, 0, 0, 0.08);
+  --shadow-liquid-floating: 0 4px 12px rgba(0, 0, 0, 0.06), 0 24px 64px rgba(0, 0, 0, 0.12);
 
   --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px rgba(0, 113, 227, 0.35);
 }
 
-/* ---------- Dark (Apple Pro Dark Obsidian Canvas) ---------- */
+/* ---------- Dark (Apple OS 27 Deep Obsidian Glass) ---------- */
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --bg: #141416;
+  --bg: #0c0d0f;
+  --canvas-bg: #0c0d0f;
+  --canvas-ambient: radial-gradient(130% 120% at 50% 0%, #1a1c22 0%, #101114 50%, #08080a 100%);
   --bg-tint: none;
 
-  --surface: #1e1e22;
-  --surface-2: #26262b;
-  --surface-3: #2e2e34;
-  --surface-4: #383840;
+  /* Liquid Glass Material Surfaces */
+  --surface: rgba(26, 28, 34, 0.74);
+  --surface-2: rgba(34, 37, 46, 0.78);
+  --surface-3: rgba(42, 46, 58, 0.84);
+  --surface-4: rgba(52, 57, 72, 0.88);
+
+  --liquid-glass-surface: rgba(26, 28, 34, 0.70);
+  --liquid-glass-elevated: rgba(34, 36, 44, 0.84);
+  --liquid-glass-chrome: rgba(18, 19, 23, 0.82);
 
   --text-1: #f5f5f7;
   --text-2: #a1a1a6;
@@ -92,13 +122,20 @@
   --border: rgba(255, 255, 255, 0.09);
   --border-strong: rgba(255, 255, 255, 0.18);
 
+  /* Specular Rim Light & Borders */
+  --specular-rim: inset 0 1px 0.5px rgba(255, 255, 255, 0.22), inset 0 -0.5px 0.5px rgba(0, 0, 0, 0.4);
+  --specular-rim-card: inset 0 1px 0.75px rgba(255, 255, 255, 0.26), inset 0 -0.5px 0.5px rgba(0, 0, 0, 0.5);
+  --specular-rim-strong: inset 0 1.5px 1px rgba(255, 255, 255, 0.32), inset 0 -1px 0.5px rgba(0, 0, 0, 0.6);
+  --liquid-border: 1px solid rgba(255, 255, 255, 0.09);
+  --liquid-border-hover: 1px solid rgba(255, 255, 255, 0.18);
+
   --accent: #2997ff;
   --accent-hover: #409cff;
   --accent-2: #7d7aff;
   --accent-contrast: #ffffff;
   --accent-soft: rgba(41, 151, 255, 0.14);
   --accent-on-soft: #2997ff;
-  --accent-glow: rgba(41, 151, 255, 0.22);
+  --accent-glow: rgba(41, 151, 255, 0.24);
   --grad-accent: #2997ff;
   --grad-accent-strong: #147ce5;
 
@@ -109,17 +146,18 @@
 
   --mark-bg: rgba(255, 214, 10, 0.30);
 
-  --chrome: rgba(22, 22, 25, 0.90);
+  --chrome: rgba(18, 19, 23, 0.82);
   --chrome-border: rgba(255, 255, 255, 0.08);
-  --glass-edge: transparent;
+  --glass-edge: rgba(255, 255, 255, 0.12);
 
-  --overlay: rgba(0, 0, 0, 0.65);
-  --scrim: rgba(0, 0, 0, 0.70);
+  --overlay: rgba(0, 0, 0, 0.60);
+  --scrim: rgba(0, 0, 0, 0.65);
 
-  /* Apple Dark Ambient Elevation Shadows */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.40), 0 0 0 1px rgba(255, 255, 255, 0.05);
-  --shadow-md: 0 6px 16px rgba(0, 0, 0, 0.50), 0 0 0 1px rgba(255, 255, 255, 0.08);
-  --shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.10);
+  /* Apple OS 27 Dark Ambient Elevation Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.10);
+  --shadow-liquid-floating: 0 24px 64px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.12);
 
   --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px rgba(41, 151, 255, 0.40);
 }
@@ -143,7 +181,8 @@ body {
   font-size: 13.5px;
   line-height: 1.5;
   color: var(--text-1);
-  background: var(--bg);
+  background: var(--canvas-ambient), var(--canvas-bg);
+  background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow: hidden;
@@ -208,31 +247,32 @@ mark {
   background: transparent;
 }
 
-/* ---------- Shared Controls ---------- */
+/* ---------- Shared Controls (Apple OS 27 Squircle & Springs) ---------- */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 7px;
-  padding: 7px 15px;
+  padding: 7px 16px;
   border-radius: var(--radius-md);
-  font-weight: 500;
+  font-weight: 550;
   font-size: 13px;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
   border: 1px solid transparent;
-  transition: background-color 0.16s ease,
-    border-color 0.16s ease,
-    box-shadow 0.16s ease,
-    transform 0.08s ease,
-    filter 0.16s ease;
+  transition: transform 0.12s var(--spring-easing),
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.2s ease,
+    filter 0.18s ease;
   white-space: nowrap;
+  user-select: none;
 }
 .btn:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 .btn-sm {
   padding: 5px 12px;
-  font-size: 12.5px;
+  font-size: 12px;
   border-radius: var(--radius-sm);
 }
 
@@ -240,9 +280,11 @@ mark {
   background: var(--surface-2);
   color: var(--text-1);
   border: 1px solid var(--border);
+  box-shadow: var(--specular-rim);
 }
 .btn-secondary:hover {
   background: var(--surface-3);
+  border-color: var(--border-strong);
 }
 
 .btn-ghost {
@@ -256,13 +298,14 @@ mark {
 }
 
 .btn-primary {
-  background: var(--accent);
+  background: linear-gradient(180deg, var(--accent-hover) 0%, var(--accent) 100%);
   color: var(--accent-contrast);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 1px 2px rgba(0, 113, 227, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.18);
 }
 .btn-primary:hover {
-  filter: brightness(1.05);
-  box-shadow: var(--shadow-md);
+  filter: brightness(1.06);
+  box-shadow: 0 2px 8px rgba(0, 113, 227, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.36);
 }
 
 .btn-ghost.danger,
@@ -298,12 +341,17 @@ mark {
   height: 32px;
   border-radius: var(--radius-sm);
   color: var(--text-2);
-  transition: background-color 0.14s ease, color 0.14s ease;
+  transition: transform 0.1s var(--spring-easing),
+    background-color 0.15s ease,
+    color 0.15s ease;
   flex: none;
 }
 .icon-btn:hover {
   background: var(--surface-2);
   color: var(--text-1);
+}
+.icon-btn:active {
+  transform: scale(0.92);
 }
 .icon-btn.active {
   background: var(--accent-soft);
@@ -329,7 +377,7 @@ mark {
   letter-spacing: 0.02em;
 }
 
-/* ---------- Chips ---------- */
+/* ---------- Chips (Apple Squircle Tags) ---------- */
 .chip {
   display: inline-flex;
   align-items: center;
@@ -339,12 +387,13 @@ mark {
   color: var(--text-2);
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  padding: 2.5px 9px;
   max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  box-shadow: var(--specular-rim);
 }
 .chip-more {
   flex: none;
@@ -355,29 +404,35 @@ mark {
   border-radius: 50%;
   padding: 1px;
   color: var(--text-3);
+  transition: transform 0.1s var(--spring-easing);
+}
+.chip-removable button:active {
+  transform: scale(0.88);
 }
 .chip-removable button:hover {
   color: var(--danger);
   background: var(--danger-soft);
 }
 
-/* ---------- Popovers / Context Menus ---------- */
+/* ---------- Popovers / Context Menus (Liquid Glass) ---------- */
 .popover {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
   z-index: 60;
   min-width: 200px;
-  background: var(--surface);
+  background: var(--liquid-glass-elevated);
+  -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+  backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
-  padding: 5px;
+  box-shadow: var(--specular-rim), var(--shadow-liquid-floating);
+  padding: 6px;
 }
 [data-theme="dark"] .popover {
-  background: var(--surface);
+  background: var(--liquid-glass-elevated);
   border-color: var(--border);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--specular-rim), var(--shadow-liquid-floating);
 }
 
 .popover-list {
