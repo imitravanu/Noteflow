@@ -41,6 +41,10 @@ export const api = {
     return invoke<Note[]>("export_all_notes");
   },
 
+  importBackup(notes: Note[]) {
+    return invoke<number>("import_backup", { notes });
+  },
+
   trashNotes(ids: string[]) {
     return invoke<number>("trash_notes", { ids });
   },

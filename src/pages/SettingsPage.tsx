@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   Check,
@@ -34,6 +34,9 @@ export function SettingsPage() {
 
   const [dataDir, setDataDir] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const refresh = useNotesStore((s) => s.refresh);
 
   useEffect(() => {
     api
@@ -66,6 +69,27 @@ export function SettingsPage() {
       showSnackbar("Failed to export backup.");
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleImportFile = async (file: File) => {
+    try {
+      setImporting(true);
+      const text = await file.text();
+      const parsed = JSON.parse(text) as { notes?: unknown };
+      const notes = Array.isArray(parsed) ? parsed : parsed.notes;
+      if (!Array.isArray(notes)) {
+        showSnackbar("Not a NoteFlow backup file.");
+        return;
+      }
+      const count = await api.importBackup(notes);
+      await refresh();
+      showSnackbar(count === 0 ? "Nothing new — backup already imported." : `Imported ${count} note${count === 1 ? "" : "s"}.`);
+    } catch {
+      showSnackbar("Failed to import backup.");
+    } finally {
+      setImporting(false);
+      if (fileRef.current) fileRef.current.value = "";
     }
   };
 
@@ -133,6 +157,26 @@ export function SettingsPage() {
             <Download size={15} aria-hidden="true" />
             {exporting ? "Exporting…" : "Export Notes Backup (JSON)"}
           </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            disabled={importing}
+            onClick={() => fileRef.current?.click()}
+          >
+            <Download size={15} aria-hidden="true" />
+            {importing ? "Importing…" : "Import Backup (JSON)"}
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json,.json"
+            hidden
+            aria-label="Import backup file"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void handleImportFile(f);
+            }}
+          />
         </div>
       </section>
 
