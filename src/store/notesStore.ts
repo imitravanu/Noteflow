@@ -70,9 +70,10 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   updateNote: async (id, patch) => {
     try {
       const updated = await api.updateNote(id, patch);
-      set({
-        notes: get().notes.map((n) => (n.id === id ? updated : n)),
-      });
+      const sorted = get()
+        .notes.map((n) => (n.id === id ? updated : n))
+        .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt);
+      set({ notes: sorted });
       return updated;
     } catch (e) {
       useUiStore.getState().showSnackbar(errText(e));
@@ -255,7 +256,11 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     const ui = useUiStore.getState();
     try {
       await api.emptyTrash();
-      set({ notes: [] });
+      // Only clear optimistically when we're looking at trash;
+      // otherwise we'd flash an empty All/Archive list before refresh.
+      if (useUiStore.getState().view === "trash") {
+        set({ notes: [] });
+      }
       await get().refresh();
       ui.showSnackbar("Trash emptied");
     } catch (e) {
