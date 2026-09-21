@@ -19,6 +19,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 - Integration tests for bulk flags and full export (22 Rust tests total).
+- Settings > Import Backup (JSON): safe restore that never overwrites existing notes, merges tags case-insensitively, caps 5000 notes.
 
 ## [1.2.0] - 2026-09-01
 - Offline-first Tauri 2 + SQLite (WAL) notes, tags, trash/restore, search, JSON backup export.
