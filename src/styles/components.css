@@ -2209,3 +2209,26 @@
   white-space: pre-wrap;
   margin: 4px 0 6px;
 }
+
+/* ---------- Perf + motion safety ---------- */
+.notes-grid {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 400px;
+}
+.note-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 220px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .note-card,
+  .note-card:hover,
+  .note-card:active {
+    transform: none;
+    animation: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .note-card::after,
+  .note-card:hover::after {
+    opacity: 0;
+  }
+}

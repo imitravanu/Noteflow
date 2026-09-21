@@ -342,6 +342,17 @@ fn settings_roundtrip() {
 }
 
 #[test]
+fn settings_reject_unknown_keys_and_values() {
+    let conn = temp_db();
+    assert!(settings_service::set_setting(&conn, "evil", "1").is_err());
+    assert!(settings_service::set_setting(&conn, "theme", "neon").is_err());
+    // Unicode tag names count characters, not bytes.
+    let long_unicode = "é".repeat(64);
+    assert!(tag_service::create_tag(&conn, &long_unicode).is_ok());
+    assert!(tag_service::create_tag(&conn, &format!("{long_unicode}x")).is_err());
+}
+
+#[test]
 fn data_survives_app_restart() {
     let dir = std::env::temp_dir().join(format!("noteflow-test-{}", uuid::Uuid::new_v4()));
     {
@@ -693,4 +704,93 @@ fn batch_operations_and_tag_attachments_handle_large_collections() {
     let counts_after_delete = note_service::get_counts(&conn).unwrap();
     assert_eq!(counts_after_delete.all, 0);
     assert_eq!(counts_after_delete.trash, 0);
+}
+
+#[test]
+fn bulk_flags_update_atomically() {
+    let conn = temp_db();
+    let a = note_service::create_note(&conn, None).unwrap();
+    let b = note_service::create_note(&conn, None).unwrap();
+
+    let touched = note_service::set_flags_bulk(
+        &conn,
+        &[a.id.clone(), b.id.clone()],
+        &FlagPatch {
+            pinned: Some(true),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(touched, 2);
+    assert!(note_service::get_note(&conn, &a.id).unwrap().pinned);
+    assert!(note_service::get_note(&conn, &b.id).unwrap().pinned);
+
+    // Empty input and empty patch are safe no-ops.
+    assert_eq!(
+        note_service::set_flags_bulk(
+            &conn,
+            &[],
+            &FlagPatch {
+                pinned: Some(true),
+                ..Default::default()
+            }
+        )
+        .unwrap(),
+        0
+    );
+    assert_eq!(
+        note_service::set_flags_bulk(&conn, std::slice::from_ref(&a.id), &FlagPatch::default())
+            .unwrap(),
+        0
+    );
+}
+
+#[test]
+fn export_all_covers_every_view() {
+    let conn = temp_db();
+    let keep = note_service::create_note(&conn, None).unwrap();
+    let archived = note_service::create_note(&conn, None).unwrap();
+    let trashed = note_service::create_note(&conn, None).unwrap();
+    note_service::set_flags(
+        &conn,
+        &archived.id,
+        &FlagPatch {
+            archived: Some(true),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    note_service::trash_notes(&conn, std::slice::from_ref(&trashed.id)).unwrap();
+
+    let all = note_service::export_all_notes(&conn).unwrap();
+    let ids: Vec<_> = all.iter().map(|n| n.id.clone()).collect();
+    assert!(ids.contains(&keep.id) && ids.contains(&archived.id) && ids.contains(&trashed.id));
+}
+
+#[test]
+fn import_backup_skips_existing_and_merges_tags() {
+    let conn = temp_db();
+    let existing = note_service::create_note(&conn, None).unwrap();
+    let exported = note_service::export_all_notes(&conn).unwrap();
+    assert_eq!(exported.len(), 1);
+
+    // Re-import same backup inserts nothing.
+    assert_eq!(note_service::import_backup(&conn, &exported).unwrap(), 0);
+
+    // New note with a duplicate-case tag merges instead of duplicating.
+    let mut fresh = exported[0].clone();
+    fresh.id = uuid::Uuid::new_v4().to_string();
+    fresh.title = "restored".into();
+    let tag = tag_service::create_tag(&conn, "Work").unwrap();
+    fresh.tags = vec![
+        tag.clone(),
+        noteflow_lib::models::Tag {
+            id: "other".into(),
+            name: "work".into(),
+            note_count: None,
+        },
+    ];
+    assert_eq!(note_service::import_backup(&conn, &[fresh]).unwrap(), 1);
+    assert_eq!(tag_service::list_tags(&conn).unwrap().len(), 1);
+    assert!(note_service::get_note(&conn, &existing.id).is_ok());
 }

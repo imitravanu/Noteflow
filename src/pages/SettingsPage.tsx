@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   Check,
@@ -17,6 +17,7 @@ import { api } from "../services/api";
 import { useNotesStore } from "../store/notesStore";
 import { useUiStore } from "../store/uiStore";
 import { downloadFile } from "../utils/format";
+import { buildBackupPayload, parseBackupJson } from "../utils/backup";
 
 const THEMES: { value: Theme; label: string; description: string; icon: typeof Sun }[] = [
   { value: "light", label: "Light", description: "Bright surfaces for daytime", icon: Sun },
@@ -34,6 +35,9 @@ export function SettingsPage() {
 
   const [dataDir, setDataDir] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const refresh = useNotesStore((s) => s.refresh);
 
   useEffect(() => {
     api
@@ -45,23 +49,10 @@ export function SettingsPage() {
   const handleExportBackup = async () => {
     try {
       setExporting(true);
-      // Fetch all notes across views including archived & trash
-      const allNotes = await api.listNotes("all", null, "");
-      const archived = await api.listNotes("archive", null, "");
-      const trash = await api.listNotes("trash", null, "");
+      // Single atomic snapshot from backend (all views at once).
+      const fullList = await api.exportAllNotes();
 
-      const uniqueNotesMap = new Map();
-      [...allNotes, ...archived, ...trash].forEach((n) => uniqueNotesMap.set(n.id, n));
-      const fullList = Array.from(uniqueNotesMap.values());
-
-      const backup = {
-        version: __APP_VERSION__,
-        exportedAt: new Date().toISOString(),
-        notesCount: fullList.length,
-        tagsCount: tags.length,
-        notes: fullList,
-        tags,
-      };
+      const backup = buildBackupPayload(fullList, tags, __APP_VERSION__);
 
       const jsonStr = JSON.stringify(backup, null, 2);
       const dateStr = new Date().toISOString().slice(0, 10);
@@ -72,6 +63,28 @@ export function SettingsPage() {
       showSnackbar("Failed to export backup.");
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleImportFile = async (file: File) => {
+    try {
+      setImporting(true);
+      const text = await file.text();
+      let notes;
+      try {
+        notes = parseBackupJson(text);
+      } catch {
+        showSnackbar("Not a NoteFlow backup file.");
+        return;
+      }
+      const count = await api.importBackup(notes);
+      await refresh();
+      showSnackbar(count === 0 ? "Nothing new — backup already imported." : `Imported ${count} note${count === 1 ? "" : "s"}.`);
+    } catch {
+      showSnackbar("Failed to import backup.");
+    } finally {
+      setImporting(false);
+      if (fileRef.current) fileRef.current.value = "";
     }
   };
 
@@ -139,6 +152,26 @@ export function SettingsPage() {
             <Download size={15} aria-hidden="true" />
             {exporting ? "Exporting…" : "Export Notes Backup (JSON)"}
           </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            disabled={importing}
+            onClick={() => fileRef.current?.click()}
+          >
+            <Download size={15} aria-hidden="true" />
+            {importing ? "Importing…" : "Import Backup (JSON)"}
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json,.json"
+            hidden
+            aria-label="Import backup file"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void handleImportFile(f);
+            }}
+          />
         </div>
       </section>
 

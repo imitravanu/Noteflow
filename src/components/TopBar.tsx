@@ -54,7 +54,7 @@ export function TopBar() {
           <Logo size={26} />
           <div className="topbar-title-wrap">
             <span className="topbar-title">NoteFlow</span>
-            <span className="topbar-version-pill">v1.2.0</span>
+            <span className="topbar-version-pill">v{__APP_VERSION__}</span>
           </div>
         </div>
       </div>

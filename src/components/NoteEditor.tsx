@@ -73,9 +73,11 @@ export function NoteEditor() {
   draftRef.current = draft;
   const noteRef = useRef(note);
   noteRef.current = note;
+  const inflightRef = useRef(false);
   const timerRef = useRef<number | undefined>(undefined);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
-  const newChecklistText = useRef<HTMLInputElement>(null);
+  const [newItemText, setNewItemText] = useState("");
+  const newItemInputRef = useRef<HTMLInputElement>(null);
 
   // ---- load ---------------------------------------------------------------
   useEffect(() => {
@@ -83,25 +85,34 @@ export function NoteEditor() {
     let alive = true;
     dirtyRef.current = false;
     setStatus("saved");
+    setNewItemText("");
     const cached = useNotesStore.getState().notes.find((n) => n.id === noteId);
-    const load = cached ? Promise.resolve(cached) : api.getNote(noteId);
-    load
-      .then((n) => {
-        if (!alive) return;
-        setNote(n);
-        setEditorNote(n);
+    const apply = (n: Note) => {
+      if (!alive) return;
+      setNote(n);
+      setEditorNote(n);
+      // Don't clobber user edits that started before fresh data arrived.
+      if (!dirtyRef.current) {
         setDraft({
           title: n.title,
           content: n.content,
           checklist: n.checklist,
           color: n.color,
         });
-      })
-      .catch((e) => {
+      }
+    };
+    if (cached) {
+      apply(cached);
+      // Revalidate in background so a stale list entry never becomes
+      // the base for autosave overwrites.
+      api.getNote(noteId).then(apply).catch(() => {});
+    } else {
+      api.getNote(noteId).then(apply).catch((e) => {
         if (!alive) return;
         showSnackbar(errText(e));
         closeEditor();
       });
+    }
     return () => {
       alive = false;
     };
@@ -110,25 +121,33 @@ export function NoteEditor() {
   // ---- saving -------------------------------------------------------------
   const flush = useCallback(async () => {
     window.clearTimeout(timerRef.current);
+    if (inflightRef.current) return;
     if (!dirtyRef.current || !noteRef.current) return;
+    const targetId = noteRef.current.id;
+    if (!targetId) return;
+    inflightRef.current = true;
     dirtyRef.current = false;
     setStatus("saving");
-    const d = draftRef.current;
-    const updated = await useNotesStore.getState().updateNote(noteId!, {
-      title: d.title,
-      content: d.content,
-      checklist: d.checklist,
-      color: d.color,
-    });
-    if (updated) {
-      setNote((prev) => (prev ? { ...prev, ...updated } : updated));
-      setEditorNote(updated);
-      setStatus("saved");
-    } else {
-      dirtyRef.current = true;
-      setStatus("offline");
+    try {
+      const d = draftRef.current;
+      const updated = await useNotesStore.getState().updateNote(targetId, {
+        title: d.title,
+        content: d.content,
+        checklist: d.checklist,
+        color: d.color,
+      });
+      if (updated) {
+        setNote((prev) => (prev ? { ...prev, ...updated } : updated));
+        setEditorNote(updated);
+        setStatus("saved");
+      } else {
+        dirtyRef.current = true;
+        setStatus("offline");
+      }
+    } finally {
+      inflightRef.current = false;
     }
-  }, [noteId, setEditorNote]);
+  }, [setEditorNote]);
 
   useEffect(() => {
     registerEditorFlush(flush);
@@ -179,21 +198,22 @@ export function NoteEditor() {
   };
 
   // ---- checklist ----------------------------------------------------------
+  // Controlled input: single source of truth, no direct DOM mutation.
+  // Enter and blur both commit; the second sees cleared state so no doubles.
   const addChecklistItem = () => {
-    const input = newChecklistText.current;
-    const text = (input?.value ?? "").trim();
+    const text = newItemText.trim().slice(0, 500);
     if (!text) {
-      input?.focus();
+      newItemInputRef.current?.focus();
       return;
     }
-    if (input) input.value = "";
+    setNewItemText("");
     edit({
       checklist: [
         ...draftRef.current.checklist,
         { id: newId(), text, checked: false },
       ],
     });
-    input?.focus();
+    newItemInputRef.current?.focus();
   };
 
   const setChecklistItem = (id: string, patch: Partial<ChecklistItem>) => {
@@ -408,8 +428,8 @@ export function NoteEditor() {
                     createdAt: note.createdAt,
                     updatedAt: note.updatedAt,
                   });
-                  const cleanName = (draft.title || "note").trim().toLowerCase().replace(/[^a-z0-9_-]+/gi, "_");
-                  const filename = `${cleanName || "note"}.md`;
+                  const base = (draft.title || "note").trim().toLowerCase().replace(/[\s_]+/g, "-").replace(/[^\p{L}\p{N}-]+/gu, "_").replace(/_+/g, "_").slice(0, 80) || "note";
+                  const filename = `${base}.md`;
                   downloadFile(filename, md, "text/markdown;charset=utf-8");
                   showSnackbar(`Exported as ${filename}`);
                 }}
@@ -579,11 +599,14 @@ export function NoteEditor() {
                   <Plus size={13} aria-hidden="true" />
                 </div>
                 <input
-                  ref={newChecklistText}
+                  ref={newItemInputRef}
+                  value={newItemText}
+                  maxLength={500}
                   placeholder="Add item (Enter to add)…"
                   aria-label="New checklist item"
+                  onChange={(e) => setNewItemText(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") {
+                    if (e.key === "Enter" && !e.nativeEvent.isComposing) {
                       e.preventDefault();
                       addChecklistItem();
                     }
@@ -616,8 +639,7 @@ export function NoteEditor() {
   );
 
   function addChecklistItemOnBlur() {
-    const input = newChecklistText.current;
-    if (input?.value.trim()) addChecklistItem();
+    if (newItemText.trim()) addChecklistItem();
   }
 }
 
