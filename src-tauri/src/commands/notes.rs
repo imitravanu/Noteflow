@@ -41,6 +41,22 @@ pub fn set_flags(state: State<'_, AppState>, id: String, flags: FlagPatch) -> Ap
 }
 
 #[tauri::command]
+pub fn set_flags_bulk(
+    state: State<'_, AppState>,
+    ids: Vec<String>,
+    flags: FlagPatch,
+) -> AppResult<usize> {
+    let conn = lock_conn(&state)?;
+    note_service::set_flags_bulk(&conn, &ids, &flags)
+}
+
+#[tauri::command]
+pub fn export_all_notes(state: State<'_, AppState>) -> AppResult<Vec<Note>> {
+    let conn = lock_conn(&state)?;
+    note_service::export_all_notes(&conn)
+}
+
+#[tauri::command]
 pub fn trash_notes(state: State<'_, AppState>, ids: Vec<String>) -> AppResult<usize> {
     let conn = lock_conn(&state)?;
     note_service::trash_notes(&conn, &ids)

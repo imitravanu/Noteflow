@@ -229,6 +229,66 @@ pub fn set_flags(conn: &Connection, id: &str, flags: &FlagPatch) -> AppResult<No
     Ok(note)
 }
 
+/// Bulk flag update in a single transaction per chunk.
+/// Returns number of rows touched; missing ids are simply ignored
+/// (caller refreshes afterwards, so UI never ends half-flagged).
+pub fn set_flags_bulk(conn: &Connection, ids: &[String], flags: &FlagPatch) -> AppResult<usize> {
+    if ids.is_empty() {
+        return Ok(0);
+    }
+    if flags.pinned.is_none() && flags.favorite.is_none() && flags.archived.is_none() {
+        return Ok(0);
+    }
+    let tx = conn.unchecked_transaction()?;
+    let mut total = 0;
+    for chunk in ids.chunks(CHUNK_SIZE) {
+        let sql = format!(
+            "UPDATE notes SET
+                pinned   = COALESCE(?1, pinned),
+                favorite = COALESCE(?2, favorite),
+                archived = COALESCE(?3, archived)
+             WHERE id IN ({})",
+            ids_placeholders(chunk)
+        );
+        let mut stmt = tx.prepare(&sql)?;
+        let params: Vec<rusqlite::types::Value> = vec![
+            flags
+                .pinned
+                .map(|b| rusqlite::types::Value::Integer(b as i64))
+                .unwrap_or(rusqlite::types::Value::Null),
+            flags
+                .favorite
+                .map(|b| rusqlite::types::Value::Integer(b as i64))
+                .unwrap_or(rusqlite::types::Value::Null),
+            flags
+                .archived
+                .map(|b| rusqlite::types::Value::Integer(b as i64))
+                .unwrap_or(rusqlite::types::Value::Null),
+        ]
+        .into_iter()
+        .chain(
+            chunk
+                .iter()
+                .map(|id| rusqlite::types::Value::Text(id.clone())),
+        )
+        .collect();
+        total += stmt.execute(rusqlite::params_from_iter(params.iter()))?;
+    }
+    tx.commit()?;
+    Ok(total)
+}
+
+/// Full snapshot for Settings > Backup: every note regardless of view,
+/// in one read so the JSON file is always consistent.
+pub fn export_all_notes(conn: &Connection) -> AppResult<Vec<Note>> {
+    let sql = format!("SELECT {NOTE_COLUMNS} FROM notes ORDER BY updated_at DESC");
+    let mut stmt = conn.prepare(&sql)?;
+    let notes = stmt
+        .query_map([], row_to_note)?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    attach_tags(conn, notes)
+}
+
 fn ids_placeholders(ids: &[String]) -> String {
     vec!["?"; ids.len()].join(",")
 }

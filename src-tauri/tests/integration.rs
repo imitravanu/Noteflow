@@ -694,3 +694,63 @@ fn batch_operations_and_tag_attachments_handle_large_collections() {
     assert_eq!(counts_after_delete.all, 0);
     assert_eq!(counts_after_delete.trash, 0);
 }
+
+#[test]
+fn bulk_flags_update_atomically() {
+    let conn = temp_db();
+    let a = note_service::create_note(&conn, None).unwrap();
+    let b = note_service::create_note(&conn, None).unwrap();
+
+    let touched = note_service::set_flags_bulk(
+        &conn,
+        &[a.id.clone(), b.id.clone()],
+        &FlagPatch {
+            pinned: Some(true),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(touched, 2);
+    assert!(note_service::get_note(&conn, &a.id).unwrap().pinned);
+    assert!(note_service::get_note(&conn, &b.id).unwrap().pinned);
+
+    // Empty input and empty patch are safe no-ops.
+    assert_eq!(
+        note_service::set_flags_bulk(
+            &conn,
+            &[],
+            &FlagPatch {
+                pinned: Some(true),
+                ..Default::default()
+            }
+        )
+        .unwrap(),
+        0
+    );
+    assert_eq!(
+        note_service::set_flags_bulk(&conn, &[a.id.clone()], &FlagPatch::default()).unwrap(),
+        0
+    );
+}
+
+#[test]
+fn export_all_covers_every_view() {
+    let conn = temp_db();
+    let keep = note_service::create_note(&conn, None).unwrap();
+    let archived = note_service::create_note(&conn, None).unwrap();
+    let trashed = note_service::create_note(&conn, None).unwrap();
+    note_service::set_flags(
+        &conn,
+        &archived.id,
+        &FlagPatch {
+            archived: Some(true),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    note_service::trash_notes(&conn, &[trashed.id.clone()]).unwrap();
+
+    let all = note_service::export_all_notes(&conn).unwrap();
+    let ids: Vec<_> = all.iter().map(|n| n.id.clone()).collect();
+    assert!(ids.contains(&keep.id) && ids.contains(&archived.id) && ids.contains(&trashed.id));
+}
