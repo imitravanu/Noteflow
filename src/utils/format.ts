@@ -94,7 +94,8 @@ export function downloadFile(filename: string, content: string, mimeType: string
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  // Revoke after the webview has had a chance to start the download.
+  window.setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
 
