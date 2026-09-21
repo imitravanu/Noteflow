@@ -17,6 +17,7 @@ import { api } from "../services/api";
 import { useNotesStore } from "../store/notesStore";
 import { useUiStore } from "../store/uiStore";
 import { downloadFile } from "../utils/format";
+import { buildBackupPayload, parseBackupJson } from "../utils/backup";
 
 const THEMES: { value: Theme; label: string; description: string; icon: typeof Sun }[] = [
   { value: "light", label: "Light", description: "Bright surfaces for daytime", icon: Sun },
@@ -51,14 +52,7 @@ export function SettingsPage() {
       // Single atomic snapshot from backend (all views at once).
       const fullList = await api.exportAllNotes();
 
-      const backup = {
-        version: __APP_VERSION__,
-        exportedAt: new Date().toISOString(),
-        notesCount: fullList.length,
-        tagsCount: tags.length,
-        notes: fullList,
-        tags,
-      };
+      const backup = buildBackupPayload(fullList, tags, __APP_VERSION__);
 
       const jsonStr = JSON.stringify(backup, null, 2);
       const dateStr = new Date().toISOString().slice(0, 10);
@@ -76,9 +70,10 @@ export function SettingsPage() {
     try {
       setImporting(true);
       const text = await file.text();
-      const parsed = JSON.parse(text) as { notes?: unknown };
-      const notes = Array.isArray(parsed) ? parsed : parsed.notes;
-      if (!Array.isArray(notes)) {
+      let notes;
+      try {
+        notes = parseBackupJson(text);
+      } catch {
         showSnackbar("Not a NoteFlow backup file.");
         return;
       }
