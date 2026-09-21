@@ -342,6 +342,17 @@ fn settings_roundtrip() {
 }
 
 #[test]
+fn settings_reject_unknown_keys_and_values() {
+    let conn = temp_db();
+    assert!(settings_service::set_setting(&conn, "evil", "1").is_err());
+    assert!(settings_service::set_setting(&conn, "theme", "neon").is_err());
+    // Unicode tag names count characters, not bytes.
+    let long_unicode = "é".repeat(64);
+    assert!(tag_service::create_tag(&conn, &long_unicode).is_ok());
+    assert!(tag_service::create_tag(&conn, &format!("{long_unicode}x")).is_err());
+}
+
+#[test]
 fn data_survives_app_restart() {
     let dir = std::env::temp_dir().join(format!("noteflow-test-{}", uuid::Uuid::new_v4()));
     {

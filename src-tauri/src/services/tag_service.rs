@@ -9,7 +9,7 @@ fn validate_name(name: &str) -> AppResult<String> {
     if trimmed.is_empty() {
         return Err(AppError::Invalid("Tag name cannot be empty.".into()));
     }
-    if trimmed.len() > 64 {
+    if trimmed.chars().count() > 64 {
         return Err(AppError::Invalid(
             "Tag names are limited to 64 characters.".into(),
         ));
