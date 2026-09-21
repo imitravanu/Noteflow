@@ -33,6 +33,14 @@ export const api = {
     return invoke<Note>("set_flags", { id, flags });
   },
 
+  setFlagsBulk(ids: string[], flags: FlagPatch) {
+    return invoke<number>("set_flags_bulk", { ids, flags });
+  },
+
+  exportAllNotes() {
+    return invoke<Note[]>("export_all_notes");
+  },
+
   trashNotes(ids: string[]) {
     return invoke<number>("trash_notes", { ids });
   },

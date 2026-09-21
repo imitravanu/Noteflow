@@ -131,7 +131,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
         .map((n) => [n.id, n] as const),
     );
     try {
-      await Promise.all(ids.map((id) => api.setFlags(id, flags)));
+      await api.setFlagsBulk(ids, flags);
       ui.clearSelection();
       await get().refresh();
       const label =

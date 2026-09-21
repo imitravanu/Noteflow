@@ -45,14 +45,8 @@ export function SettingsPage() {
   const handleExportBackup = async () => {
     try {
       setExporting(true);
-      // Fetch all notes across views including archived & trash
-      const allNotes = await api.listNotes("all", null, "");
-      const archived = await api.listNotes("archive", null, "");
-      const trash = await api.listNotes("trash", null, "");
-
-      const uniqueNotesMap = new Map();
-      [...allNotes, ...archived, ...trash].forEach((n) => uniqueNotesMap.set(n.id, n));
-      const fullList = Array.from(uniqueNotesMap.values());
+      // Single atomic snapshot from backend (all views at once).
+      const fullList = await api.exportAllNotes();
 
       const backup = {
         version: __APP_VERSION__,
