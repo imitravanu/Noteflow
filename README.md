@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/imitravanu/Noteflow/releases/tag/v1.2.0"><img src="https://img.shields.io/badge/Release-v1.2.0-0071e3?style=flat-square" alt="Version"></a>
-  <a href="https://github.com/imitravanu/Noteflow/releases/download/v1.2.0/noteflow_1.2.0_amd64.deb"><img src="https://img.shields.io/badge/Download-.deb%20(v1.2.0)-34c759?style=flat-square&logo=debian&logoColor=white" alt="Download .deb"></a>
+  <a href="https://github.com/imitravanu/Noteflow/releases/tag/v1.3.0"><img src="https://img.shields.io/badge/Release-v1.3.0-0071e3?style=flat-square" alt="Version"></a>
+  <a href="https://github.com/imitravanu/Noteflow/releases/download/v1.3.0/noteflow_1.3.0_amd64.deb"><img src="https://img.shields.io/badge/Download-.deb%20(v1.3.0)-34c759?style=flat-square&logo=debian&logoColor=white" alt="Download .deb"></a>
   <a href="https://www.linux.org/"><img src="https://img.shields.io/badge/Platform-Linux%20(Wayland%20%2F%20GNOME)-23272e?style=flat-square&logo=linux" alt="Linux"></a>
   <a href="https://tauri.app/"><img src="https://img.shields.io/badge/Tauri-v2.0-24c8db?style=flat-square&logo=tauri&logoColor=white" alt="Tauri"></a>
   <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/Rust-Backend-dea584?style=flat-square&logo=rust&logoColor=white" alt="Rust"></a>
@@ -115,11 +115,11 @@ src-tauri/src/            Rust backend
 For **Ubuntu**, **Debian**, **Linux Mint**, **Pop!_OS**, and Debian-based distributions:
 
 1. **Download the installer:**  
-   👉 **[Download NoteFlow v1.2.0 (.deb)](https://github.com/imitravanu/Noteflow/releases/download/v1.2.0/noteflow_1.2.0_amd64.deb)** (2.6 MB)
+   👉 **[Download NoteFlow v1.3.0 (.deb)](https://github.com/imitravanu/Noteflow/releases/download/v1.3.0/noteflow_1.3.0_amd64.deb)** (2.6 MB)
 
 2. **Install via terminal:**
    ```bash
-   sudo dpkg -i noteflow_1.2.0_amd64.deb
+   sudo dpkg -i noteflow_1.3.0_amd64.deb
    ```
    *Or simply double-click the `.deb` file in your Linux file manager (Nautilus/Dolphin).*
 
