@@ -57,6 +57,12 @@ pub fn export_all_notes(state: State<'_, AppState>) -> AppResult<Vec<Note>> {
 }
 
 #[tauri::command]
+pub fn import_backup(state: State<'_, AppState>, notes: Vec<Note>) -> AppResult<usize> {
+    let conn = lock_conn(&state)?;
+    note_service::import_backup(&conn, &notes)
+}
+
+#[tauri::command]
 pub fn trash_notes(state: State<'_, AppState>, ids: Vec<String>) -> AppResult<usize> {
     let conn = lock_conn(&state)?;
     note_service::trash_notes(&conn, &ids)

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use rusqlite::{params, Connection, Row};
+use rusqlite::{params, Connection, OptionalExtension, Row};
 
 use crate::error::{AppError, AppResult};
 use crate::models::{FlagPatch, Note, NotePatch, NoteView, Tag};
@@ -287,6 +287,106 @@ pub fn export_all_notes(conn: &Connection) -> AppResult<Vec<Note>> {
         .query_map([], row_to_note)?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     attach_tags(conn, notes)
+}
+
+/// Restore from a Settings backup file. Never overwrites: existing ids are
+/// skipped, oversize/corrupt entries are skipped, tags merge by name
+/// (case-insensitive). Returns number of notes actually inserted.
+pub fn import_backup(conn: &Connection, notes: &[Note]) -> AppResult<usize> {
+    if notes.is_empty() {
+        return Ok(0);
+    }
+    if notes.len() > 5000 {
+        return Err(AppError::Invalid(
+            "Backup holds too many notes (max 5000).".into(),
+        ));
+    }
+    let tx = conn.unchecked_transaction()?;
+    let mut inserted = 0;
+    for note in notes {
+        if note.id.trim().is_empty() || note.id.len() > 64 {
+            continue;
+        }
+        let exists: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM notes WHERE id = ?1",
+            params![note.id],
+            |r| r.get(0),
+        )?;
+        if exists > 0 {
+            continue;
+        }
+        if note.title.chars().count() > 5000 || note.content.chars().count() > 500_000 {
+            continue;
+        }
+        if note.checklist.len() > 500 {
+            continue;
+        }
+        let checklist_json = serde_json::to_string(&note.checklist)
+            .map_err(|e| AppError::Internal(format!("Could not restore the checklist: {e}")))?;
+        let color = sanitize_color(note.color.trim()).to_string();
+        let created = if note.created_at > 0 {
+            note.created_at
+        } else {
+            now_millis()
+        };
+        let updated = if note.updated_at >= created {
+            note.updated_at
+        } else {
+            created
+        };
+        tx.execute(
+            "INSERT INTO notes (id, title, content, color, created_at, updated_at,
+                                pinned, favorite, archived, deleted, deleted_at, reminder_at, checklist)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+            params![
+                note.id,
+                note.title,
+                note.content,
+                color,
+                created,
+                updated,
+                note.pinned as i64,
+                note.favorite as i64,
+                note.archived as i64,
+                note.deleted as i64,
+                note.deleted_at,
+                note.reminder_at,
+                checklist_json,
+            ],
+        )?;
+        // Merge tags by name so re-imports never duplicate "Work"/"work".
+        for tag in &note.tags {
+            let name = tag.name.trim();
+            if name.is_empty() || name.chars().count() > 64 {
+                continue;
+            }
+            let existing: Option<String> = tx
+                .query_row(
+                    "SELECT id FROM tags WHERE name = ?1 COLLATE NOCASE",
+                    params![name],
+                    |r| r.get(0),
+                )
+                .optional()?;
+            let tag_id = match existing {
+                Some(id) => id,
+                None => {
+                    let new_id = uuid::Uuid::new_v4().to_string();
+                    tx.execute(
+                        "INSERT INTO tags (id, name, created_at) VALUES (?1, ?2, ?3)",
+                        params![new_id, name, now_millis()],
+                    )?;
+                    new_id
+                }
+            };
+            tx.execute(
+                "INSERT OR IGNORE INTO note_tags (note_id, tag_id) VALUES (?1, ?2)",
+                params![note.id, tag_id],
+            )?;
+        }
+        inserted += 1;
+    }
+    tx.commit()?;
+    Ok(inserted)
 }
 
 fn ids_placeholders(ids: &[String]) -> String {

@@ -766,3 +766,31 @@ fn export_all_covers_every_view() {
     let ids: Vec<_> = all.iter().map(|n| n.id.clone()).collect();
     assert!(ids.contains(&keep.id) && ids.contains(&archived.id) && ids.contains(&trashed.id));
 }
+
+#[test]
+fn import_backup_skips_existing_and_merges_tags() {
+    let conn = temp_db();
+    let existing = note_service::create_note(&conn, None).unwrap();
+    let exported = note_service::export_all_notes(&conn).unwrap();
+    assert_eq!(exported.len(), 1);
+
+    // Re-import same backup inserts nothing.
+    assert_eq!(note_service::import_backup(&conn, &exported).unwrap(), 0);
+
+    // New note with a duplicate-case tag merges instead of duplicating.
+    let mut fresh = exported[0].clone();
+    fresh.id = uuid::Uuid::new_v4().to_string();
+    fresh.title = "restored".into();
+    let tag = tag_service::create_tag(&conn, "Work").unwrap();
+    fresh.tags = vec![
+        tag.clone(),
+        noteflow_lib::models::Tag {
+            id: "other".into(),
+            name: "work".into(),
+            note_count: None,
+        },
+    ];
+    assert_eq!(note_service::import_backup(&conn, &[fresh]).unwrap(), 1);
+    assert_eq!(tag_service::list_tags(&conn).unwrap().len(), 1);
+    assert!(note_service::get_note(&conn, &existing.id).is_ok());
+}
