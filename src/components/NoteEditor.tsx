@@ -76,7 +76,8 @@ export function NoteEditor() {
   const inflightRef = useRef(false);
   const timerRef = useRef<number | undefined>(undefined);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
-  const newChecklistText = useRef<HTMLInputElement>(null);
+  const [newItemText, setNewItemText] = useState("");
+  const newItemInputRef = useRef<HTMLInputElement>(null);
 
   // ---- load ---------------------------------------------------------------
   useEffect(() => {
@@ -84,6 +85,7 @@ export function NoteEditor() {
     let alive = true;
     dirtyRef.current = false;
     setStatus("saved");
+    setNewItemText("");
     const cached = useNotesStore.getState().notes.find((n) => n.id === noteId);
     const apply = (n: Note) => {
       if (!alive) return;
@@ -196,21 +198,22 @@ export function NoteEditor() {
   };
 
   // ---- checklist ----------------------------------------------------------
+  // Controlled input: single source of truth, no direct DOM mutation.
+  // Enter and blur both commit; the second sees cleared state so no doubles.
   const addChecklistItem = () => {
-    const input = newChecklistText.current;
-    const text = (input?.value ?? "").trim();
+    const text = newItemText.trim().slice(0, 500);
     if (!text) {
-      input?.focus();
+      newItemInputRef.current?.focus();
       return;
     }
-    if (input) input.value = "";
+    setNewItemText("");
     edit({
       checklist: [
         ...draftRef.current.checklist,
         { id: newId(), text, checked: false },
       ],
     });
-    input?.focus();
+    newItemInputRef.current?.focus();
   };
 
   const setChecklistItem = (id: string, patch: Partial<ChecklistItem>) => {
@@ -596,11 +599,14 @@ export function NoteEditor() {
                   <Plus size={13} aria-hidden="true" />
                 </div>
                 <input
-                  ref={newChecklistText}
+                  ref={newItemInputRef}
+                  value={newItemText}
+                  maxLength={500}
                   placeholder="Add item (Enter to add)…"
                   aria-label="New checklist item"
+                  onChange={(e) => setNewItemText(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") {
+                    if (e.key === "Enter" && !e.nativeEvent.isComposing) {
                       e.preventDefault();
                       addChecklistItem();
                     }
@@ -633,8 +639,7 @@ export function NoteEditor() {
   );
 
   function addChecklistItemOnBlur() {
-    const input = newChecklistText.current;
-    if (input?.value.trim()) addChecklistItem();
+    if (newItemText.trim()) addChecklistItem();
   }
 }
 
