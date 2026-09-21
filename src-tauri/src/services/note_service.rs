@@ -33,15 +33,12 @@ pub fn now_millis() -> i64 {
         .unwrap_or(0);
     let mut last = LAST_MILLIS.load(Ordering::Relaxed);
     loop {
-        if now <= last {
-            return last;
-        }
-        match LAST_MILLIS.compare_exchange(last, now, Ordering::Relaxed, Ordering::Relaxed) {
-            Ok(_) => return now,
+        // Monotonic: never go backwards, and never hand out the same
+        // millis twice so ORDER BY updated_at DESC stays deterministic.
+        let target = now.max(last.saturating_add(1));
+        match LAST_MILLIS.compare_exchange(last, target, Ordering::Relaxed, Ordering::Relaxed) {
+            Ok(_) => return target,
             Err(current) => {
-                if now <= current {
-                    return current;
-                }
                 last = current;
             }
         }
