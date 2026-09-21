@@ -739,7 +739,8 @@ fn bulk_flags_update_atomically() {
         0
     );
     assert_eq!(
-        note_service::set_flags_bulk(&conn, &[a.id.clone()], &FlagPatch::default()).unwrap(),
+        note_service::set_flags_bulk(&conn, std::slice::from_ref(&a.id), &FlagPatch::default())
+            .unwrap(),
         0
     );
 }
@@ -759,7 +760,7 @@ fn export_all_covers_every_view() {
         },
     )
     .unwrap();
-    note_service::trash_notes(&conn, &[trashed.id.clone()]).unwrap();
+    note_service::trash_notes(&conn, std::slice::from_ref(&trashed.id)).unwrap();
 
     let all = note_service::export_all_notes(&conn).unwrap();
     let ids: Vec<_> = all.iter().map(|n| n.id.clone()).collect();
