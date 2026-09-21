@@ -3,7 +3,7 @@
 All notable changes to NoteFlow are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [1.3.0] - 2026-09-22
 
 ### Fixed
 - CI: trigger on `main` (was `master`, so CI never ran); align Linux deps with README across `ci.yml` / `release.yml`.
