@@ -5,6 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src ipc: http://ipc.localhost ws://localhost:5173 http://localhost:5173; style-src 'self' 'unsafe-inline'; img-src 'self' data:" />
     <title>NoteFlow</title>
+    <script>
+      // Pre-paint theme so dark users never see a white flash.
+      // Mirrors uiStore localStorage cache; corrected after SQLite loads.
+      try {
+        var t = localStorage.getItem("noteflow-theme");
+        var resolved = t === "light" || t === "dark" ? t : (t !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        // "system" intentionally resolves here; useTheme() sets the live value.
+        document.documentElement.dataset.theme = resolved;
+        document.documentElement.style.colorScheme = resolved;
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

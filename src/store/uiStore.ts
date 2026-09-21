@@ -172,6 +172,11 @@ export const useUiStore = create<UiState>((set, get) => ({
 
   setTheme: (theme) => {
     set({ theme });
+    try {
+      localStorage.setItem("noteflow-theme", theme);
+    } catch {
+      /* private mode: in-session theme still applies */
+    }
     api.setSetting("theme", theme).catch(() => {
       /* theme persistence is best-effort; the in-session theme still applies */
     });
@@ -191,7 +196,21 @@ export const useUiStore = create<UiState>((set, get) => ({
           ? stored
           : "system";
       set({ theme });
+      try {
+        localStorage.setItem("noteflow-theme", theme);
+      } catch {
+        /* ignore */
+      }
     } catch {
+      try {
+        const local = localStorage.getItem("noteflow-theme");
+        if (local === "light" || local === "dark" || local === "system") {
+          set({ theme: local });
+          return;
+        }
+      } catch {
+        /* ignore */
+      }
       set({ theme: "system" });
     }
   },
