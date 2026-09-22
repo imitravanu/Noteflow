@@ -1,6 +1,4 @@
-import { useRef } from "react";
 import { Keyboard, X } from "lucide-react";
-import { useFocusTrap } from "../hooks/useFocusTrap";
 import { useUiStore } from "../store/uiStore";
 
 const SHORTCUT_GROUPS = [
@@ -35,12 +33,6 @@ const SHORTCUT_GROUPS = [
 export function ShortcutsModal() {
   const shortcutsOpen = useUiStore((s) => s.shortcutsOpen);
   const setShortcutsOpen = useUiStore((s) => s.setShortcutsOpen);
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const closeRef = useRef<HTMLButtonElement>(null);
-
-  // Open on the close button and keep Tab inside the sheet, so the shortcuts
-  // list can't leak focus to the app behind it; restore focus on dismiss.
-  useFocusTrap(dialogRef, shortcutsOpen, closeRef);
 
   if (!shortcutsOpen) return null;
 
@@ -52,7 +44,7 @@ export function ShortcutsModal() {
       aria-labelledby="shortcuts-title"
       onClick={() => setShortcutsOpen(false)}
     >
-      <div ref={dialogRef} className="dialog shortcuts-dialog" onClick={(e) => e.stopPropagation()}>
+      <div className="dialog shortcuts-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="shortcuts-header">
           <div className="shortcuts-header-left">
             <Keyboard size={18} className="theme-accent-color" />
@@ -61,7 +53,6 @@ export function ShortcutsModal() {
             </h2>
           </div>
           <button
-            ref={closeRef}
             type="button"
             className="icon-btn icon-btn-sm"
             aria-label="Close shortcuts"

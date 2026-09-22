@@ -1,16 +1,14 @@
-import { useRef } from "react";
-import { useFocusTrap } from "../hooks/useFocusTrap";
+import { useEffect, useRef } from "react";
 import { useUiStore } from "../store/uiStore";
 
 export function ConfirmDialog() {
   const confirm = useUiStore((s) => s.confirm);
   const closeConfirm = useUiStore((s) => s.closeConfirm);
-  const dialogRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
 
-  // Trap Tab inside the dialog and open on the safe action (Cancel), then
-  // return focus to wherever the user was when it closes.
-  useFocusTrap(dialogRef, confirm !== null, cancelRef);
+  useEffect(() => {
+    if (confirm) cancelRef.current?.focus();
+  }, [confirm]);
 
   if (!confirm) return null;
 
@@ -29,7 +27,6 @@ export function ConfirmDialog() {
       }}
     >
       <div
-        ref={dialogRef}
         className="dialog"
         role="alertdialog"
         aria-modal="true"
