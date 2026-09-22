@@ -17,6 +17,9 @@ pub fn open_db(dir: &Path) -> AppResult<Connection> {
     fs::create_dir_all(dir)?;
     let db_path = dir.join("noteflow.db");
     let conn = Connection::open(&db_path)?;
+    // Defensive today (single connection, commands serialize on the Mutex):
+    // a 5s busy timeout means a future second reader connection can never
+    // surface SQLITE_BUSY to the user during a brief write lock.
     conn.busy_timeout(std::time::Duration::from_secs(5))?;
     conn.pragma_update(None, "journal_mode", "WAL")?;
     conn.pragma_update(None, "synchronous", "NORMAL")?;

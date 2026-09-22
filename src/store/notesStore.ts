@@ -58,6 +58,10 @@ export const useNotesStore = create<NotesState>((set, get) => ({
 
   createNote: async () => {
     const ui = useUiStore.getState();
+    // Flush the open editor first: opening the new note resets the save gate,
+    // which would otherwise drop edits still inside the debounce window
+    // (reachable via Ctrl+N while typing).
+    await ui.flushEditor();
     try {
       const note = await api.createNote();
       await get().refresh();

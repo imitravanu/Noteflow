@@ -16,8 +16,7 @@ import type { Theme } from "../types";
 import { api } from "../services/api";
 import { useNotesStore } from "../store/notesStore";
 import { useUiStore } from "../store/uiStore";
-import { downloadFile } from "../utils/format";
-import { buildBackupPayload, parseBackupJson } from "../utils/backup";
+import { buildBackupPayload, parseBackupJson, type ParsedBackup } from "../utils/backup";
 
 const THEMES: { value: Theme; label: string; description: string; icon: typeof Sun }[] = [
   { value: "light", label: "Light", description: "Bright surfaces for daytime", icon: Sun },
@@ -57,8 +56,10 @@ export function SettingsPage() {
       const jsonStr = JSON.stringify(backup, null, 2);
       const dateStr = new Date().toISOString().slice(0, 10);
       const filename = `noteflow-backup-${dateStr}.json`;
-      downloadFile(filename, jsonStr, "application/json;charset=utf-8");
-      showSnackbar(`Exported backup with ${fullList.length} notes`);
+      // Written by Rust straight to disk — webview `<a download>` is not
+      // reliable in bundled WebKitGTK builds.
+      const path = await api.saveTextFile(filename, jsonStr);
+      showSnackbar(`Backup saved to ${path}`);
     } catch {
       showSnackbar("Failed to export backup.");
     } finally {
@@ -70,16 +71,24 @@ export function SettingsPage() {
     try {
       setImporting(true);
       const text = await file.text();
-      let notes;
+      let parsed: ParsedBackup;
       try {
-        notes = parseBackupJson(text);
+        parsed = parseBackupJson(text);
       } catch {
         showSnackbar("Not a NoteFlow backup file.");
         return;
       }
-      const count = await api.importBackup(notes);
+      const report = await api.importBackup(parsed.notes, parsed.tags);
       await refresh();
-      showSnackbar(count === 0 ? "Nothing new — backup already imported." : `Imported ${count} note${count === 1 ? "" : "s"}.`);
+      const base =
+        report.inserted === 0
+          ? "Nothing new — backup already imported."
+          : `Imported ${report.inserted} note${report.inserted === 1 ? "" : "s"}.`;
+      showSnackbar(
+        report.skipped > 0
+          ? `${base} Skipped ${report.skipped} oversized or invalid entr${report.skipped === 1 ? "y" : "ies"}.`
+          : base,
+      );
     } catch {
       showSnackbar("Failed to import backup.");
     } finally {

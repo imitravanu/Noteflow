@@ -45,6 +45,19 @@ pub fn now_millis() -> i64 {
     }
 }
 
+/// Raises the monotonic clock to at least `ts`. Import uses this so a backup
+/// carrying timestamps from another machine's (fast) clock can never keep
+/// subsequently edited notes sorting *below* the imported ones.
+pub fn bump_last_millis(ts: i64) {
+    let mut last = LAST_MILLIS.load(Ordering::Relaxed);
+    while ts > last {
+        match LAST_MILLIS.compare_exchange(last, ts, Ordering::Relaxed, Ordering::Relaxed) {
+            Ok(_) => return,
+            Err(current) => last = current,
+        }
+    }
+}
+
 const NOTE_COLUMNS: &str =
     "id, title, content, color, created_at, updated_at, pinned, favorite, archived, deleted, deleted_at, reminder_at, checklist";
 
@@ -160,7 +173,10 @@ pub fn update_note(conn: &Connection, id: &str, patch: &NotePatch) -> AppResult<
         .as_ref()
         .map(serde_json::to_string)
         .transpose()
-        .map_err(|e| AppError::Internal(format!("Could not save the checklist: {e}")))?;
+        .map_err(|e| {
+            log::error!("checklist serialize failed during save: {e}");
+            AppError::Internal(format!("Could not save the checklist: {e}"))
+        })?;
 
     let has_edit = patch.title.is_some()
         || patch.content.is_some()
@@ -242,11 +258,13 @@ pub fn set_flags_bulk(conn: &Connection, ids: &[String], flags: &FlagPatch) -> A
     let tx = conn.unchecked_transaction()?;
     let mut total = 0;
     for chunk in ids.chunks(CHUNK_SIZE) {
+        // All-anonymous placeholders: three flag values first, then the id
+        // list — bound below in exactly that order.
         let sql = format!(
             "UPDATE notes SET
-                pinned   = COALESCE(?1, pinned),
-                favorite = COALESCE(?2, favorite),
-                archived = COALESCE(?3, archived)
+                pinned   = COALESCE(?, pinned),
+                favorite = COALESCE(?, favorite),
+                archived = COALESCE(?, archived)
              WHERE id IN ({})",
             ids_placeholders(chunk)
         );
@@ -289,22 +307,83 @@ pub fn export_all_notes(conn: &Connection) -> AppResult<Vec<Note>> {
     attach_tags(conn, notes)
 }
 
+/// What an import actually did: notes written vs. entries dropped by
+/// validation — surfaced in Settings so oversized/invalid data can never be
+/// skipped silently.
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportReport {
+    pub inserted: usize,
+    pub skipped: usize,
+}
+
 /// Restore from a Settings backup file. Never overwrites: existing ids are
-/// skipped, oversize/corrupt entries are skipped, tags merge by name
-/// (case-insensitive). Returns number of notes actually inserted.
-pub fn import_backup(conn: &Connection, notes: &[Note]) -> AppResult<usize> {
-    if notes.is_empty() {
-        return Ok(0);
+/// skipped (not an error), oversize/invalid entries are skipped and counted,
+/// tags merge by name (case-insensitive).
+///
+/// `extra_tags` is the backup's top-level tag list: restoring it lets tags
+/// that currently reference no note (orphans) survive a backup round-trip.
+/// They merge by name just like the per-note tags below, so re-imports of
+/// old and new backups alike stay idempotent.
+pub fn import_backup(
+    conn: &Connection,
+    notes: &[Note],
+    extra_tags: &[Tag],
+) -> AppResult<ImportReport> {
+    let mut report = ImportReport {
+        inserted: 0,
+        skipped: 0,
+    };
+    if notes.is_empty() && extra_tags.is_empty() {
+        return Ok(report);
     }
     if notes.len() > 5000 {
         return Err(AppError::Invalid(
             "Backup holds too many notes (max 5000).".into(),
         ));
     }
+    if extra_tags.len() > 5000 {
+        return Err(AppError::Invalid(
+            "Backup holds too many tags (max 5000).".into(),
+        ));
+    }
     let tx = conn.unchecked_transaction()?;
-    let mut inserted = 0;
+
+    // Restore the top-level tag list first. Skip anything already present by
+    // name (COLLATE NOCASE) or id, so a re-import or a tag that also appears
+    // attached to a note never duplicates.
+    for tag in extra_tags {
+        let name = tag.name.trim();
+        if name.is_empty() || name.chars().count() > 64 {
+            report.skipped += 1; // invalid tag entry — counted in the summary
+            continue;
+        }
+        let taken: Option<String> = tx
+            .query_row(
+                "SELECT id FROM tags WHERE name = ?1 COLLATE NOCASE",
+                params![name],
+                |r| r.get(0),
+            )
+            .optional()?;
+        if taken.is_some() {
+            continue;
+        }
+        let id = if tag.id.trim().is_empty() || tag.id.len() > 64 {
+            uuid::Uuid::new_v4().to_string()
+        } else {
+            tag.id.clone()
+        };
+        // OR IGNORE: a pathological backup with a colliding id loses that one
+        // tag instead of aborting the whole restore.
+        tx.execute(
+            "INSERT OR IGNORE INTO tags (id, name, created_at) VALUES (?1, ?2, ?3)",
+            params![id, name, now_millis()],
+        )?;
+    }
+
     for note in notes {
         if note.id.trim().is_empty() || note.id.len() > 64 {
+            report.skipped += 1; // unusable id — the note can never come back
             continue;
         }
         let exists: i64 = tx.query_row(
@@ -313,16 +392,22 @@ pub fn import_backup(conn: &Connection, notes: &[Note]) -> AppResult<usize> {
             |r| r.get(0),
         )?;
         if exists > 0 {
-            continue;
+            continue; // already present — re-imports stay idempotent, not an error
         }
+        // Size caps mirror the editor's maxLength limits so everything the app
+        // can save is restorable; oversized foreign entries are reported.
         if note.title.chars().count() > 5000 || note.content.chars().count() > 500_000 {
+            report.skipped += 1;
             continue;
         }
         if note.checklist.len() > 500 {
+            report.skipped += 1;
             continue;
         }
-        let checklist_json = serde_json::to_string(&note.checklist)
-            .map_err(|e| AppError::Internal(format!("Could not restore the checklist: {e}")))?;
+        let checklist_json = serde_json::to_string(&note.checklist).map_err(|e| {
+            log::error!("checklist serialize failed during import: {e}");
+            AppError::Internal(format!("Could not restore the checklist: {e}"))
+        })?;
         let color = sanitize_color(note.color.trim()).to_string();
         let created = if note.created_at > 0 {
             note.created_at
@@ -334,6 +419,9 @@ pub fn import_backup(conn: &Connection, notes: &[Note]) -> AppResult<usize> {
         } else {
             created
         };
+        // Fold the foreign clock into ours so a fast-clock backup can never
+        // keep subsequent edits sorted below the imported notes.
+        bump_last_millis(updated);
         tx.execute(
             "INSERT INTO notes (id, title, content, color, created_at, updated_at,
                                 pinned, favorite, archived, deleted, deleted_at, reminder_at, checklist)
@@ -383,10 +471,10 @@ pub fn import_backup(conn: &Connection, notes: &[Note]) -> AppResult<usize> {
                 params![note.id, tag_id],
             )?;
         }
-        inserted += 1;
+        report.inserted += 1;
     }
     tx.commit()?;
-    Ok(inserted)
+    Ok(report)
 }
 
 fn ids_placeholders(ids: &[String]) -> String {
@@ -501,6 +589,76 @@ pub fn set_note_tags(conn: &Connection, note_id: &str, tag_ids: &[String]) -> Ap
     Ok(note.tags)
 }
 
+/// Applies (or removes) one tag on many notes in a single transaction.
+/// The tag is validated once up front; note ids that no longer exist are
+/// filtered out per chunk (a stale selection can never trip a foreign-key
+/// error mid-batch), and the whole batch commits or rolls back as one unit —
+/// the UI never ends up half-tagged. Returns the number of note↔tag links
+/// created (or removed when `apply` is false); applying twice is a no-op.
+pub fn set_tags_bulk(
+    conn: &Connection,
+    ids: &[String],
+    tag_id: &str,
+    apply: bool,
+) -> AppResult<usize> {
+    if ids.is_empty() {
+        return Ok(0);
+    }
+    let tx = conn.unchecked_transaction()?;
+
+    let tag_exists: i64 = tx.query_row(
+        "SELECT COUNT(*) FROM tags WHERE id = ?1",
+        params![tag_id],
+        |r| r.get(0),
+    )?;
+    if tag_exists == 0 {
+        return Err(AppError::NotFound("That tag no longer exists.".into()));
+    }
+
+    let mut total = 0;
+    for chunk in ids.chunks(CHUNK_SIZE) {
+        // Drop ids that no longer reference a note (deleted since the UI
+        // built its selection) so inserts stay FK-safe without failing.
+        let find_sql = format!(
+            "SELECT id FROM notes WHERE id IN ({})",
+            ids_placeholders(chunk)
+        );
+        let mut find = tx.prepare(&find_sql)?;
+        let existing: Vec<String> = find
+            .query_map(rusqlite::params_from_iter(chunk.iter()), |r| r.get(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        drop(find);
+        if existing.is_empty() {
+            continue;
+        }
+
+        if apply {
+            // Row-by-row keeps parameter count at 2 regardless of chunk size;
+            // OR IGNORE makes re-applying an existing link a counted no-op.
+            let mut stmt =
+                tx.prepare("INSERT OR IGNORE INTO note_tags (note_id, tag_id) VALUES (?1, ?2)")?;
+            for note_id in &existing {
+                total += stmt.execute(params![note_id, tag_id])?;
+            }
+            drop(stmt);
+        } else {
+            let del_sql = format!(
+                "DELETE FROM note_tags WHERE tag_id = ?1 AND note_id IN ({})",
+                ids_placeholders(&existing)
+            );
+            let mut stmt = tx.prepare(&del_sql)?;
+            let args = std::iter::once(rusqlite::types::Value::Text(tag_id.to_string())).chain(
+                existing
+                    .iter()
+                    .map(|id| rusqlite::types::Value::Text(id.clone())),
+            );
+            total += stmt.execute(rusqlite::params_from_iter(args))?;
+        }
+    }
+    tx.commit()?;
+    Ok(total)
+}
+
 /// Lists notes for a view, optionally narrowed to a tag and a free-text query
 /// across title, body, and tag names. Pinned notes sort first so the UI can
 /// render them as a dedicated section.
@@ -520,6 +678,14 @@ pub fn list_notes(
         NoteView::Archive => where_parts.push("deleted = 0 AND archived = 1"),
         NoteView::Trash => where_parts.push("deleted = 1"),
     }
+
+    // Trash sorts by when it was deleted (what its cards display); live views
+    // keep pinned-first ordering.
+    let order_by = if matches!(view, NoteView::Trash) {
+        "COALESCE(deleted_at, updated_at) DESC"
+    } else {
+        "pinned DESC, updated_at DESC"
+    };
 
     if let Some(tag) = tag_id {
         where_parts.push(
@@ -554,8 +720,11 @@ pub fn list_notes(
         }
     }
 
+    // NOTE: SQLite LIKE is case-insensitive for ASCII only — non-ASCII case
+    // differences (é/É) won't match. Fine for local search today; move to
+    // FTS5 + unicode61 if it is ever reported.
     let sql = format!(
-        "SELECT {NOTE_COLUMNS} FROM notes WHERE {} ORDER BY pinned DESC, updated_at DESC",
+        "SELECT {NOTE_COLUMNS} FROM notes WHERE {} ORDER BY {order_by}",
         where_parts.join(" AND ")
     );
 

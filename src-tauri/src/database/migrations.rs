@@ -49,8 +49,13 @@ pub fn run(conn: &Connection) -> AppResult<()> {
     let version: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
 
     if version < 1 {
-        conn.execute_batch(SCHEMA_V1)?;
-        conn.pragma_update(None, "user_version", 1)?;
+        // One transaction: a crash mid-migration can never leave a partial
+        // schema behind (CREATE IF NOT EXISTS would make a rerun safe, but
+        // atomic is cheaper to reason about).
+        let tx = conn.unchecked_transaction()?;
+        tx.execute_batch(SCHEMA_V1)?;
+        tx.pragma_update(None, "user_version", 1)?;
+        tx.commit()?;
     }
 
     Ok(())

@@ -1,3 +1,4 @@
+pub mod files;
 pub mod notes;
 pub mod settings;
 pub mod tags;
@@ -18,6 +19,7 @@ pub struct AppState {
 /// panic mid-write) into a user-readable error instead of a second panic.
 pub fn lock_conn<'a>(state: &'a State<'_, AppState>) -> AppResult<MutexGuard<'a, Connection>> {
     state.conn.lock().map_err(|_| {
+        log::error!("database mutex poisoned — a previous command panicked mid-write");
         AppError::Internal(
             "The notes database hit an internal error and the app needs to be restarted. \
              Your saved notes are safe on disk."

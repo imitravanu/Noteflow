@@ -1,5 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { NOTE_COLORS } from "../types";
+import { useUiStore } from "../store/uiStore";
 
 interface ColorPickerProps {
   value: string;
@@ -9,20 +10,25 @@ interface ColorPickerProps {
 
 export function ColorPicker({ value, onChange, onClose }: ColorPickerProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const id = useId();
+  // Always call the latest onClose (it is re-created every render).
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+
+  // Escape is owned by the global cascade (see utils/escape.ts): register so
+  // it closes *this* popover instead of the editor underneath it.
+  useEffect(() => {
+    const { registerPopover, unregisterPopover } = useUiStore.getState();
+    registerPopover(id, () => closeRef.current());
+    return () => unregisterPopover(id);
+  }, [id]);
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) onClose();
     };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
     document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
+    return () => document.removeEventListener("mousedown", onDown);
   }, [onClose]);
 
   return (

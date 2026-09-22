@@ -84,18 +84,4 @@ export function noteToMarkdown(note: {
   return lines.join("\n").trimEnd() + "\n";
 }
 
-/** Triggers a browser/webview local file download. */
-export function downloadFile(filename: string, content: string, mimeType: string): void {
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  // Revoke after the webview has had a chance to start the download.
-  window.setTimeout(() => URL.revokeObjectURL(url), 5000);
-}
-
 

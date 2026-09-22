@@ -73,5 +73,12 @@ export interface Counts {
 
 export type Theme = "light" | "dark" | "system";
 
-export type SaveStatus = "saved" | "saving" | "offline";
+export type SaveStatus = "saved" | "saving" | "error";
+
+/** Result of Settings > Import: what was written vs. dropped by validation. */
+export interface ImportReport {
+  inserted: number;
+  /** Entries rejected for being oversized or invalid (never silently hidden). */
+  skipped: number;
+}
 

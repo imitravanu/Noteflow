@@ -31,10 +31,14 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Frontend typecheck & tests
+      - name: Version manifests in sync
+        run: npm run check:versions
+
+      - name: Frontend typecheck, tests & bundle
         run: |
           npm run typecheck
           npm test
+          npm run build
 
       - name: Rust formatting check
         run: cargo fmt --all -- --check

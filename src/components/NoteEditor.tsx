@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   Archive,
   ArchiveRestore,
@@ -20,11 +20,11 @@ import { useNotesStore } from "../store/notesStore";
 import { errText, useUiStore } from "../store/uiStore";
 import {
   countWordsAndChars,
-  downloadFile,
   formatDateTime,
   formatRelativeTime,
   noteToMarkdown,
 } from "../utils/format";
+import { createSaveGate, type SaveGate } from "../utils/saveGate";
 import { ColorPicker } from "./ColorPicker";
 import { TagPicker } from "./TagPicker";
 
@@ -34,8 +34,6 @@ interface Draft {
   checklist: ChecklistItem[];
   color: string;
 }
-
-const AUTOSAVE_DELAY_MS = 600;
 
 /** crypto.randomUUID fallback for webview origins without a secure context. */
 function newId(): string {
@@ -68,14 +66,48 @@ export function NoteEditor() {
   const [inlineTagPickerOpen, setInlineTagPickerOpen] = useState(false);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
 
-  const dirtyRef = useRef(false);
   const draftRef = useRef(draft);
-  draftRef.current = draft;
   const noteRef = useRef(note);
-  noteRef.current = note;
-  const inflightRef = useRef(false);
-  const timerRef = useRef<number | undefined>(undefined);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
+
+  // Mirror the latest values into refs *after commit* (layout effects run
+  // synchronously post-commit, before paint or any event/timer can observe
+  // them), instead of during render where a discarded concurrent render
+  // could leave a ref pointing at data React never committed.
+  useLayoutEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
+  useLayoutEffect(() => {
+    noteRef.current = note;
+  }, [note]);
+
+  // Save gate: owns debounce / in-flight chaining / retry backoff so races
+  // are unit-tested in utils/saveGate.ts instead of living in this component.
+  // Created once; the save callback only closes over stable refs and setters.
+  const gateRef = useRef<SaveGate | null>(null);
+  if (!gateRef.current) {
+    gateRef.current = createSaveGate({
+      save: async () => {
+        const targetId = noteRef.current?.id;
+        if (!targetId) return true; // nothing loaded yet — nothing to write
+        // Capture the draft at call time so a note switch mid-save can't
+        // redirect this payload to the wrong note.
+        const d = draftRef.current;
+        const updated = await useNotesStore.getState().updateNote(targetId, {
+          title: d.title,
+          content: d.content,
+          checklist: d.checklist,
+          color: d.color,
+        });
+        if (!updated) return false;
+        setNote((prev) => (prev ? { ...prev, ...updated } : updated));
+        setEditorNote(updated);
+        return true;
+      },
+      onStatus: setStatus,
+    });
+  }
+  const gate = gateRef.current;
   const [newItemText, setNewItemText] = useState("");
   const newItemInputRef = useRef<HTMLInputElement>(null);
 
@@ -83,7 +115,7 @@ export function NoteEditor() {
   useEffect(() => {
     if (!noteId) return;
     let alive = true;
-    dirtyRef.current = false;
+    gate.reset();
     setStatus("saved");
     setNewItemText("");
     const cached = useNotesStore.getState().notes.find((n) => n.id === noteId);
@@ -92,7 +124,7 @@ export function NoteEditor() {
       setNote(n);
       setEditorNote(n);
       // Don't clobber user edits that started before fresh data arrived.
-      if (!dirtyRef.current) {
+      if (!gate.isDirty()) {
         setDraft({
           title: n.title,
           content: n.content,
@@ -116,38 +148,13 @@ export function NoteEditor() {
     return () => {
       alive = false;
     };
-  }, [noteId, setEditorNote, closeEditor, showSnackbar]);
+  }, [noteId, gate, setEditorNote, closeEditor, showSnackbar]);
 
   // ---- saving -------------------------------------------------------------
-  const flush = useCallback(async () => {
-    window.clearTimeout(timerRef.current);
-    if (inflightRef.current) return;
-    if (!dirtyRef.current || !noteRef.current) return;
-    const targetId = noteRef.current.id;
-    if (!targetId) return;
-    inflightRef.current = true;
-    dirtyRef.current = false;
-    setStatus("saving");
-    try {
-      const d = draftRef.current;
-      const updated = await useNotesStore.getState().updateNote(targetId, {
-        title: d.title,
-        content: d.content,
-        checklist: d.checklist,
-        color: d.color,
-      });
-      if (updated) {
-        setNote((prev) => (prev ? { ...prev, ...updated } : updated));
-        setEditorNote(updated);
-        setStatus("saved");
-      } else {
-        dirtyRef.current = true;
-        setStatus("offline");
-      }
-    } finally {
-      inflightRef.current = false;
-    }
-  }, [setEditorNote]);
+  // Stable identity: registered as the editor's flush callback (Ctrl+S,
+  // Esc-close) and used by the blur/visibility/unmount safety nets. All
+  // mutable save state lives inside the gate.
+  const flush = useCallback(() => gateRef.current?.flush() ?? Promise.resolve(), []);
 
   useEffect(() => {
     registerEditorFlush(flush);
@@ -155,20 +162,14 @@ export function NoteEditor() {
   }, [flush, registerEditorFlush]);
 
   // Safety net: if the editor unmounts with pending changes, write them out.
+  // `dispose` afterwards cancels only *future* retries — an in-flight save
+  // started here still runs to completion.
   useEffect(() => {
     return () => {
-      if (dirtyRef.current) void flush();
+      if (gateRef.current?.isDirty()) void flush();
+      gateRef.current?.dispose();
     };
   }, [flush]);
-
-  // Debounced autosave.
-  useEffect(() => {
-    if (!note || !dirtyRef.current) return;
-    setStatus("saving");
-    window.clearTimeout(timerRef.current);
-    timerRef.current = window.setTimeout(() => void flush(), AUTOSAVE_DELAY_MS);
-    return () => window.clearTimeout(timerRef.current);
-  }, [draft, note, flush]);
 
   // Auto-grow body textarea.
   useEffect(() => {
@@ -193,7 +194,7 @@ export function NoteEditor() {
   }, [flush]);
 
   const edit = (patch: Partial<Draft>) => {
-    dirtyRef.current = true;
+    gate.dirty(); // marks unsaved changes and (re)arms the debounced save
     setDraft((d) => ({ ...d, ...patch }));
   };
 
@@ -204,6 +205,12 @@ export function NoteEditor() {
     const text = newItemText.trim().slice(0, 500);
     if (!text) {
       newItemInputRef.current?.focus();
+      return;
+    }
+    if (draftRef.current.checklist.length >= 500) {
+      // import_backup restores at most 500 items — keep saves within that cap
+      // so a backup round-trip never drops this checklist.
+      showSnackbar("Checklists are limited to 500 items.");
       return;
     }
     setNewItemText("");
@@ -286,7 +293,7 @@ export function NoteEditor() {
   }
 
   const statusLabel =
-    status === "saving" ? "Saving…" : status === "offline" ? "Offline" : "Saved";
+    status === "saving" ? "Saving…" : status === "error" ? "Save failed" : "Saved";
 
   const stats = countWordsAndChars(draft.content, draft.checklist);
 
@@ -344,10 +351,7 @@ export function NoteEditor() {
                 {colorPickerOpen && (
                   <ColorPicker
                     value={draft.color}
-                    onChange={(color) => {
-                      edit({ color });
-                      dirtyRef.current = true;
-                    }}
+                    onChange={(color) => edit({ color })}
                     onClose={() => setColorPickerOpen(false)}
                   />
                 )}
@@ -420,18 +424,22 @@ export function NoteEditor() {
                 aria-label="Export note as Markdown"
                 title="Export as Markdown (.md)"
                 onClick={() => {
-                  const md = noteToMarkdown({
-                    title: draft.title,
-                    content: draft.content,
-                    checklist: draft.checklist,
-                    tags: note.tags,
-                    createdAt: note.createdAt,
-                    updatedAt: note.updatedAt,
-                  });
-                  const base = (draft.title || "note").trim().toLowerCase().replace(/[\s_]+/g, "-").replace(/[^\p{L}\p{N}-]+/gu, "_").replace(/_+/g, "_").slice(0, 80) || "note";
-                  const filename = `${base}.md`;
-                  downloadFile(filename, md, "text/markdown;charset=utf-8");
-                  showSnackbar(`Exported as ${filename}`);
+                  void (async () => {
+                    const md = noteToMarkdown({
+                      title: draft.title,
+                      content: draft.content,
+                      checklist: draft.checklist,
+                      tags: note.tags,
+                      createdAt: note.createdAt,
+                      updatedAt: note.updatedAt,
+                    });
+                    const base = (draft.title || "note").trim().toLowerCase().replace(/[\s_]+/g, "-").replace(/[^\p{L}\p{N}-]+/gu, "_").replace(/_+/g, "_").slice(0, 80) || "note";
+                    const filename = `${base}.md`;
+                    // Rust writes to disk; webview blob downloads are unreliable
+                    // in bundled WebKitGTK builds.
+                    const path = await api.saveTextFile(filename, md);
+                    showSnackbar(`Exported to ${path}`);
+                  })();
                 }}
               >
                 <Download size={16} />
@@ -490,6 +498,9 @@ export function NoteEditor() {
                 placeholder="Untitled Note"
                 aria-label="Note title"
                 autoFocus
+                // Caps mirror the restore-side limit in import_backup so a note
+                // saved here can always survive a backup round-trip.
+                maxLength={5000}
                 onChange={(e) => edit({ title: e.target.value })}
               />
 
@@ -554,6 +565,8 @@ export function NoteEditor() {
               value={draft.content}
               placeholder="Take a note, or add checklist items below…"
               aria-label="Note content"
+              // Mirrors import_backup's 500k-character restore cap.
+              maxLength={500000}
               onChange={(e) => edit({ content: e.target.value })}
             />
 
@@ -609,6 +622,13 @@ export function NoteEditor() {
                     if (e.key === "Enter" && !e.nativeEvent.isComposing) {
                       e.preventDefault();
                       addChecklistItem();
+                      return;
+                    }
+                    if (e.key === "Escape" && newItemText) {
+                      // Dismiss only the pending item — Escape with an empty
+                      // field falls through to the global cascade (close editor).
+                      e.stopPropagation();
+                      setNewItemText("");
                     }
                   }}
                   onBlur={addChecklistItemOnBlur}

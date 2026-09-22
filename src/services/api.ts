@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   Counts,
   FlagPatch,
+  ImportReport,
   Note,
   NotePatch,
   NoteView,
@@ -41,8 +42,8 @@ export const api = {
     return invoke<Note[]>("export_all_notes");
   },
 
-  importBackup(notes: Note[]) {
-    return invoke<number>("import_backup", { notes });
+  importBackup(notes: Note[], tags?: Tag[]) {
+    return invoke<ImportReport>("import_backup", { notes, tags: tags ?? null });
   },
 
   trashNotes(ids: string[]) {
@@ -63,6 +64,10 @@ export const api = {
 
   setNoteTags(noteId: string, tagIds: string[]) {
     return invoke<Tag[]>("set_note_tags", { noteId, tagIds });
+  },
+
+  setTagsBulk(ids: string[], tagId: string, apply: boolean) {
+    return invoke<number>("set_tags_bulk", { ids, tagId, apply });
   },
 
   getCounts() {
@@ -95,6 +100,11 @@ export const api = {
 
   getDataDir() {
     return invoke<string>("get_data_dir");
+  },
+
+  /** Writes text to disk from Rust (download dir, fallback: data dir); returns the path. */
+  saveTextFile(filename: string, content: string) {
+    return invoke<string>("save_text_file", { filename, content });
   },
 };
 

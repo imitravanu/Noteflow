@@ -41,6 +41,11 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Verify versions (manifests + release tag)
+        run: npm run check:versions
+        env:
+          RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+
       - name: Run Tests, Lint & Typecheck
         run: |
           npm run typecheck

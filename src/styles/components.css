@@ -354,11 +354,18 @@
   overflow-y: auto;
   z-index: 50;
   transform: translateX(-100%);
-  transition: transform 0.24s var(--spring-easing), box-shadow 0.22s ease;
+  transition: transform 0.24s var(--spring-easing), box-shadow 0.22s ease,
+    visibility 0.24s;
+  /* When off-canvas, drop out of the accessibility tree *and* the tab order:
+     visibility:hidden (unlike translateX alone) makes the element and all its
+     focusable children unfocusable. visibility transitions discretely — it
+     flips at the end of the slide-out, immediately on slide-in. */
+  visibility: hidden;
 }
 
 .sidebar[data-open] {
   transform: translateX(0);
+  visibility: visible;
 }
 
 .sidebar-nav {
@@ -1280,11 +1287,11 @@
 .save-status-pill.status-saved .save-status-dot {
   background: #34c759;
 }
-.save-status-pill.status-offline {
+.save-status-pill.status-error {
   color: var(--danger);
   border-color: rgba(255, 59, 48, 0.2);
 }
-.save-status-pill.status-offline .save-status-dot {
+.save-status-pill.status-error .save-status-dot {
   background: var(--danger);
 }
 
@@ -2230,5 +2237,17 @@
   .note-card::after,
   .note-card:hover::after {
     opacity: 0;
+  }
+  /* Everything else: collapse durations/delays so no surface slides, fades,
+     or pulses. Zeroing animation-delay matters because grid cards carry
+     inline delays up to 600ms, which would otherwise hold them invisible. */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

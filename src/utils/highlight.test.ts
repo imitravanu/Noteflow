@@ -30,6 +30,22 @@ describe("highlightParts", () => {
   it("returns null when nothing matches", () => {
     expect(highlightParts("abc", "xyz")).toBeNull();
   });
+
+  it("bails out safely when unicode case-folding changes string length", () => {
+    // "İ" (U+0130) lowercases to two code units ("i̇"), so offsets computed
+    // on the folded text would mis-slice the original. Plain text wins.
+    expect(highlightParts("İstanbul office", "İ")).toBeNull();
+    expect(highlightParts("İstanbul office", "i")).toBeNull();
+  });
+
+  it("still highlights length-stable unicode", () => {
+    const parts = highlightParts("Grüß Gott", "ü")!;
+    expect(parts).toEqual([
+      { text: "Gr", match: false },
+      { text: "ü", match: true },
+      { text: "ß Gott", match: false },
+    ]);
+  });
 });
 
 describe("bodyPreview", () => {

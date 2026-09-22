@@ -17,6 +17,12 @@ export function highlightParts(
 
   const lowerText = text.toLowerCase();
   const lowerQuery = q.toLowerCase();
+  // Case-folding can change string length for some unicode (e.g. "İ" folds to
+  // two code units), which would silently mis-slice the original text. Bail
+  // out to plain rendering rather than highlight the wrong characters.
+  if (lowerText.length !== text.length || lowerQuery.length !== q.length) {
+    return null;
+  }
   const parts: HighlightPart[] = [];
 
   let cursor = 0;

@@ -775,7 +775,12 @@ fn import_backup_skips_existing_and_merges_tags() {
     assert_eq!(exported.len(), 1);
 
     // Re-import same backup inserts nothing.
-    assert_eq!(note_service::import_backup(&conn, &exported).unwrap(), 0);
+    assert_eq!(
+        note_service::import_backup(&conn, &exported, &[])
+            .unwrap()
+            .inserted,
+        0
+    );
 
     // New note with a duplicate-case tag merges instead of duplicating.
     let mut fresh = exported[0].clone();
@@ -790,7 +795,230 @@ fn import_backup_skips_existing_and_merges_tags() {
             note_count: None,
         },
     ];
-    assert_eq!(note_service::import_backup(&conn, &[fresh]).unwrap(), 1);
+    assert_eq!(
+        note_service::import_backup(&conn, &[fresh], &[])
+            .unwrap()
+            .inserted,
+        1
+    );
     assert_eq!(tag_service::list_tags(&conn).unwrap().len(), 1);
     assert!(note_service::get_note(&conn, &existing.id).is_ok());
+}
+
+#[test]
+fn import_backup_restores_orphan_tags_and_stays_idempotent() {
+    let conn = temp_db();
+    let note = note_service::create_note(&conn, None).unwrap();
+    let attached = tag_service::create_tag(&conn, "attached").unwrap();
+    let orphan = tag_service::create_tag(&conn, "orphan").unwrap();
+    note_service::set_note_tags(&conn, &note.id, std::slice::from_ref(&attached.id)).unwrap();
+
+    // Snapshot what Settings > Export produces (notes + top-level tag list).
+    let exported = note_service::export_all_notes(&conn).unwrap();
+    let all_tags = tag_service::list_tags(&conn).unwrap();
+    assert_eq!(all_tags.len(), 2);
+
+    // Wipe everything, like restoring onto a fresh install.
+    note_service::delete_notes_permanent(&conn, std::slice::from_ref(&note.id)).unwrap();
+    tag_service::delete_tag(&conn, &attached.id).unwrap();
+    tag_service::delete_tag(&conn, &orphan.id).unwrap();
+    assert!(tag_service::list_tags(&conn).unwrap().is_empty());
+
+    // Restore notes + tag list: the zero-note "orphan" tag survives the round-trip.
+    assert_eq!(
+        note_service::import_backup(&conn, &exported, &all_tags)
+            .unwrap()
+            .inserted,
+        1
+    );
+    let restored = tag_service::list_tags(&conn).unwrap();
+    assert_eq!(
+        restored.len(),
+        2,
+        "orphan tag must round-trip: {restored:?}"
+    );
+    assert!(restored
+        .iter()
+        .any(|t| t.name == "orphan" && t.note_count == Some(0)));
+    assert!(restored
+        .iter()
+        .any(|t| t.name == "attached" && t.note_count == Some(1)));
+
+    // Re-import is idempotent — no duplicate notes, no duplicate tags.
+    assert_eq!(
+        note_service::import_backup(&conn, &exported, &all_tags)
+            .unwrap()
+            .inserted,
+        0
+    );
+    assert_eq!(tag_service::list_tags(&conn).unwrap().len(), 2);
+
+    // A tag arriving under a fresh id but an existing name still merges by name.
+    let mut dupe = all_tags[0].clone();
+    dupe.id = uuid::Uuid::new_v4().to_string();
+    note_service::import_backup(&conn, &[], &[dupe]).unwrap();
+    assert_eq!(tag_service::list_tags(&conn).unwrap().len(), 2);
+}
+
+#[test]
+fn set_tags_bulk_applies_and_removes_atomically() {
+    let conn = temp_db();
+    let tag = tag_service::create_tag(&conn, "bulk").unwrap();
+
+    // 600 notes — deliberately crosses the CHUNK_SIZE boundary.
+    let mut ids = Vec::with_capacity(600);
+    {
+        let tx = conn.unchecked_transaction().unwrap();
+        for _ in 0..600 {
+            let id = uuid::Uuid::new_v4().to_string();
+            tx.execute(
+                "INSERT INTO notes (id, title, content, color, created_at, updated_at)
+                 VALUES (?1, '', '', 'default', ?2, ?2)",
+                rusqlite::params![id, note_service::now_millis()],
+            )
+            .unwrap();
+            ids.push(id);
+        }
+        tx.commit().unwrap();
+    }
+
+    // A stale id in the middle of the selection is skipped, never an FK error.
+    let mut with_ghost = ids.clone();
+    with_ghost.insert(300, "ghost-note".into());
+    assert_eq!(
+        note_service::set_tags_bulk(&conn, &with_ghost, &tag.id, true).unwrap(),
+        600
+    );
+
+    // Every real note got the tag; applying again creates nothing new.
+    let tagged = note_service::list_notes(&conn, NoteView::All, Some(&tag.id), None).unwrap();
+    assert_eq!(tagged.len(), 600);
+    assert_eq!(
+        note_service::set_tags_bulk(&conn, &ids, &tag.id, true).unwrap(),
+        0
+    );
+
+    // Unknown tag: rejected up front, nothing touched.
+    let err = note_service::set_tags_bulk(&conn, &ids, "no-such-tag", true).unwrap_err();
+    assert!(matches!(err, noteflow_lib::error::AppError::NotFound(_)));
+    assert_eq!(
+        note_service::list_notes(&conn, NoteView::All, Some(&tag.id), None)
+            .unwrap()
+            .len(),
+        600
+    );
+
+    // Removal clears every link and is idempotent.
+    assert_eq!(
+        note_service::set_tags_bulk(&conn, &ids, &tag.id, false).unwrap(),
+        600
+    );
+    assert_eq!(
+        note_service::set_tags_bulk(&conn, &ids, &tag.id, false).unwrap(),
+        0
+    );
+    assert!(
+        note_service::list_notes(&conn, NoteView::All, Some(&tag.id), None)
+            .unwrap()
+            .is_empty()
+    );
+
+    // Empty input is a no-op.
+    assert_eq!(
+        note_service::set_tags_bulk(&conn, &[], &tag.id, true).unwrap(),
+        0
+    );
+}
+
+#[test]
+fn import_report_counts_skipped_entries_instead_of_hiding_them() {
+    let conn = temp_db();
+    let good = noteflow_lib::models::Note {
+        id: "good-note".into(),
+        title: "ok".into(),
+        content: "fine".into(),
+        color: "default".into(),
+        created_at: 1,
+        updated_at: 2,
+        pinned: false,
+        favorite: false,
+        archived: false,
+        deleted: false,
+        deleted_at: None,
+        reminder_at: None,
+        checklist: vec![],
+        tags: vec![],
+    };
+    let oversized = noteflow_lib::models::Note {
+        id: "oversized-note".into(), // distinct id so it isn't a duplicate of `good`
+        content: "x".repeat(500_001),
+        ..good.clone()
+    };
+    let bad_id = noteflow_lib::models::Note {
+        id: "".into(),
+        ..good.clone()
+    };
+
+    let report =
+        note_service::import_backup(&conn, &[good.clone(), oversized, bad_id], &[]).unwrap();
+    assert_eq!(report.inserted, 1, "the valid note must be restored");
+    assert_eq!(
+        report.skipped, 2,
+        "oversized + bad-id entries must be reported, not silently dropped"
+    );
+
+    // Re-import: nothing inserted, nothing skipped (duplicates aren't errors).
+    let again = note_service::import_backup(&conn, &[good], &[]).unwrap();
+    assert_eq!((again.inserted, again.skipped), (0, 0));
+}
+
+#[test]
+fn trash_view_orders_by_deletion_time_not_pin_status() {
+    let conn = temp_db();
+    let first = note_service::create_note(&conn, None).unwrap();
+    let second = note_service::create_note(&conn, None).unwrap();
+    // Pin the OLDER note — in Trash, pin must not float it above newer deletions.
+    note_service::set_flags(
+        &conn,
+        &first.id,
+        &FlagPatch {
+            pinned: Some(true),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    note_service::trash_notes(&conn, std::slice::from_ref(&first.id)).unwrap();
+    note_service::trash_notes(&conn, std::slice::from_ref(&second.id)).unwrap();
+
+    let trash = note_service::list_notes(&conn, NoteView::Trash, None, None).unwrap();
+    assert_eq!(
+        trash.iter().map(|n| n.id.as_str()).collect::<Vec<_>>(),
+        vec![second.id.as_str(), first.id.as_str()],
+        "newest deletion first; pinned must not float in Trash"
+    );
+}
+
+#[test]
+fn imported_future_timestamps_cannot_invert_new_edits() {
+    let conn = temp_db();
+    let far_future = 4_102_444_800_000_i64; // year 2100, ahead of any real clock
+    let mut foreign = note_service::create_note(&conn, None).unwrap();
+    // Simulate a note exported from a *different* install (distinct id) whose
+    // machine's clock ran ahead of ours.
+    foreign.id = "foreign-note".into();
+    foreign.updated_at = far_future;
+    let report = note_service::import_backup(&conn, &[foreign.clone()], &[]).unwrap();
+    assert_eq!(report.inserted, 1);
+
+    // A note created right after the import must sort ABOVE the imported one:
+    // the monotonic clock must have absorbed the foreign timestamp.
+    let fresh = note_service::create_note(&conn, None).unwrap();
+    assert!(
+        fresh.updated_at > far_future,
+        "monotonic clock must absorb foreign timestamps"
+    );
+
+    let list = note_service::list_notes(&conn, NoteView::All, None, None).unwrap();
+    assert_eq!(list[0].id, fresh.id, "freshly created note sorts first");
+    assert_eq!(list[1].id, foreign.id);
 }

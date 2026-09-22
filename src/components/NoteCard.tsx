@@ -120,7 +120,8 @@ export function NoteCard({ note, selected, orderedIds, query, style }: NoteCardP
       className={`note-card color-${note.color}${selected ? " selected" : ""}`}
       data-selected={selected || undefined}
       tabIndex={0}
-      role="button"
+      // No role="button": the card wraps nested <button>s, which is invalid
+      // interactive nesting for assistive tech. Keyboard handlers below stay.
       aria-label={`Note: ${note.title || "Untitled"}`}
       style={style}
       onMouseMove={handleMouseMove}

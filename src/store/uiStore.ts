@@ -3,6 +3,16 @@ import type { NoteView, Theme } from "../types";
 import { UndoStack, expandRangeSelection } from "../utils/undoStack";
 import { api } from "../services/api";
 
+/**
+ * A popover (color/tag picker) that is currently open. The picker registers
+ * itself here on mount so the global Escape handler can dismiss *only* the
+ * popover instead of falling through to the editor underneath it.
+ */
+export interface PopoverHandle {
+  id: string;
+  close: () => void;
+}
+
 export interface SnackbarState {
   id: number;
   message: string;
@@ -40,6 +50,8 @@ interface UiState {
   sidebarOpen: boolean;
   /** Shortcuts help dialog visibility. */
   shortcutsOpen: boolean;
+  /** Currently open popover, if any (see PopoverHandle). */
+  openPopover: PopoverHandle | null;
   undoStack: UndoStack;
 
   setPage: (page: "notes" | "settings") => void;
@@ -76,6 +88,10 @@ interface UiState {
   initTheme: () => Promise<void>;
   setSidebarOpen: (open: boolean) => void;
   setShortcutsOpen: (open: boolean) => void;
+  /** Called by a popover on mount; Escape closes the registered one first. */
+  registerPopover: (id: string, close: () => void) => void;
+  /** Called by a popover on unmount; only clears its own registration. */
+  unregisterPopover: (id: string) => void;
 
   registerUndo: (label: string, undo: () => Promise<void> | void) => number;
   /** Reverses one specific action by its registered id (snackbar undo). */
@@ -98,6 +114,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   theme: "system",
   sidebarOpen: false,
   shortcutsOpen: false,
+  openPopover: null,
   undoStack: new UndoStack(50),
 
   setPage: (page) => set({ page, selection: [], anchorId: null }),
@@ -218,20 +235,36 @@ export const useUiStore = create<UiState>((set, get) => ({
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setShortcutsOpen: (shortcutsOpen) => set({ shortcutsOpen }),
 
+  registerPopover: (id, close) => set({ openPopover: { id, close } }),
+  unregisterPopover: (id) => {
+    // Only clear our own registration — a stale unmount must not hide
+    // another popover that registered in the meantime.
+    if (get().openPopover?.id === id) set({ openPopover: null });
+  },
+
   registerUndo: (label, undo) => {
     return get().undoStack.push({ label, undo });
   },
 
   undoById: async (id) => {
     const entry = get().undoStack.removeById(id);
-    if (!entry) return;
+    if (!entry) {
+      // Yield once: the snackbar button hides the current snackbar right
+      // after this action starts, so our replacement message must come after.
+      await Promise.resolve();
+      get().showSnackbar("That action can no longer be undone.");
+      return;
+    }
     await entry.undo();
     get().showSnackbar(`Undid: ${entry.label}`);
   },
 
   undo: async () => {
     const entry = get().undoStack.pop();
-    if (!entry) return;
+    if (!entry) {
+      get().showSnackbar("Nothing to undo.");
+      return;
+    }
     await entry.undo();
     get().showSnackbar(`Undid: ${entry.label}`);
   },

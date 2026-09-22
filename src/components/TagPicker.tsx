@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Check, Hash, Plus } from "lucide-react";
 import type { Tag } from "../types";
 import { useNotesStore } from "../store/notesStore";
+import { useUiStore } from "../store/uiStore";
 
 interface TagPickerProps {
   /** Tags already applied to every target note. */
@@ -17,20 +18,24 @@ export function TagPicker({ appliedTagIds, onToggle, onCreate, onClose }: TagPic
   const [newName, setNewName] = useState("");
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const id = useId();
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+
+  // Escape is owned by the global cascade (see utils/escape.ts): register so
+  // it closes *this* popover instead of the editor/selection underneath it.
+  useEffect(() => {
+    const { registerPopover, unregisterPopover } = useUiStore.getState();
+    registerPopover(id, () => closeRef.current());
+    return () => unregisterPopover(id);
+  }, [id]);
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) onClose();
     };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
     document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
+    return () => document.removeEventListener("mousedown", onDown);
   }, [onClose]);
 
   const submit = async () => {

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useNotesStore } from "../store/notesStore";
 import { useUiStore } from "../store/uiStore";
+import { escapeAction } from "../utils/escape";
 
 function isEditableTarget(e: KeyboardEvent): boolean {
   const el = e.target as HTMLElement | null;
@@ -37,6 +38,7 @@ export function useKeyboardShortcuts() {
 
       if (mod && !e.shiftKey && key === "k") {
         e.preventDefault();
+        if (ui.editorNoteId) return; // never pull focus behind the editor overlay
         const input = document.getElementById("global-search") as HTMLInputElement | null;
         input?.focus();
         input?.select();
@@ -77,7 +79,9 @@ export function useKeyboardShortcuts() {
 
       if (mod && (key === "\\" || key === "b")) {
         e.preventDefault();
-        ui.setSidebarOpen(!ui.sidebarOpen);
+        // Ctrl+B is "bold" muscle memory while typing, and the sidebar sits
+        // invisible behind the editor overlay — don't move it from inside.
+        if (!ui.editorNoteId) ui.setSidebarOpen(!ui.sidebarOpen);
         return;
       }
 
@@ -88,21 +92,36 @@ export function useKeyboardShortcuts() {
       }
 
       if (e.key === "Escape") {
-        if (ui.confirm) return; // dialog manages its own escape handling
-        if (ui.shortcutsOpen) {
-          ui.setShortcutsOpen(false);
-          return;
+        // Unwind exactly one layer; the decision is a pure, unit-tested
+        // function (utils/escape.test.ts) so popover → editor priority
+        // can't silently regress.
+        const action = escapeAction({
+          confirmOpen: ui.confirm !== null,
+          shortcutsOpen: ui.shortcutsOpen,
+          popoverOpen: ui.openPopover !== null,
+          editorOpen: ui.editorNoteId !== null,
+          hasSelection: ui.selection.length > 0,
+          sidebarOpen: ui.sidebarOpen,
+        });
+        switch (action) {
+          case "close-shortcuts":
+            ui.setShortcutsOpen(false);
+            return;
+          case "close-popover":
+            ui.openPopover?.close();
+            return;
+          case "close-editor":
+            void ui.flushAndCloseEditor();
+            return;
+          case "clear-selection":
+            ui.clearSelection();
+            return;
+          case "close-sidebar":
+            ui.setSidebarOpen(false);
+            return;
+          case "none":
+            return;
         }
-        if (ui.editorNoteId) {
-          void ui.flushAndCloseEditor();
-          return;
-        }
-        if (ui.selection.length) {
-          ui.clearSelection();
-          return;
-        }
-        if (ui.sidebarOpen) ui.setSidebarOpen(false);
-        return;
       }
 
       if (

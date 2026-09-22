@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Archive, Pin, Star, Tag, Trash2, Undo2, X } from "lucide-react";
 import { api } from "../services/api";
 import { useNotesStore } from "../store/notesStore";
-import { useUiStore } from "../store/uiStore";
+import { errText, useUiStore } from "../store/uiStore";
 import { TagPicker } from "./TagPicker";
 
 export function SelectionBar() {
@@ -150,23 +150,12 @@ export function SelectionBar() {
   );
 
   async function applyTagToSelection(tagId: string, apply: boolean) {
-    const { refresh } = useNotesStore.getState();
     try {
-      for (const note of selectedNotes) {
-        const current = note.tags.map((t) => t.id);
-        const next = apply
-          ? current.includes(tagId)
-            ? current
-            : [...current, tagId]
-          : current.filter((t) => t !== tagId);
-        await api.setNoteTags(note.id, next);
-      }
+      await api.setTagsBulk([...selection], tagId, apply);
       useUiStore.getState().clearSelection();
-      await refresh();
+      await useNotesStore.getState().refresh();
     } catch (e) {
-      useUiStore.getState().showSnackbar(
-        typeof e === "string" ? e : "Could not update tags.",
-      );
+      useUiStore.getState().showSnackbar(errText(e));
     }
   }
 }

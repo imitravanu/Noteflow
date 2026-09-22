@@ -20,10 +20,14 @@ export function NotesGrid({ notes, showPinnedSection }: NotesGridProps) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  // Reset pagination whenever the underlying result set changes identity.
+  const view = useUiStore((s) => s.view);
+  const activeTagId = useUiStore((s) => s.activeTagId);
+  // Reset pagination only when the query context changes. Resetting on `notes`
+  // identity would fire after every autosave (each produces a new array) and
+  // yank a scrolled list back to the first page.
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [notes]);
+  }, [view, query, activeTagId]);
 
   // Infinite scroll: grow the rendered window instead of mounting every card.
   useEffect(() => {

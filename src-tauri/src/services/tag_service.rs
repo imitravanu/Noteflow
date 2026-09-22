@@ -17,6 +17,20 @@ fn validate_name(name: &str) -> AppResult<String> {
     Ok(trimmed.to_string())
 }
 
+/// Maps a tag write failure: the UNIQUE(COLLATE NOCASE) index is the real
+/// authority on duplicates (the pre-checks above only race themselves), so a
+/// constraint violation becomes the same friendly message — anything else is
+/// logged and surfaced as a storage problem.
+fn map_tag_write_err(e: rusqlite::Error, name: &str) -> AppError {
+    if let rusqlite::Error::SqliteFailure(ref failure, _) = e {
+        if failure.code == rusqlite::ErrorCode::ConstraintViolation {
+            return AppError::Invalid(format!("A tag named “{name}” already exists."));
+        }
+    }
+    log::error!("tag write failed: {e}");
+    AppError::from(e)
+}
+
 /// All tags with the number of notes using them. Counts only live, active
 /// notes (deleted and archived excluded) so the badge matches what opening
 /// the tag actually lists in the All view.
@@ -62,7 +76,8 @@ pub fn create_tag(conn: &Connection, name: &str) -> AppResult<Tag> {
     conn.execute(
         "INSERT INTO tags (id, name, created_at) VALUES (?1, ?2, ?3)",
         params![tag.id, tag.name, now_millis()],
-    )?;
+    )
+    .map_err(|e| map_tag_write_err(e, &tag.name))?;
     Ok(tag)
 }
 
@@ -78,7 +93,9 @@ pub fn rename_tag(conn: &Connection, id: &str, name: &str) -> AppResult<Tag> {
             "A tag named “{name}” already exists."
         )));
     }
-    let changed = conn.execute("UPDATE tags SET name = ?2 WHERE id = ?1", params![id, name])?;
+    let changed = conn
+        .execute("UPDATE tags SET name = ?2 WHERE id = ?1", params![id, name])
+        .map_err(|e| map_tag_write_err(e, &name))?;
     if changed == 0 {
         return Err(AppError::NotFound("That tag no longer exists.".into()));
     }
