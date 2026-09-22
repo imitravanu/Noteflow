@@ -258,6 +258,20 @@ mark {
   background: var(--accent-glow);
 }
 
+/* Visually hidden but available to screen readers (loading labels, hints). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* Subtle modern scrollbars */
 * {
   scrollbar-width: thin;

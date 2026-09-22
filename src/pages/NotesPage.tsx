@@ -18,6 +18,7 @@ const VIEW_TITLES: Record<string, string> = {
 export function NotesPage() {
   const view = useUiStore((s) => s.view);
   const query = useUiStore((s) => s.query);
+  const setQuery = useUiStore((s) => s.setQuery);
   const activeTagId = useUiStore((s) => s.activeTagId);
   const askConfirm = useUiStore((s) => s.askConfirm);
 
@@ -60,6 +61,7 @@ export function NotesPage() {
           icon={<SearchX size={32} strokeWidth={1.4} />}
           title="No matches found"
           message={`Nothing matched “${query}”. Try a different search.`}
+          action={{ label: "Clear search", onClick: () => setQuery("") }}
         />
       );
     }
@@ -145,7 +147,20 @@ export function NotesPage() {
       </header>
 
       {loading ? (
-        <div className="grid-empty" aria-busy="true">Loading…</div>
+        // Skeleton mirrors the real grid so the first notes land without a
+        // layout jump. (The old bare "Loading…" node was `display: none`, so
+        // users actually got a blank flash — this is visible by construction.)
+        <div className="notes-grid grid-skeleton" role="status" aria-busy="true">
+          <span className="sr-only">Loading notes…</span>
+          {Array.from({ length: 8 }, (_, i) => (
+            <div
+              key={i}
+              className="skeleton-card"
+              style={{ animationDelay: `${i * 60}ms` }}
+              aria-hidden="true"
+            />
+          ))}
+        </div>
       ) : emptyState ?? (
         <NotesGrid notes={notes} showPinnedSection={view === "all" && !query && !activeTagId} />
       )}

@@ -171,6 +171,21 @@ export function NoteEditor() {
     };
   }, [noteId, gate, setEditorNote, closeEditor, showSnackbar]);
 
+  // Hand the keyboard back to the grid when the editor closes: without this,
+  // focus falls to <body> and the next Tab restarts from the top of the window
+  // instead of continuing from the note the user just left.
+  const lastNoteIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (noteId) {
+      lastNoteIdRef.current = noteId;
+      return;
+    }
+    const id = lastNoteIdRef.current;
+    if (id) {
+      document.querySelector<HTMLElement>(`[data-note-id="${CSS.escape(id)}"]`)?.focus();
+    }
+  }, [noteId]);
+
   // ---- saving -------------------------------------------------------------
   // Stable identity: registered as the editor's flush callback (Ctrl+S,
   // Esc-close) and used by the blur/visibility/unmount safety nets. All

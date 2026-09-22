@@ -120,6 +120,7 @@ export function NoteCard({ note, selected, orderedIds, query, style }: NoteCardP
     <article
       ref={cardRef}
       className={`note-card color-${note.color}${selected ? " selected" : ""}`}
+      data-note-id={note.id}
       data-selected={selected || undefined}
       tabIndex={0}
       // No role="button": the card wraps nested <button>s, which is invalid

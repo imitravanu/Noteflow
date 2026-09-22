@@ -3,6 +3,26 @@
 All notable changes to NoteFlow are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+- Focus management: a reusable `useFocusTrap` now keeps Tab inside the confirm
+  dialog and the shortcuts sheet (opening on Cancel / Close respectively) and
+  restores focus to the trigger when they dismiss.
+- Closing the note editor returns keyboard focus to the card that opened it,
+  so the next Tab continues in the grid instead of restarting at `<body>`.
+- `Ctrl K` hint chip inside the search field (hides while typing).
+- "Clear search" action on the "No matches found" empty state.
+
+### Fixed
+- The loading state was invisible: `NotesPage` rendered `Loading…` inside a
+  `.grid-empty` node whose CSS was `display: none`, so cold starts showed a
+  blank flash. Replaced with an eight-card skeleton grid (`role="status"`,
+  screen-reader label via a new `.sr-only` utility) that matches the real grid
+  columns, with a shimmer that the existing `prefers-reduced-motion` override
+  collapses to a static placeholder.
+- `.grid-empty` (the grid's own "Nothing here" fallback) is visible again.
+
 ## [1.4.0] - 2026-09-23
 
 ### Added

@@ -77,7 +77,7 @@ export function TopBar() {
             }
           }}
         />
-        {query && (
+        {query ? (
           <button
             type="button"
             className="icon-btn icon-btn-sm topbar-clear-search"
@@ -86,6 +86,13 @@ export function TopBar() {
           >
             <X size={13} />
           </button>
+        ) : (
+          // Discoverability hint for the search shortcut; purely decorative and
+          // hidden the moment the field takes focus (pointer-events off so it
+          // never steals a click from the input underneath).
+          <kbd className="topbar-search-kbd" aria-hidden="true">
+            Ctrl K
+          </kbd>
         )}
       </div>
 
