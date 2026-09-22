@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import {
   Archive,
   ArchiveRestore,
+  Bell,
   Check,
   Clock,
   Download,
@@ -25,7 +26,9 @@ import {
   noteToMarkdown,
 } from "../utils/format";
 import { createSaveGate, type SaveGate } from "../utils/saveGate";
+import { formatReminderTime } from "../utils/reminder";
 import { ColorPicker } from "./ColorPicker";
+import { ReminderPicker } from "./ReminderPicker";
 import { TagPicker } from "./TagPicker";
 
 interface Draft {
@@ -51,6 +54,7 @@ export function NoteEditor() {
   const askConfirm = useUiStore((s) => s.askConfirm);
   const showSnackbar = useUiStore((s) => s.showSnackbar);
   const setFlags = useNotesStore((s) => s.setFlags);
+  const setReminder = useNotesStore((s) => s.setReminder);
   const trashNotes = useNotesStore((s) => s.trashNotes);
   const createTag = useNotesStore((s) => s.createTag);
 
@@ -65,6 +69,7 @@ export function NoteEditor() {
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
   const [inlineTagPickerOpen, setInlineTagPickerOpen] = useState(false);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const [reminderPickerOpen, setReminderPickerOpen] = useState(false);
 
   const draftRef = useRef(draft);
   const noteRef = useRef(note);
@@ -80,6 +85,21 @@ export function NoteEditor() {
   useLayoutEffect(() => {
     noteRef.current = note;
   }, [note]);
+
+  // A reminder can fire while its own note is open: the backend clears the time
+  // and the app refreshes the list, so mirror just that one field into the local
+  // snapshot. Everything else stays owned by the editor, which is what protects
+  // in-progress edits; and a note that is not in the current list is left alone
+  // (the entry would otherwise read as "no reminder" and blank the badge).
+  const storeEntry = useNotesStore((s) => s.notes.find((n) => n.id === noteId));
+  useEffect(() => {
+    if (!storeEntry) return;
+    setNote((prev) =>
+      prev && prev.reminderAt !== storeEntry.reminderAt
+        ? { ...prev, reminderAt: storeEntry.reminderAt }
+        : prev,
+    );
+  }, [storeEntry]);
 
   // Save gate: owns debounce / in-flight chaining / retry backoff so races
   // are unit-tested in utils/saveGate.ts instead of living in this component.
@@ -118,6 +138,7 @@ export function NoteEditor() {
     gate.reset();
     setStatus("saved");
     setNewItemText("");
+    setReminderPickerOpen(false);
     const cached = useNotesStore.getState().notes.find((n) => n.id === noteId);
     const apply = (n: Note) => {
       if (!alive) return;
@@ -269,6 +290,19 @@ export function NoteEditor() {
     }
   };
 
+  // ---- reminders -----------------------------------------------------------
+  // One-shot by design: the backend clears the time when the reminder fires, so
+  // this is only ever "schedule" or "clear" — never a toggle of a spent one.
+  const handleReminder = async (at: number | null) => {
+    if (!note) return;
+    const updated = await setReminder(note.id, at);
+    if (!updated) return;
+    const merged = { ...noteRef.current!, ...updated };
+    setNote(merged);
+    setEditorNote(merged);
+    showSnackbar(at === null ? "Reminder cleared" : `Reminder set for ${formatDateTime(at)}`);
+  };
+
   const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) {
       void flushAndCloseEditor();
@@ -418,6 +452,36 @@ export function NoteEditor() {
               >
                 {note.archived ? <ArchiveRestore size={16} /> : <Archive size={16} />}
               </button>
+              <div className="editor-popover-wrap">
+                <button
+                  type="button"
+                  className={`icon-btn${note.reminderAt != null ? " active" : ""}`}
+                  aria-label={note.reminderAt != null ? "Change reminder" : "Set a reminder"}
+                  aria-pressed={note.reminderAt != null}
+                  aria-expanded={reminderPickerOpen}
+                  title={
+                    note.reminderAt != null
+                      ? `Reminder ${formatReminderTime(note.reminderAt)}`
+                      : "Remind me"
+                  }
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={() => {
+                    setReminderPickerOpen((v) => !v);
+                    setColorPickerOpen(false);
+                    setTagPickerOpen(false);
+                    setInlineTagPickerOpen(false);
+                  }}
+                >
+                  <Bell size={16} />
+                </button>
+                {reminderPickerOpen && (
+                  <ReminderPicker
+                    value={note.reminderAt}
+                    onSet={(at) => void handleReminder(at)}
+                    onClose={() => setReminderPickerOpen(false)}
+                  />
+                )}
+              </div>
               <button
                 type="button"
                 className="icon-btn"

@@ -3,6 +3,21 @@
 All notable changes to NoteFlow are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.4.0] - 2026-09-23
+
+### Added
+- **Reminders.** Every note has a one-shot reminder: open the editor's bell, pick a quick preset ("In 1 hour", "Tomorrow 9:00") or an exact `datetime-local` time, and the app announces it when it comes due — with an **Open** action that jumps straight to the note. A pending reminder shows as a bell badge on the card (labelled "Overdue" / "in 25m" / "tomorrow 09:00") and as an active toolbar button. Reminders are claimed from SQLite inside a single transaction, so each one fires exactly once, and one that came due while the app was closed still fires at the next launch instead of expiring silently. Firing is one-shot by design: the time clears when it fires, and archived/trashed notes stay quiet.
+- **Unicode-aware indexed search.** Search now runs through FTS5 trigram indexes (`notes_fts`, `tags_fts`) created in schema v2, so it keeps the substring behaviour users expect (`"oat milk"` finds "buy oat milk") while folding unicode case the way `LIKE` never could — `CAFÉ` now finds `Café` — and does it with an index lookup per row instead of a full-table scan. Checklists and tag names are indexed as text (never raw JSON), and a legacy database is backfilled once on upgrade.
+- Editor/window robustness: the reminder popover participates in the global Escape cascade like the color and tag pickers, closes on outside click, and resets when the editor switches notes.
+
+### Changed
+- Search queries shorter than 3 characters (below trigram width) keep the previous `LIKE` behaviour, including ASCII-only case folding; 1–2 character wildcards (`%`, `_`) remain escaped literals and never act as patterns.
+- `README` refreshed for 1.4.0 (badges, download links, feature list, shortcuts).
+- Versions stay single-sourced: `package.json` = `src-tauri/tauri.conf.json` = `src-tauri/Cargo.toml`, enforced by `npm run check:versions`.
+
+### Fixed
+- A reminder can no longer be announced twice, and can no longer be lost: claiming and clearing happen in the same SQLite transaction.
+
 ## [1.3.1] - 2026-09-22
 
 ### Fixed

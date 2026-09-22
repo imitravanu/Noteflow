@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/imitravanu/Noteflow/releases/tag/v1.3.0"><img src="https://img.shields.io/badge/Release-v1.3.0-0071e3?style=flat-square" alt="Version"></a>
-  <a href="https://github.com/imitravanu/Noteflow/releases/download/v1.3.0/noteflow_1.3.0_amd64.deb"><img src="https://img.shields.io/badge/Download-.deb%20(v1.3.0)-34c759?style=flat-square&logo=debian&logoColor=white" alt="Download .deb"></a>
+  <a href="https://github.com/imitravanu/Noteflow/releases/tag/v1.4.0"><img src="https://img.shields.io/badge/Release-v1.4.0-0071e3?style=flat-square" alt="Version"></a>
+  <a href="https://github.com/imitravanu/Noteflow/releases/download/v1.4.0/noteflow_1.4.0_amd64.deb"><img src="https://img.shields.io/badge/Download-.deb%20(v1.4.0)-34c759?style=flat-square&logo=debian&logoColor=white" alt="Download .deb"></a>
   <a href="https://www.linux.org/"><img src="https://img.shields.io/badge/Platform-Linux%20(Wayland%20%2F%20GNOME)-23272e?style=flat-square&logo=linux" alt="Linux"></a>
   <a href="https://tauri.app/"><img src="https://img.shields.io/badge/Tauri-v2.0-24c8db?style=flat-square&logo=tauri&logoColor=white" alt="Tauri"></a>
   <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/Rust-Backend-dea584?style=flat-square&logo=rust&logoColor=white" alt="Rust"></a>
@@ -39,8 +39,13 @@
 - **Debounced Safe Autosave:** Real-time autosave indicator with zero data loss. `Ctrl+S` forces immediate SQLite flush.
 - **100% Private:** Zero analytics, zero cloud lock-in, zero telemetry. Your notes stay exclusively on your hardware at `~/.local/share/com.noteflow.app/noteflow.db`.
 
+### 🔔 One-Shot Reminders
+- **Schedule from the editor:** the bell offers quick presets ("In 1 hour", "Tomorrow 9:00") or an exact date and time; a pending reminder shows as an active toolbar button and a bell badge on the note card ("Overdue", "in 25m", "tomorrow 09:00").
+- **Never lost, never doubled:** each reminder is claimed from SQLite inside a single transaction, so it fires exactly once — and one that came due while the app was closed still fires at the next launch. Archived and trashed notes stay quiet.
+
 ### 🔍 Instant Spotlight Search (`Ctrl+K`)
 - Substring and keyword search across title, body content, checklist items, and tags with real-time match highlighting.
+- Backed by FTS5 trigram indexes with unicode case folding, so `CAFÉ` finds `Café` and search stays instant as the collection grows (queries shorter than 3 characters keep the `LIKE` fallback).
 
 ### 🛡️ Safety, Multi-Select & Undo
 - **Safety Stack:** Full undo stack (`Ctrl+Z`) and undo snackbar notifications.
@@ -85,6 +90,7 @@
 ┌────────────────────────────────────────────────────────┐
 │                  Local SQLite Database                 │
 │         WAL Journaling · Foreign Keys · Migrations     │
+│         FTS5 Trigram Search Indexes (schema v2)        │
 │         Path: ~/.local/share/com.noteflow.app          │
 └────────────────────────────────────────────────────────┘
 ```
@@ -93,11 +99,11 @@
 src/                      React frontend
   components/             NoteCard, NoteEditor, TopBar, Sidebar, ShortcutsModal, SelectionBar…
   pages/                  NotesPage, SettingsPage
-  hooks/                  useTheme, useKeyboardShortcuts, useAppInit
+  hooks/                  useTheme, useKeyboardShortcuts, useAppInit, useReminders
   store/                  Zustand state management (uiStore, notesStore)
   services/api.ts         Typed Tauri command invocations
   styles/                 Apple OS 27 design tokens (global.css) & components.css
-  utils/                  Highlighting, undo stack, formatting, markdown exporter
+  utils/                  Highlighting, undo stack, formatting, reminders, markdown exporter
 
 src-tauri/src/            Rust backend
   commands/               Tauri command interfaces (notes, tags, settings)
@@ -115,11 +121,11 @@ src-tauri/src/            Rust backend
 For **Ubuntu**, **Debian**, **Linux Mint**, **Pop!_OS**, and Debian-based distributions:
 
 1. **Download the installer:**  
-   👉 **[Download NoteFlow v1.3.0 (.deb)](https://github.com/imitravanu/Noteflow/releases/download/v1.3.0/noteflow_1.3.0_amd64.deb)** (2.6 MB)
+   👉 **[Download NoteFlow v1.4.0 (.deb)](https://github.com/imitravanu/Noteflow/releases/download/v1.4.0/noteflow_1.4.0_amd64.deb)** (2.6 MB)
 
 2. **Install via terminal:**
    ```bash
-   sudo dpkg -i noteflow_1.3.0_amd64.deb
+   sudo dpkg -i noteflow_1.4.0_amd64.deb
    ```
    *Or simply double-click the `.deb` file in your Linux file manager (Nautilus/Dolphin).*
 

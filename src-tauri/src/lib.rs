@@ -43,6 +43,8 @@ pub fn run() {
             commands::notes::set_note_tags,
             commands::notes::set_tags_bulk,
             commands::notes::get_counts,
+            commands::notes::set_reminder,
+            commands::notes::take_due_reminder,
             commands::tags::list_tags,
             commands::tags::create_tag,
             commands::tags::rename_tag,

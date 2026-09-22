@@ -2251,3 +2251,51 @@
     scroll-behavior: auto !important;
   }
 }
+/* ---------- Reminder picker & badges ---------- */
+.reminder-picker {
+  min-width: 264px;
+  padding: 10px;
+}
+.reminder-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.reminder-preset {
+  cursor: pointer;
+  font-family: inherit;
+}
+.reminder-input {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-1);
+  font-family: inherit;
+  font-size: 12.5px;
+}
+.reminder-input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+}
+.reminder-hint {
+  margin: 8px 2px 0;
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+.reminder-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.reminder-actions .btn {
+  flex: 1;
+}
+
+/* Pending reminder badge on a note card (sits with the other flags). */
+.flag-reminder {
+  color: var(--accent);
+}
+

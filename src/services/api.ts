@@ -30,6 +30,16 @@ export const api = {
     return invoke<Note>("update_note", { id, patch });
   },
 
+  /** Schedules the note's one-shot reminder (`null` clears it). */
+  setReminder(id: string, reminderAt: number | null) {
+    return invoke<Note>("set_reminder", { id, reminderAt });
+  },
+
+  /** Consumes the oldest due reminder; resolves `null` when none is waiting. */
+  takeDueReminder() {
+    return invoke<Note | null>("take_due_reminder");
+  },
+
   setFlags(id: string, flags: FlagPatch) {
     return invoke<Note>("set_flags", { id, flags });
   },

@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import {
   Archive,
+  Bell,
   Check,
   Circle,
   Copy,
@@ -15,6 +16,7 @@ import type { Note } from "../types";
 import { useNotesStore } from "../store/notesStore";
 import { useUiStore } from "../store/uiStore";
 import { formatRelativeTime } from "../utils/format";
+import { formatReminderTime } from "../utils/reminder";
 import { bodyPreview } from "../utils/highlight";
 import { Highlighted } from "./Highlighted";
 
@@ -266,6 +268,11 @@ export function NoteCard({ note, selected, orderedIds, query, style }: NoteCardP
           {note.archived && (
             <span title="Archived">
               <Archive size={12} aria-hidden="true" className="flag-archived" />
+            </span>
+          )}
+          {note.reminderAt != null && (
+            <span title={`Reminder ${formatReminderTime(note.reminderAt)}`}>
+              <Bell size={12} aria-hidden="true" className="flag-reminder" />
             </span>
           )}
         </span>

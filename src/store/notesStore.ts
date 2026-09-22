@@ -15,6 +15,7 @@ interface NotesState {
   refresh: () => Promise<void>;
   createNote: () => Promise<void>;
   updateNote: (id: string, patch: NotePatch) => Promise<Note | null>;
+  setReminder: (id: string, reminderAt: number | null) => Promise<Note | null>;
   setFlags: (id: string, flags: FlagPatch) => Promise<Note | null>;
   setFlagsForSelection: (flags: FlagPatch) => Promise<void>;
   trashNotes: (ids: string[]) => Promise<void>;
@@ -78,6 +79,21 @@ export const useNotesStore = create<NotesState>((set, get) => ({
         .notes.map((n) => (n.id === id ? updated : n))
         .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt);
       set({ notes: sorted });
+      return updated;
+    } catch (e) {
+      useUiStore.getState().showSnackbar(errText(e));
+      return null;
+    }
+  },
+
+  /**
+   * Scheduling a reminder changes no flag, no sort key and no view membership,
+   * so it patches the note in place instead of paying for a full refresh.
+   */
+  setReminder: async (id, reminderAt) => {
+    try {
+      const updated = await api.setReminder(id, reminderAt);
+      set({ notes: get().notes.map((n) => (n.id === id ? updated : n)) });
       return updated;
     } catch (e) {
       useUiStore.getState().showSnackbar(errText(e));

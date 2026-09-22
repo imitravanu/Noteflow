@@ -5,6 +5,7 @@ import { Snackbar } from "./components/Snackbar";
 import { TopBar } from "./components/TopBar";
 import { useAppInit } from "./hooks/useAppInit";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import { useReminders } from "./hooks/useReminders";
 import { useTheme } from "./hooks/useTheme";
 import { NotesPage } from "./pages/NotesPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -14,6 +15,7 @@ export default function App() {
   useAppInit();
   useTheme();
   useKeyboardShortcuts();
+  useReminders();
 
   const page = useUiStore((s) => s.page);
   const selectionActive = useUiStore((s) => s.selection.length > 0);

@@ -119,3 +119,20 @@ pub fn get_counts(state: State<'_, AppState>) -> AppResult<Counts> {
     let conn = lock_conn(&state)?;
     note_service::get_counts(&conn)
 }
+
+#[tauri::command(async)]
+pub fn set_reminder(
+    state: State<'_, AppState>,
+    id: String,
+    reminder_at: Option<i64>,
+) -> AppResult<Note> {
+    let conn = lock_conn(&state)?;
+    note_service::set_reminder(&conn, &id, reminder_at)
+}
+
+/// Returns (and consumes) the oldest due reminder, if one is waiting.
+#[tauri::command(async)]
+pub fn take_due_reminder(state: State<'_, AppState>) -> AppResult<Option<Note>> {
+    let conn = lock_conn(&state)?;
+    note_service::take_due_reminder(&conn, note_service::now_millis())
+}

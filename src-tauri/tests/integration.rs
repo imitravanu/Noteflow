@@ -1022,3 +1022,261 @@ fn imported_future_timestamps_cannot_invert_new_edits() {
     assert_eq!(list[0].id, fresh.id, "freshly created note sorts first");
     assert_eq!(list[1].id, foreign.id);
 }
+
+#[test]
+fn search_folds_unicode_case_through_the_trigram_index() {
+    let conn = temp_db();
+    let note = note_service::create_note(&conn, None).unwrap();
+    note_service::update_note(&conn, &note.id, &patch("Café notes", "naïve résumé")).unwrap();
+
+    let hits = |q: &str| {
+        note_service::list_notes(&conn, NoteView::All, None, Some(q))
+            .unwrap()
+            .into_iter()
+            .map(|n| n.id)
+            .collect::<Vec<_>>()
+    };
+
+    // The pre-1.4 LIKE path folded ASCII only, so "CAFÉ" never found "Café".
+    assert_eq!(hits("CAFÉ"), vec![note.id.clone()]);
+    assert_eq!(hits("RÉSUMÉ"), vec![note.id.clone()]);
+    // Substring semantics survive the switch to an index (mid-word, and across
+    // the space inside one phrase).
+    assert_eq!(hits("notes"), vec![note.id.clone()]);
+    assert_eq!(hits("ïve rés"), vec![note.id.clone()]);
+    // 1–2 characters are narrower than a trigram and take the LIKE fallback.
+    assert_eq!(hits("fé"), vec![note.id.clone()]);
+    assert!(hits("zz").is_empty());
+}
+
+#[test]
+fn search_index_stays_in_sync_with_edits_tags_and_deletes() {
+    let conn = temp_db();
+    let a = note_service::create_note(&conn, None).unwrap();
+    note_service::update_note(&conn, &a.id, &patch("Alpha", "first draft")).unwrap();
+
+    let hits = |q: &str| {
+        note_service::list_notes(&conn, NoteView::All, None, Some(q))
+            .unwrap()
+            .into_iter()
+            .map(|n| n.id)
+            .collect::<Vec<_>>()
+    };
+    let item = |text: &str, checked: bool| ChecklistItem {
+        id: uuid::Uuid::new_v4().to_string(),
+        text: text.into(),
+        checked,
+    };
+
+    assert_eq!(hits("Alpha"), vec![a.id.clone()]);
+
+    // An edit replaces the old text in the index instead of leaving it behind.
+    note_service::update_note(&conn, &a.id, &patch("Beta", "second draft")).unwrap();
+    assert!(hits("Alpha").is_empty(), "stale title must leave the index");
+    assert!(
+        hits("first draft").is_empty(),
+        "stale body must leave the index"
+    );
+    assert_eq!(hits("Beta"), vec![a.id.clone()]);
+
+    // Checklist text is indexed; the replaced item text is not.
+    let set_checklist = |text: &str| {
+        note_service::update_note(
+            &conn,
+            &a.id,
+            &NotePatch {
+                title: None,
+                content: None,
+                color: None,
+                checklist: Some(vec![item(text, false)]),
+            },
+        )
+        .unwrap();
+    };
+    set_checklist("buy oat milk");
+    assert_eq!(hits("oat milk"), vec![a.id.clone()]);
+    set_checklist("call dentist");
+    assert!(hits("oat milk").is_empty());
+
+    // Tag names are indexed, renames included.
+    let tag = tag_service::create_tag(&conn, "Gamma project").unwrap();
+    note_service::set_note_tags(&conn, &a.id, std::slice::from_ref(&tag.id)).unwrap();
+    assert_eq!(hits("Gamma"), vec![a.id.clone()]);
+    tag_service::rename_tag(&conn, &tag.id, "Delta project").unwrap();
+    assert!(
+        hits("Gamma").is_empty(),
+        "a rename must not keep the old name"
+    );
+    assert_eq!(hits("Delta"), vec![a.id.clone()]);
+    tag_service::delete_tag(&conn, &tag.id).unwrap();
+    assert!(
+        hits("Delta").is_empty(),
+        "a deleted tag must leave the index"
+    );
+
+    // Permanently deleting a note drops its index row too.
+    note_service::trash_notes(&conn, std::slice::from_ref(&a.id)).unwrap();
+    note_service::delete_notes_permanent(&conn, std::slice::from_ref(&a.id)).unwrap();
+    assert!(hits("Beta").is_empty());
+}
+
+#[test]
+fn reminders_are_scheduled_claimed_once_and_kept_out_of_the_edit_clock() {
+    let conn = temp_db();
+    let first = note_service::create_note(&conn, None).unwrap();
+    let second = note_service::create_note(&conn, None).unwrap();
+
+    // Scheduling is metadata: it must not move `updated_at`, or an old note
+    // would jump to the top of the list just because a reminder was set.
+    let scheduled = note_service::set_reminder(&conn, &first.id, Some(2_000)).unwrap();
+    assert_eq!(scheduled.reminder_at, Some(2_000));
+    assert_eq!(scheduled.updated_at, first.updated_at);
+    note_service::set_reminder(&conn, &second.id, Some(1_000)).unwrap();
+
+    // Nothing is handed out early, and the oldest due reminder comes first.
+    assert!(note_service::take_due_reminder(&conn, 500)
+        .unwrap()
+        .is_none());
+    let claimed = note_service::take_due_reminder(&conn, 1_500)
+        .unwrap()
+        .expect("second note is due");
+    assert_eq!(claimed.id, second.id);
+    // Claiming clears it, so a later poll can never announce it twice.
+    assert_eq!(claimed.reminder_at, None);
+    assert!(note_service::take_due_reminder(&conn, 1_500)
+        .unwrap()
+        .is_none());
+
+    let claimed = note_service::take_due_reminder(&conn, 60_000)
+        .unwrap()
+        .expect("first note is due");
+    assert_eq!(claimed.id, first.id);
+    assert!(note_service::take_due_reminder(&conn, 60_000)
+        .unwrap()
+        .is_none());
+
+    // Clearing by hand, and a rejected bogus time.
+    note_service::set_reminder(&conn, &first.id, Some(5_000)).unwrap();
+    let cleared = note_service::set_reminder(&conn, &first.id, None).unwrap();
+    assert_eq!(cleared.reminder_at, None);
+    assert!(note_service::set_reminder(&conn, &first.id, Some(0)).is_err());
+    assert!(note_service::set_reminder(&conn, "missing-note", Some(5_000)).is_err());
+}
+
+#[test]
+fn reminders_stay_quiet_for_archived_trashed_and_future_notes() {
+    let conn = temp_db();
+    let archived = note_service::create_note(&conn, None).unwrap();
+    let trashed = note_service::create_note(&conn, None).unwrap();
+    let later = note_service::create_note(&conn, None).unwrap();
+
+    note_service::set_reminder(&conn, &archived.id, Some(1_000)).unwrap();
+    note_service::set_flags(
+        &conn,
+        &archived.id,
+        &FlagPatch {
+            archived: Some(true),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    note_service::set_reminder(&conn, &trashed.id, Some(1_000)).unwrap();
+    note_service::trash_notes(&conn, std::slice::from_ref(&trashed.id)).unwrap();
+    note_service::set_reminder(&conn, &later.id, Some(900_000)).unwrap();
+
+    assert!(
+        note_service::take_due_reminder(&conn, 1_000)
+            .unwrap()
+            .is_none(),
+        "archived/trashed notes stay quiet and a future reminder is not due"
+    );
+    let due = note_service::take_due_reminder(&conn, 900_000)
+        .unwrap()
+        .expect("the third note is due now");
+    assert_eq!(due.id, later.id);
+}
+
+#[test]
+fn existing_v1_databases_are_indexed_and_keep_their_reminders() {
+    // Simulates the 1.3 -> 1.4 upgrade on a database that already has data: the
+    // migration must backfill the FTS mirror from the notes table.
+    let dir = std::env::temp_dir().join(format!("noteflow-migrate-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let db_path = dir.join("noteflow.db");
+
+    let legacy = Connection::open(&db_path).unwrap();
+    legacy
+        .execute_batch(
+            "CREATE TABLE notes (
+                 id TEXT PRIMARY KEY NOT NULL,
+                 title TEXT NOT NULL DEFAULT '',
+                 content TEXT NOT NULL DEFAULT '',
+                 color TEXT NOT NULL DEFAULT 'default',
+                 created_at INTEGER NOT NULL,
+                 updated_at INTEGER NOT NULL,
+                 pinned INTEGER NOT NULL DEFAULT 0,
+                 favorite INTEGER NOT NULL DEFAULT 0,
+                 archived INTEGER NOT NULL DEFAULT 0,
+                 deleted INTEGER NOT NULL DEFAULT 0,
+                 deleted_at INTEGER,
+                 reminder_at INTEGER,
+                 checklist TEXT NOT NULL DEFAULT '[]'
+             );
+             CREATE TABLE tags (
+                 id TEXT PRIMARY KEY NOT NULL,
+                 name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+                 created_at INTEGER NOT NULL
+             );
+             CREATE TABLE note_tags (
+                 note_id TEXT NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+                 tag_id  TEXT NOT NULL REFERENCES tags(id)  ON DELETE CASCADE,
+                 PRIMARY KEY (note_id, tag_id)
+             );
+             CREATE TABLE app_settings (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);
+             INSERT INTO notes (id, title, content, created_at, updated_at, reminder_at, checklist)
+             VALUES ('legacy-1', 'Legacy Café', 'pre-upgrade body', 1, 1, 42000,
+                     '[{\"id\":\"c1\",\"text\":\"old checklist item\",\"checked\":false}]');
+             INSERT INTO tags (id, name, created_at) VALUES ('tag-1', 'LegacyTag', 1);
+             INSERT INTO note_tags (note_id, tag_id) VALUES ('legacy-1', 'tag-1');
+             PRAGMA user_version = 1;",
+        )
+        .unwrap();
+    drop(legacy);
+
+    let conn = database::open_db(&dir).expect("upgrade a v1 database");
+    let version: i64 = conn
+        .query_row("PRAGMA user_version", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(
+        version, 2,
+        "the migration must record the new schema version"
+    );
+
+    // Existing data is indexed, not lost: title, body, checklist and tag match.
+    for q in ["Legacy", "upgrade body", "checklist item", "LegacyTag"] {
+        let hits = note_service::list_notes(&conn, NoteView::All, None, Some(q)).unwrap();
+        assert_eq!(hits.len(), 1, "legacy note should match {q:?}");
+        assert_eq!(hits[0].id, "legacy-1");
+    }
+    // The reserved reminder column survives the upgrade and is still due.
+    let due = note_service::take_due_reminder(&conn, 43_000)
+        .unwrap()
+        .expect("a legacy reminder still fires");
+    assert_eq!(due.id, "legacy-1");
+    assert_eq!(due.reminder_at, None, "claiming clears it");
+
+    // Reopening an already-upgraded database must not backfill twice: a second
+    // copy of each row would duplicate every search result.
+    drop(conn);
+    let conn = database::open_db(&dir).unwrap();
+    let rows: i64 = conn
+        .query_row("SELECT COUNT(*) FROM notes_fts", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(rows, 1, "the FTS mirror must not be backfilled twice");
+    assert_eq!(
+        note_service::list_notes(&conn, NoteView::All, None, Some("Legacy"))
+            .unwrap()
+            .len(),
+        1
+    );
+}

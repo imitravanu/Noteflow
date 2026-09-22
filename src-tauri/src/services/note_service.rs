@@ -136,6 +136,18 @@ fn escape_like(query: &str) -> String {
         .replace('_', "\\_")
 }
 
+/// Shortest query the trigram index can answer (FTS5 trigram tokens are three
+/// characters wide, so a one- or two-character needle has no token to match).
+const FTS_MIN_CHARS: usize = 3;
+
+/// Renders a raw user query as an FTS5 string literal: quoting makes the FTS5
+/// operators (`*`, `:`, `NEAR`, parentheses…) literal text, so searching for
+/// `%` or `a-b` can only ever match those exact characters, and doubling an
+/// embedded quote is how FTS5 escapes it inside a string.
+fn fts_literal(query: &str) -> String {
+    format!("\"{}\"", query.replace('"', "\"\""))
+}
+
 pub fn create_note(conn: &Connection, color: Option<&str>) -> AppResult<Note> {
     let id = uuid::Uuid::new_v4().to_string();
     let now = now_millis();
@@ -294,6 +306,61 @@ pub fn set_flags_bulk(conn: &Connection, ids: &[String], flags: &FlagPatch) -> A
     }
     tx.commit()?;
     Ok(total)
+}
+
+/// Sets (or, with `None`, clears) a note's reminder.
+///
+/// Reminders are metadata, so — like flags — they deliberately leave
+/// `updated_at` untouched: scheduling one on an old note must not yank it to
+/// the top of the list under the user's cursor.
+pub fn set_reminder(conn: &Connection, id: &str, reminder_at: Option<i64>) -> AppResult<Note> {
+    if matches!(reminder_at, Some(ts) if ts <= 0) {
+        return Err(AppError::Invalid("That reminder time is not valid.".into()));
+    }
+    let tx = conn.unchecked_transaction()?;
+    let changed = tx.execute(
+        "UPDATE notes SET reminder_at = ?1 WHERE id = ?2",
+        params![reminder_at, id],
+    )?;
+    if changed == 0 {
+        return Err(AppError::NotFound("That note no longer exists.".into()));
+    }
+    let note = get_note(&tx, id)?;
+    tx.commit()?;
+    Ok(note)
+}
+
+/// Hands back the oldest due reminder and clears it inside the same
+/// transaction. Claiming it is what makes firing exactly-once: a later poll (or
+/// a second window) can never announce the same reminder twice, and one that
+/// came due while the app was closed still fires on the next launch rather than
+/// piling up. One reminder per call keeps a backlog surfacing one snackbar at a
+/// time instead of silently overwriting the earlier ones.
+pub fn take_due_reminder(conn: &Connection, now: i64) -> AppResult<Option<Note>> {
+    let tx = conn.unchecked_transaction()?;
+    let due_id: Option<String> = tx
+        .query_row(
+            "SELECT id FROM notes
+              WHERE deleted = 0 AND archived = 0
+                AND reminder_at IS NOT NULL AND reminder_at <= ?1
+              ORDER BY reminder_at ASC
+              LIMIT 1",
+            params![now],
+            |row| row.get(0),
+        )
+        .optional()?;
+
+    let Some(id) = due_id else {
+        return Ok(None); // nothing to claim: the transaction rolls back as a no-op
+    };
+
+    tx.execute(
+        "UPDATE notes SET reminder_at = NULL WHERE id = ?1",
+        params![id],
+    )?;
+    let note = get_note(&tx, &id)?;
+    tx.commit()?;
+    Ok(Some(note))
 }
 
 /// Full snapshot for Settings > Backup: every note regardless of view,
@@ -697,32 +764,57 @@ pub fn list_notes(
     if let Some(q) = query {
         let q = q.trim();
         if !q.is_empty() {
-            where_parts.push(
-                "(title LIKE ? ESCAPE '\\' OR content LIKE ? ESCAPE '\\'
-                  OR EXISTS (
-                      SELECT 1 FROM json_each(
-                          CASE WHEN json_valid(notes.checklist)
-                               THEN notes.checklist ELSE '[]' END
+            if q.chars().count() >= FTS_MIN_CHARS {
+                // Trigram FTS5 arms: unicode case-insensitive *substring*
+                // matching through the index (see migrations v2) — this is what
+                // lets "CAFÉ" find "Café", which LIKE cannot do. `notes_fts`
+                // mirrors `notes.rowid`, so each arm is an index lookup keyed to
+                // the row rather than a table scan.
+                // One OR'd clause: a note matches when the query appears in its
+                // own text *or* in one of its tags (the old LIKE arms were
+                // combined the same way). `notes_fts` mirrors `notes.rowid`, so
+                // each arm is an index lookup keyed to the row, not a scan.
+                where_parts.push(
+                    "(EXISTS (SELECT 1 FROM notes_fts
+                              WHERE notes_fts.rowid = notes.rowid AND notes_fts MATCH ?)
+                      OR EXISTS (SELECT 1 FROM note_tags nt
+                                 JOIN tags t ON t.id = nt.tag_id
+                                 JOIN tags_fts ON tags_fts.rowid = t.rowid
+                                 WHERE nt.note_id = notes.id AND tags_fts MATCH ?))",
+                );
+                filter_params.push(fts_literal(q));
+                filter_params.push(fts_literal(q));
+            } else {
+                // 1–2 characters: shorter than a trigram, so the index cannot
+                // answer it. Escaped LIKE keeps the pre-1.4 behaviour (and its
+                // ASCII-only case folding) for these two cases.
+                where_parts.push(
+                    "(title LIKE ? ESCAPE '\\' OR content LIKE ? ESCAPE '\\'
+                      OR EXISTS (
+                          SELECT 1 FROM json_each(
+                              CASE WHEN json_valid(notes.checklist)
+                                   THEN notes.checklist ELSE '[]' END
+                          )
+                          WHERE json_extract(value, '$.text') LIKE ? ESCAPE '\\'
                       )
-                      WHERE json_extract(value, '$.text') LIKE ? ESCAPE '\\'
-                  )
-                  OR EXISTS (
-                      SELECT 1 FROM note_tags nt JOIN tags t ON t.id = nt.tag_id
-                      WHERE nt.note_id = notes.id AND t.name LIKE ? ESCAPE '\\'
-                  ))",
-            );
-            let pattern = format!("%{}%", escape_like(q));
-            // Title + body patterns, then checklist item text and tag name.
-            filter_params.push(pattern.clone());
-            filter_params.push(pattern.clone());
-            filter_params.push(pattern.clone());
-            filter_params.push(pattern);
+                      OR EXISTS (
+                          SELECT 1 FROM note_tags nt JOIN tags t ON t.id = nt.tag_id
+                          WHERE nt.note_id = notes.id AND t.name LIKE ? ESCAPE '\\'
+                      ))",
+                );
+                let pattern = format!("%{}%", escape_like(q));
+                // Title + body patterns, then checklist item text and tag name.
+                filter_params.push(pattern.clone());
+                filter_params.push(pattern.clone());
+                filter_params.push(pattern.clone());
+                filter_params.push(pattern);
+            }
         }
     }
 
-    // NOTE: SQLite LIKE is case-insensitive for ASCII only — non-ASCII case
-    // differences (é/É) won't match. Fine for local search today; move to
-    // FTS5 + unicode61 if it is ever reported.
+    // NOTE: the indexed arms above fold unicode case correctly; the 1–2
+    // character fallback keeps SQLite LIKE's ASCII-only folding, which is the
+    // one remaining gap (trigram tokens are three characters wide).
     let sql = format!(
         "SELECT {NOTE_COLUMNS} FROM notes WHERE {} ORDER BY {order_by}",
         where_parts.join(" AND ")
