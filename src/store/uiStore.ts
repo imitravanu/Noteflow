@@ -39,6 +39,8 @@ interface UiState {
   selection: string[];
   anchorId: string | null;
   editorNoteId: string | null;
+  /** Card id the editor hands focus back to when it closes (see NoteEditor). */
+  editorReturnFocusId: string | null;
   /** Local snapshot of the note being edited, kept current by the editor. */
   editorNote: import("../types").Note | null;
   /** Flush callback registered by the open editor (Ctrl+S / close). */
@@ -59,7 +61,13 @@ interface UiState {
   setActiveTag: (tagId: string | null) => void;
   setQuery: (query: string) => void;
 
-  openEditor: (noteId: string) => void;
+  /**
+   * Opens a note in the editor. A currently-open editor is flushed *first*:
+   * switching notes resets the save gate, which would otherwise drop edits
+   * still inside the debounce window (reachable via the reminder "Open"
+   * toast or a card click while another note has unsaved changes).
+   */
+  openEditor: (noteId: string, returnFocusId?: string | null) => Promise<void>;
   closeEditor: () => void;
   setEditorNote: (note: import("../types").Note | null) => void;
   registerEditorFlush: (fn: (() => Promise<void>) | null) => void;
@@ -107,6 +115,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   selection: [],
   anchorId: null,
   editorNoteId: null,
+  editorReturnFocusId: null,
   editorNote: null,
   editorFlush: null,
   snackbar: null,
@@ -127,8 +136,22 @@ export const useUiStore = create<UiState>((set, get) => ({
 
   setQuery: (query) => set({ query }),
 
-  openEditor: (noteId) =>
-    set({ editorNoteId: noteId, selection: [], anchorId: null }),
+  openEditor: async (noteId, returnFocusId = null) => {
+    // Must resolve before the id changes: `flushEditor` waits for in-flight
+    // saves *and* their chained follow-ups, so no save of the old note can
+    // land after the editor has switched to the new one.
+    await get().flushEditor();
+    set({
+      editorNoteId: noteId,
+      // Switching notes inside an open editor keeps the original return
+      // target; opening from a closed editor records the clicked card.
+      editorReturnFocusId: get().editorNoteId
+        ? get().editorReturnFocusId
+        : returnFocusId,
+      selection: [],
+      anchorId: null,
+    });
+  },
   closeEditor: () =>
     set({ editorNoteId: null, editorNote: null, editorFlush: null }),
   setEditorNote: (note) => set({ editorNote: note }),

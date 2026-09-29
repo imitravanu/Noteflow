@@ -47,6 +47,12 @@ export function TopBar() {
         <div
           className="topbar-brand"
           onClick={() => setPage("notes")}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setPage("notes");
+            }
+          }}
           role="button"
           tabIndex={0}
           title="NoteFlow Notes"

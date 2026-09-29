@@ -675,7 +675,6 @@
   overflow: visible;
   transform-style: preserve-3d;
   perspective: 1000px;
-  will-change: transform, box-shadow;
   animation: card-enter 0.35s var(--spring-easing) both;
   transition: box-shadow 0.28s var(--spring-bounce),
     transform 0.35s var(--spring-bounce),
@@ -715,6 +714,10 @@
 }
 
 .note-card:hover {
+  /* Promote only the hovered card to its own layer. A permanent
+     `will-change` on every card forced one compositing layer per card in
+     the grid — the exact opposite of what large collections need. */
+  will-change: transform, box-shadow;
   box-shadow: var(--specular-rim-card), var(--shadow-lg), 0 16px 42px var(--card-glow);
   transform: translateY(-8px) scale(1.025) perspective(1000px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
   border-color: var(--liquid-border-hover);

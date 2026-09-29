@@ -20,7 +20,7 @@ describe("escapeAction priority cascade", () => {
     expect(escapeAction(closed)).toBe("none");
   });
 
-  it("lets the confirm dialog swallow Escape above everything", () => {
+  it("closes the confirm dialog above everything (regression: Esc was a dead key when focus fell outside the dialog)", () => {
     expect(
       escapeAction(
         state({
@@ -32,7 +32,17 @@ describe("escapeAction priority cascade", () => {
           sidebarOpen: true,
         }),
       ),
-    ).toBe("none");
+    ).toBe("close-confirm");
+    // ...and still just closes the dialog: one layer at a time.
+    expect(
+      escapeAction({
+        ...state({
+          confirmOpen: true,
+          shortcutsOpen: true,
+          editorOpen: true,
+        }),
+      }),
+    ).toBe("close-confirm");
   });
 
   it("closes the shortcuts modal before lower layers", () => {

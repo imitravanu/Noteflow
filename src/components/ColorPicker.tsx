@@ -1,10 +1,10 @@
 import { useEffect, useId, useRef } from "react";
-import { NOTE_COLORS } from "../types";
+import { NOTE_COLORS, type NoteColor } from "../types";
 import { useUiStore } from "../store/uiStore";
 
 interface ColorPickerProps {
-  value: string;
-  onChange: (color: string) => void;
+  value: NoteColor;
+  onChange: (color: NoteColor) => void;
   onClose: () => void;
 }
 

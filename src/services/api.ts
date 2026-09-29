@@ -4,6 +4,7 @@ import type {
   FlagPatch,
   ImportReport,
   Note,
+  NoteColor,
   NotePatch,
   NoteView,
   Tag,
@@ -18,7 +19,7 @@ export const api = {
     });
   },
 
-  createNote(color?: string) {
+  createNote(color?: NoteColor) {
     return invoke<Note>("create_note", { color: color ?? null });
   },
 

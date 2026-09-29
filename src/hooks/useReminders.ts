@@ -33,7 +33,11 @@ export function useReminders() {
           void useNotesStore.getState().refresh();
           ui.showSnackbar(`Reminder: ${due.title || "Untitled"}`, {
             actionLabel: "Open",
-            action: () => useUiStore.getState().openEditor(due.id),
+            // openEditor flushes the current dirty draft before switching —
+            // otherwise the gate reset would drop up to a debounce window of
+            // typed edits, or an in-flight save could merge the old note's
+            // payload into the newly opened one.
+            action: () => void useUiStore.getState().openEditor(due.id),
           });
         }
       } catch {

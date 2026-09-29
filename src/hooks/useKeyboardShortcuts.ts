@@ -15,6 +15,38 @@ function isEditableTarget(e: KeyboardEvent): boolean {
 }
 
 /**
+ * Ctrl+Shift+P/F scope resolution: the open editor's note wins; otherwise the
+ * key targets the whole selection as one batch (mirrors the SelectionBar
+ * buttons). Previously only selection[0] was toggled, silently ignoring the
+ * rest of the selection.
+ */
+function togglePinShortcut(
+  ui: ReturnType<typeof useUiStore.getState>,
+  notes: ReturnType<typeof useNotesStore.getState>,
+) {
+  if (ui.editorNote) {
+    void notes.setFlags(ui.editorNote.id, { pinned: !ui.editorNote.pinned });
+    return;
+  }
+  const selected = notes.notes.filter((n) => ui.selection.includes(n.id));
+  if (!selected.length) return;
+  void notes.setFlagsForSelection({ pinned: !selected.every((n) => n.pinned) });
+}
+
+function toggleFavoriteShortcut(
+  ui: ReturnType<typeof useUiStore.getState>,
+  notes: ReturnType<typeof useNotesStore.getState>,
+) {
+  if (ui.editorNote) {
+    void notes.setFlags(ui.editorNote.id, { favorite: !ui.editorNote.favorite });
+    return;
+  }
+  const selected = notes.notes.filter((n) => ui.selection.includes(n.id));
+  if (!selected.length) return;
+  void notes.setFlagsForSelection({ favorite: !selected.every((n) => n.favorite) });
+}
+
+/**
  * Global keyboard map:
  *   Ctrl+N new note · Ctrl+K search · Ctrl+S force save
  *   Ctrl+Shift+P pin · Ctrl+Shift+F favorite
@@ -53,15 +85,13 @@ export function useKeyboardShortcuts() {
 
       if (mod && e.shiftKey && key === "p") {
         e.preventDefault();
-        const target = ui.editorNote ?? notes.notes.find((n) => n.id === ui.selection[0]);
-        if (target) void notes.setFlags(target.id, { pinned: !target.pinned });
+        togglePinShortcut(ui, notes);
         return;
       }
 
       if (mod && e.shiftKey && key === "f") {
         e.preventDefault();
-        const target = ui.editorNote ?? notes.notes.find((n) => n.id === ui.selection[0]);
-        if (target) void notes.setFlags(target.id, { favorite: !target.favorite });
+        toggleFavoriteShortcut(ui, notes);
         return;
       }
 
@@ -104,6 +134,9 @@ export function useKeyboardShortcuts() {
           sidebarOpen: ui.sidebarOpen,
         });
         switch (action) {
+          case "close-confirm":
+            ui.closeConfirm();
+            return;
           case "close-shortcuts":
             ui.setShortcutsOpen(false);
             return;

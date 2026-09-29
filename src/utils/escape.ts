@@ -8,7 +8,7 @@
  * returned action onto the store mutations.
  */
 export interface EscapeState {
-  /** ConfirmDialog is open — it swallows Escape itself. */
+  /** ConfirmDialog is open — the top layer, closed by the cascade itself. */
   confirmOpen: boolean;
   shortcutsOpen: boolean;
   /** A color/tag picker popover is open (inside the editor or selection bar). */
@@ -21,6 +21,7 @@ export interface EscapeState {
 
 export type EscapeAction =
   | "none"
+  | "close-confirm"
   | "close-shortcuts"
   | "close-popover"
   | "close-editor"
@@ -28,7 +29,7 @@ export type EscapeAction =
   | "close-sidebar";
 
 export function escapeAction(s: EscapeState): EscapeAction {
-  if (s.confirmOpen) return "none"; // the dialog's own handler closes it
+  if (s.confirmOpen) return "close-confirm"; // global: works even if focus escaped the dialog
   if (s.shortcutsOpen) return "close-shortcuts";
   if (s.popoverOpen) return "close-popover"; // dismiss picker first, keep editor
   if (s.editorOpen) return "close-editor";

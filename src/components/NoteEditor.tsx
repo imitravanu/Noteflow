@@ -15,7 +15,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import type { ChecklistItem, FlagPatch, Note, SaveStatus } from "../types";
+import type { ChecklistItem, FlagPatch, Note, NoteColor, SaveStatus } from "../types";
 import { api } from "../services/api";
 import { useNotesStore } from "../store/notesStore";
 import { errText, useUiStore } from "../store/uiStore";
@@ -35,7 +35,7 @@ interface Draft {
   title: string;
   content: string;
   checklist: ChecklistItem[];
-  color: string;
+  color: NoteColor;
 }
 
 /** crypto.randomUUID fallback for webview origins without a secure context. */
@@ -120,6 +120,10 @@ export function NoteEditor() {
           color: d.color,
         });
         if (!updated) return false;
+        // The editor may have switched notes while this save was running
+        // (openEditor flushes, but defense-in-depth): only merge results
+        // back while this note is still the editor's subject.
+        if (noteRef.current?.id !== targetId) return true;
         setNote((prev) => (prev ? { ...prev, ...updated } : updated));
         setEditorNote(updated);
         return true;
@@ -191,6 +195,25 @@ export function NoteEditor() {
       gateRef.current?.dispose();
     };
   }, [flush]);
+
+  // A11y: hand focus back to the card the editor was opened from when it
+  // closes, instead of dumping keyboard users on <body>. Detected on the
+  // noteId transition (this component stays mounted behind an early return,
+  // so an unmount cleanup would never fire on plain close). Note switches
+  // (value → value) intentionally do nothing: focus stays inside the editor.
+  const lastOpenIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (lastOpenIdRef.current && !noteId) {
+      const id = useUiStore.getState().editorReturnFocusId;
+      if (id) {
+        const card = document.querySelector<HTMLElement>(
+          `.note-card[data-note-id="${CSS.escape(id)}"]`,
+        );
+        card?.focus();
+      }
+    }
+    lastOpenIdRef.current = noteId;
+  }, [noteId]);
 
   // Auto-grow body textarea.
   useEffect(() => {

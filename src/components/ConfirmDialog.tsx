@@ -19,12 +19,11 @@ export function ConfirmDialog() {
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) closeConfirm();
       }}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") {
-          e.stopPropagation();
-          closeConfirm();
-        }
-      }}
+      // Escape is owned by the global cascade (utils/escape.ts): handling it
+      // here would (a) miss the key when focus falls outside this subtree and
+      // (b) unwind two layers at once when focus is inside, because React's
+      // stopPropagation cannot stop the native event from reaching the window
+      // handler underneath.
     >
       <div
         className="dialog"

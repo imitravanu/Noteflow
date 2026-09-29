@@ -59,14 +59,12 @@ export const useNotesStore = create<NotesState>((set, get) => ({
 
   createNote: async () => {
     const ui = useUiStore.getState();
-    // Flush the open editor first: opening the new note resets the save gate,
-    // which would otherwise drop edits still inside the debounce window
-    // (reachable via Ctrl+N while typing).
-    await ui.flushEditor();
     try {
       const note = await api.createNote();
       await get().refresh();
-      ui.openEditor(note.id);
+      // openEditor flushes the open editor (if any) before switching, so
+      // Ctrl+N while typing no longer drops edits to the gate reset.
+      await ui.openEditor(note.id);
     } catch (e) {
       ui.showSnackbar(errText(e));
     }

@@ -3,6 +3,21 @@
 All notable changes to NoteFlow are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Fixed
+- Autosave: opening another note (reminder toast "Open", card click while another editor is dirty) now flushes the current draft *before* the switch — previously the save-gate reset silently dropped up to a debounce window of edits, and an in-flight save could merge the old note's payload into the newly opened one.
+- Escape: the confirm dialog closes through the global cascade, so Escape is no longer a dead key when focus falls outside the dialog subtree (React's stopPropagation could also unwind two layers at once when focus was inside).
+- Grid: Space/Enter pressed on a card's inner buttons (pin, favorite, copy, check) activate those buttons instead of being hijacked into selection.
+- Keyboard: Ctrl+Shift+P/F with a multi-note selection now flags the whole selection as one bulk transaction, matching the SelectionBar and the documented "Editor / Selection" scope (was: silently only selection[0]).
+- Security/CSP: a single authoritative policy in `tauri.conf.json` (adds the `ipc:` connect sources Tauri requires and an explicit `script-src 'self'`); the contradictory meta CSP in `index.html` — which also blocked the inline theme pre-paint script in dev — is removed. Tauri hashes the inline script at bundle time.
+- Accessibility: closing the editor returns focus to the note card it was opened from instead of dumping keyboard users on `<body>`; the TopBar brand (role=button) is now keyboard-operable.
+
+### Changed
+- Note cards are memoized and no longer subscribe to the selection size, so autosave round-trips and selection changes no longer re-render every visible card; tilt/spotlight mousemove is coalesced to one layout read per frame; `will-change` is scoped to the hovered card (every card used to hold a permanent compositing layer).
+- Types: `NotePatch.color`, `api.createNote` and `ColorPicker` use the `NoteColor` union instead of loose `string`.
+- Tests: +3 regression tests for flush-before-switch (order, async settle, return-focus capture).
+
 ## [1.4.0] - 2026-09-23
 
 ### Added
