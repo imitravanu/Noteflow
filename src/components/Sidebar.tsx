@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Archive,
   Hash,
@@ -42,6 +42,7 @@ export function Sidebar() {
   const [newTagName, setNewTagName] = useState("");
   const [hovered, setHovered] = useState(false);
   const hoverTimeoutRef = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(hoverTimeoutRef.current), []);
 
   const isVisible = sidebarOpen || hovered || addingTag;
 

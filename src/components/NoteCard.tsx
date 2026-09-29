@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import {
   Archive,
   Bell,
@@ -34,64 +34,98 @@ async function copyText(text: string): Promise<boolean> {
     document.body.appendChild(textarea);
     textarea.focus();
     textarea.select();
-    const ok = document.execCommand("copy");
-    textarea.remove();
-    return ok;
+    try {
+      return document.execCommand("copy");
+    } finally {
+      textarea.remove(); // must leave no DOM node behind, even on throw
+    }
   } catch {
     return false;
   }
 }
 
-interface NoteCardProps {
+export interface NoteCardProps {
   note: Note;
   selected: boolean;
-  orderedIds: string[];
   query: string;
-  style?: React.CSSProperties;
+  /** Stagger-in delay in ms (a number, not a style object, so memo works). */
+  delayMs: number;
+  /** Current visible order, read at event time (stable identity → memo-safe). */
+  getOrderedIds: () => string[];
 }
 
-export function NoteCard({ note, selected, orderedIds, query, style }: NoteCardProps) {
+export const NoteCard = memo(function NoteCard({
+  note,
+  selected,
+  query,
+  delayMs,
+  getOrderedIds,
+}: NoteCardProps) {
   const cardRef = useRef<HTMLElement>(null);
   const toggleSelect = useUiStore((s) => s.toggleSelect);
   const openEditor = useUiStore((s) => s.openEditor);
-  const selectionLength = useUiStore((s) => s.selection.length);
   const view = useUiStore((s) => s.view);
   const showSnackbar = useUiStore((s) => s.showSnackbar);
   const setFlags = useNotesStore((s) => s.setFlags);
   const restoreNotes = useNotesStore((s) => s.restoreNotes);
 
   const [copied, setCopied] = useState(false);
+  const copiedTimerRef = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(copiedTimerRef.current), []);
 
   const preview = bodyPreview(note.content);
   const doneCount = note.checklist.filter((c) => c.checked).length;
 
   const stop = (e: React.MouseEvent) => e.stopPropagation();
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
+  // Tilt/spotlight motion: mousemove events are coalesced into one rAF
+  // callback per frame, and the rect read happens there — so a burst of
+  // events causes at most one forced layout per frame instead of one per
+  // event (the rect must be read fresh: the hover transform shifts the card).
+  const rafRef = useRef<number | null>(null);
+  const lastPointRef = useRef<{ x: number; y: number } | null>(null);
+
+  const applyTilt = () => {
+    rafRef.current = null;
     const card = cardRef.current;
-    if (!card) return;
+    const last = lastPointRef.current;
+    if (!card || !last) return;
     const rect = card.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const x = last.x - rect.left;
+    const y = last.y - rect.top;
     const centerX = rect.width / 2;
     const centerY = rect.height / 2;
-
-    // Organic 3D perspective tilt (subtle & responsive)
     const rotateX = ((centerY - y) / centerY) * 6.5;
     const rotateY = ((x - centerX) / centerX) * 6.5;
-
     card.style.setProperty("--tilt-x", `${rotateX.toFixed(2)}deg`);
     card.style.setProperty("--tilt-y", `${rotateY.toFixed(2)}deg`);
     card.style.setProperty("--mouse-x", `${x.toFixed(1)}px`);
     card.style.setProperty("--mouse-y", `${y.toFixed(1)}px`);
   };
 
+  const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
+    if (!cardRef.current) return;
+    lastPointRef.current = { x: e.clientX, y: e.clientY };
+    if (rafRef.current === null) rafRef.current = requestAnimationFrame(applyTilt);
+  };
+
   const handleMouseLeave = () => {
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    lastPointRef.current = null;
     const card = cardRef.current;
     if (!card) return;
     card.style.setProperty("--tilt-x", "0deg");
     card.style.setProperty("--tilt-y", "0deg");
   };
+
+  useEffect(() => {
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -109,7 +143,8 @@ export function NoteCard({ note, selected, orderedIds, query, style }: NoteCardP
     const ok = await copyText(text);
     if (ok) {
       setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      window.clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = window.setTimeout(() => setCopied(false), 1500);
       showSnackbar("Copied note content");
     } else {
       showSnackbar("Failed to copy note content");
@@ -121,38 +156,49 @@ export function NoteCard({ note, selected, orderedIds, query, style }: NoteCardP
       ref={cardRef}
       className={`note-card color-${note.color}${selected ? " selected" : ""}`}
       data-selected={selected || undefined}
+      data-note-id={note.id}
       tabIndex={0}
       // No role="button": the card wraps nested <button>s, which is invalid
       // interactive nesting for assistive tech. Keyboard handlers below stay.
       aria-label={`Note: ${note.title || "Untitled"}`}
-      style={style}
+      style={{ animationDelay: `${delayMs}ms` }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onClick={(e) => {
         if (view === "trash") {
           // Deleted notes are selected for restore/permanent delete, not edited.
           e.preventDefault();
-          toggleSelect(note.id, { ctrl: true, shift: e.shiftKey }, orderedIds);
+          toggleSelect(note.id, { ctrl: true, shift: e.shiftKey }, getOrderedIds());
         } else if (e.ctrlKey || e.metaKey || e.shiftKey) {
           e.preventDefault();
-          toggleSelect(note.id, { ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey }, orderedIds);
-        } else if (selectionLength > 0) {
+          toggleSelect(note.id, { ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey }, getOrderedIds());
+        } else if (useUiStore.getState().selection.length > 0) {
           // In selection mode a plain click re-targets the selection instead of
-          // opening the editor — otherwise users get trapped until Esc.
+          // opening the editor — otherwise users get trapped until Esc. The
+          // live getState() read keeps this card out of the selection-size
+          // subscription (memo: selection changes must not re-render every card).
           e.preventDefault();
-          toggleSelect(note.id, { ctrl: true, shift: false }, orderedIds);
+          toggleSelect(note.id, { ctrl: true, shift: false }, getOrderedIds());
         } else {
-          openEditor(note.id);
+          // Pass the card id so closing the editor can return focus here.
+          // openEditor flushes any dirty draft in the currently-open editor
+          // first — a plain click while typing in another note must not drop
+          // those edits to the gate reset.
+          void openEditor(note.id, note.id);
         }
       }}
       onKeyDown={(e) => {
+        // Only act when the card itself is focused: Enter/Space bubbling from
+        // a focused inner button (pin/favorite/check/copy) must activate that
+        // button, not hijack selection or the editor.
+        if (e.target !== e.currentTarget) return;
         if (e.key === "Enter" && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
           e.preventDefault();
-          if (view !== "trash") openEditor(note.id);
+          if (view !== "trash") void openEditor(note.id, note.id);
         }
         if (e.key === " ") {
           e.preventDefault();
-          toggleSelect(note.id, { ctrl: true, shift: false }, orderedIds);
+          toggleSelect(note.id, { ctrl: true, shift: false }, getOrderedIds());
         }
       }}
     >
@@ -164,7 +210,7 @@ export function NoteCard({ note, selected, orderedIds, query, style }: NoteCardP
         title={selected ? "Deselect" : "Select"}
         onClick={(e) => {
           stop(e);
-          toggleSelect(note.id, { ctrl: true, shift: false }, orderedIds);
+          toggleSelect(note.id, { ctrl: true, shift: false }, getOrderedIds());
         }}
       >
         {selected ? <Check size={13} /> : <Circle size={13} />}
@@ -182,7 +228,7 @@ export function NoteCard({ note, selected, orderedIds, query, style }: NoteCardP
             >
               <Undo2 size={14} />
             </button>
-            <TrashActions noteId={note.id} single />
+            <PermanentDeleteButton noteId={note.id} />
           </>
         ) : (
           <>
@@ -290,47 +336,35 @@ export function NoteCard({ note, selected, orderedIds, query, style }: NoteCardP
       </footer>
     </article>
   );
-}
+});
 
-/** Trash button; permanent deletion is gated behind a confirm dialog. */
-function TrashActions({ noteId, single }: { noteId: string; single?: boolean }) {
+/**
+ * Trash-view "delete forever" button; the action is gated behind a confirm
+ * dialog. The old shared `TrashActions` also had a non-trash branch that no
+ * call-site could ever reach (cards render it inside `view === "trash"` only)
+ * — removed with the dead code.
+ */
+function PermanentDeleteButton({ noteId }: { noteId: string }) {
   const askConfirm = useUiStore((s) => s.askConfirm);
-  const trashNotes = useNotesStore((s) => s.trashNotes);
   const deletePermanent = useNotesStore((s) => s.deletePermanent);
-  const view = useUiStore((s) => s.view);
-
-  if (view === "trash") {
-    return (
-      <button
-        type="button"
-        className="icon-btn icon-btn-sm danger-hover"
-        aria-label="Delete permanently"
-        title="Delete permanently"
-        onClick={() =>
-          askConfirm({
-            title: "Delete forever?",
-            message: "This note will be permanently deleted. This cannot be undone.",
-            confirmLabel: "Delete forever",
-            danger: true,
-            onConfirm: () => deletePermanent([noteId]),
-          })
-        }
-      >
-        <Trash2 size={14} />
-      </button>
-    );
-  }
 
   return (
     <button
       type="button"
       className="icon-btn icon-btn-sm danger-hover"
-      aria-label="Move note to trash"
-      title={single ? "Move to trash" : "Trash"}
-      onClick={() => void trashNotes([noteId])}
+      aria-label="Delete permanently"
+      title="Delete permanently"
+      onClick={() =>
+        askConfirm({
+          title: "Delete forever?",
+          message: "This note will be permanently deleted. This cannot be undone.",
+          confirmLabel: "Delete forever",
+          danger: true,
+          onConfirm: () => deletePermanent([noteId]),
+        })
+      }
     >
       <Trash2 size={14} />
     </button>
   );
 }
-

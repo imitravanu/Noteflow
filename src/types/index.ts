@@ -53,7 +53,7 @@ export type NoteView = "all" | "pinned" | "favorites" | "archive" | "trash";
 export interface NotePatch {
   title?: string;
   content?: string;
-  color?: string;
+  color?: NoteColor;
   checklist?: ChecklistItem[];
 }
 

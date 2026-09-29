@@ -37,6 +37,7 @@ export function SettingsPage() {
   const [importing, setImporting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const refresh = useNotesStore((s) => s.refresh);
+  const themeRefs = useRef<Partial<Record<Theme, HTMLButtonElement | null>>>({});
 
   useEffect(() => {
     api
@@ -65,6 +66,22 @@ export function SettingsPage() {
     } finally {
       setExporting(false);
     }
+  };
+
+  // Arrow keys move selection inside the theme radiogroup (WAI-ARIA radio
+  // pattern: selection follows focus; Home/End jump to ends).
+  const onThemeGroupKeyDown = (e: React.KeyboardEvent) => {
+    const i = THEMES.findIndex((t) => t.value === theme);
+    let next: number | null = null;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") next = (i + 1) % THEMES.length;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp")
+      next = (i - 1 + THEMES.length) % THEMES.length;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = THEMES.length - 1;
+    if (next === null) return;
+    e.preventDefault();
+    setTheme(THEMES[next].value);
+    themeRefs.current[THEMES[next].value]?.focus();
   };
 
   const handleImportFile = async (file: File) => {
@@ -116,12 +133,24 @@ export function SettingsPage() {
         <h2 id="settings-appearance">
           <Palette size={16} aria-hidden="true" /> Appearance
         </h2>
-        <div className="theme-options" role="radiogroup" aria-label="Theme">
+        <div
+          className="theme-options"
+          role="radiogroup"
+          aria-label="Theme"
+          onKeyDown={onThemeGroupKeyDown}
+        >
           {THEMES.map(({ value, label, description, icon: Icon }) => (
             <button
               key={value}
+              ref={(el) => {
+                themeRefs.current[value] = el;
+              }}
               type="button"
               role="radio"
+              // Roving tabindex: a radio group is ONE tab stop; arrows move the
+              // selection inside it. Without this the declared radiogroup/radio
+              // roles were keyboard-invalid.
+              tabIndex={theme === value ? 0 : -1}
               aria-checked={theme === value}
               className={`theme-option${theme === value ? " active" : ""}`}
               onClick={() => setTheme(value)}

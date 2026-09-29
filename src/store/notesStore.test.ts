@@ -151,3 +151,59 @@ describe("notesStore.trash / undo", () => {
     expect(useUiStore.getState().undoStack.size).toBe(0);
   });
 });
+
+describe("notesStore.setTagForSelection", () => {
+  it("applies one tag across the selection atomically, with a full-list Undo", async () => {
+    const t = { id: "tag1", name: "Work" };
+    useNotesStore.setState({ notes: [makeNote("a"), makeNote("b")], tags: [t] });
+    useUiStore.setState({ selection: ["a", "b"] });
+    const setNoteTagsCalls: string[][] = [];
+    route({
+      set_tags_bulk: (args) => (args?.apply ? 2 : 0),
+      set_note_tags: (args) => {
+        setNoteTagsCalls.push(args!.tagIds as string[]);
+        return [t];
+      },
+      list_notes: () => [makeNote("a"), makeNote("b")],
+      list_tags: () => [t],
+      get_counts: () => ({ ...ZERO_COUNTS, all: 2 }),
+    });
+
+    await useNotesStore.getState().setTagForSelection("tag1", true);
+    expect(mockedInvoke).toHaveBeenCalledWith("set_tags_bulk", {
+      ids: ["a", "b"],
+      tagId: "tag1",
+      apply: true,
+    });
+    expect(useUiStore.getState().selection).toEqual([]); // cleared once done
+
+    // Undo restores each note's previous (tagless) list exactly.
+    await useUiStore.getState().undo();
+    expect(setNoteTagsCalls).toEqual([[], []]);
+  });
+
+  it("does not clear a selection the user changed mid-flight", async () => {
+    const t = { id: "tag1", name: "Work" };
+    useNotesStore.setState({ notes: [makeNote("a")], tags: [t] });
+    useUiStore.setState({ selection: ["a"] });
+    mockedInvoke.mockImplementation((async (cmd: string) => {
+      switch (cmd) {
+        case "set_tags_bulk":
+          // user re-selects while this request is in flight
+          useUiStore.setState({ selection: ["a", "b"] });
+          return 1;
+        case "list_notes":
+          return [makeNote("a"), makeNote("b")];
+        case "list_tags":
+          return [t];
+        case "get_counts":
+          return { ...ZERO_COUNTS, all: 2 };
+        default:
+          throw new Error(`unexpected command: ${cmd}`);
+      }
+    }) as unknown as typeof invoke);
+
+    await useNotesStore.getState().setTagForSelection("tag1", true);
+    expect(useUiStore.getState().selection).toEqual(["a", "b"]); // survived
+  });
+});

@@ -1,14 +1,19 @@
 import { useEffect, useRef } from "react";
 import { useUiStore } from "../store/uiStore";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 export function ConfirmDialog() {
   const confirm = useUiStore((s) => s.confirm);
   const closeConfirm = useUiStore((s) => s.closeConfirm);
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (confirm) cancelRef.current?.focus();
   }, [confirm]);
+  // aria-modal="true" promises containment; trap delivers it so Tab can no
+  // longer escape into the background UI while a destructive action waits.
+  useFocusTrap(dialogRef, confirm !== null);
 
   if (!confirm) return null;
 
@@ -19,15 +24,15 @@ export function ConfirmDialog() {
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) closeConfirm();
       }}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") {
-          e.stopPropagation();
-          closeConfirm();
-        }
-      }}
+      // Escape is owned by the global cascade (utils/escape.ts): handling it
+      // here would (a) miss the key when focus falls outside this subtree and
+      // (b) unwind two layers at once when focus is inside, because React's
+      // stopPropagation cannot stop the native event from reaching the window
+      // handler underneath.
     >
       <div
         className="dialog"
+        ref={dialogRef}
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="dialog-title"

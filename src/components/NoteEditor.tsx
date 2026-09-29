@@ -15,7 +15,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import type { ChecklistItem, FlagPatch, Note, SaveStatus } from "../types";
+import type { ChecklistItem, FlagPatch, Note, NoteColor, SaveStatus } from "../types";
 import { api } from "../services/api";
 import { useNotesStore } from "../store/notesStore";
 import { errText, useUiStore } from "../store/uiStore";
@@ -27,6 +27,7 @@ import {
 } from "../utils/format";
 import { createSaveGate, type SaveGate } from "../utils/saveGate";
 import { formatReminderTime } from "../utils/reminder";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 import { ColorPicker } from "./ColorPicker";
 import { ReminderPicker } from "./ReminderPicker";
 import { TagPicker } from "./TagPicker";
@@ -35,7 +36,7 @@ interface Draft {
   title: string;
   content: string;
   checklist: ChecklistItem[];
-  color: string;
+  color: NoteColor;
 }
 
 /** crypto.randomUUID fallback for webview origins without a secure context. */
@@ -74,6 +75,7 @@ export function NoteEditor() {
   const draftRef = useRef(draft);
   const noteRef = useRef(note);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
 
   // Mirror the latest values into refs *after commit* (layout effects run
   // synchronously post-commit, before paint or any event/timer can observe
@@ -120,6 +122,10 @@ export function NoteEditor() {
           color: d.color,
         });
         if (!updated) return false;
+        // The editor may have switched notes while this save was running
+        // (openEditor flushes, but defense-in-depth): only merge results
+        // back while this note is still the editor's subject.
+        if (noteRef.current?.id !== targetId) return true;
         setNote((prev) => (prev ? { ...prev, ...updated } : updated));
         setEditorNote(updated);
         return true;
@@ -192,6 +198,25 @@ export function NoteEditor() {
     };
   }, [flush]);
 
+  // A11y: hand focus back to the card the editor was opened from when it
+  // closes, instead of dumping keyboard users on <body>. Detected on the
+  // noteId transition (this component stays mounted behind an early return,
+  // so an unmount cleanup would never fire on plain close). Note switches
+  // (value → value) intentionally do nothing: focus stays inside the editor.
+  const lastOpenIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (lastOpenIdRef.current && !noteId) {
+      const id = useUiStore.getState().editorReturnFocusId;
+      if (id) {
+        const card = document.querySelector<HTMLElement>(
+          `.note-card[data-note-id="${CSS.escape(id)}"]`,
+        );
+        card?.focus();
+      }
+    }
+    lastOpenIdRef.current = noteId;
+  }, [noteId]);
+
   // Auto-grow body textarea.
   useEffect(() => {
     const el = bodyRef.current;
@@ -257,23 +282,30 @@ export function NoteEditor() {
   };
 
   // ---- tags ---------------------------------------------------------------
-  const applyTags = async (tagId: string, apply: boolean) => {
-    if (!note) return;
-    const current = note.tags.map((t) => t.id);
-    const next = apply
-      ? current.includes(tagId)
-        ? current
-        : [...current, tagId]
-      : current.filter((t) => t !== tagId);
-    try {
-      const tags = await api.setNoteTags(note.id, next);
-      const updated = { ...noteRef.current!, tags };
+  // Tag sets are full replacements, so two overlapping requests would let the
+  // second overwrite the first with a pre-first-response snapshot
+  // (lost-update). Toggles therefore run through one serial chain, each
+  // reading the freshest known tags when it starts, and go through the store
+  // (single IPC path + list sync) instead of calling api directly here.
+  const tagChainRef = useRef<Promise<void>>(Promise.resolve());
+  const applyTags = (tagId: string, apply: boolean) => {
+    tagChainRef.current = tagChainRef.current.then(async () => {
+      const currentNote = noteRef.current;
+      if (!currentNote) return;
+      const current = currentNote.tags.map((t) => t.id);
+      const next = apply
+        ? current.includes(tagId)
+          ? current
+          : [...current, tagId]
+        : current.filter((t) => t !== tagId);
+      if (next.length === current.length && apply) return; // already applied
+      const tags = await useNotesStore.getState().setNoteTags(currentNote.id, next);
+      if (!tags) return; // store already surfaced the error
+      const updated = { ...(noteRef.current ?? currentNote), tags };
+      noteRef.current = updated; // keep the chain's next read fresh pre-commit
       setNote(updated);
       setEditorNote(updated);
-      await useNotesStore.getState().refresh();
-    } catch (e) {
-      showSnackbar(errText(e));
-    }
+    });
   };
 
   // ---- flags ---------------------------------------------------------------
@@ -309,6 +341,10 @@ export function NoteEditor() {
     }
   };
 
+  // aria-modal containment: Tab stays inside the editor while it is open
+  // (no-ops between notes when nothing is rendered).
+  useFocusTrap(editorRef, noteId !== null);
+
   if (!noteId) return null;
   if (!note) {
     return (
@@ -319,7 +355,7 @@ export function NoteEditor() {
         aria-label="Loading note"
         onClick={handleOverlayClick}
       >
-        <div className="editor">
+        <div className="editor" ref={editorRef}>
           <div className="editor-loading">Loading note…</div>
         </div>
       </div>
@@ -339,7 +375,7 @@ export function NoteEditor() {
       aria-label="Note editor"
       onClick={handleOverlayClick}
     >
-      <div className={`editor color-${draft.color}`} onClick={(e) => e.stopPropagation()}>
+      <div className={`editor color-${draft.color}`} ref={editorRef} onClick={(e) => e.stopPropagation()}>
         {/* Refined Header Toolbar */}
         <header className="editor-header">
           <div className="editor-header-left">

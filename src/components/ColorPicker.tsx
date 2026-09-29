@@ -1,38 +1,28 @@
-import { useEffect, useId, useRef } from "react";
-import { NOTE_COLORS } from "../types";
-import { useUiStore } from "../store/uiStore";
+import { useRef } from "react";
+import { NOTE_COLORS, type NoteColor } from "../types";
+import { usePopover } from "../hooks/usePopover";
 
 interface ColorPickerProps {
-  value: string;
-  onChange: (color: string) => void;
+  value: NoteColor;
+  onChange: (color: NoteColor) => void;
   onClose: () => void;
 }
 
 export function ColorPicker({ value, onChange, onClose }: ColorPickerProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const id = useId();
-  // Always call the latest onClose (it is re-created every render).
-  const closeRef = useRef(onClose);
-  closeRef.current = onClose;
-
-  // Escape is owned by the global cascade (see utils/escape.ts): register so
-  // it closes *this* popover instead of the editor underneath it.
-  useEffect(() => {
-    const { registerPopover, unregisterPopover } = useUiStore.getState();
-    registerPopover(id, () => closeRef.current());
-    return () => unregisterPopover(id);
-  }, [id]);
-
-  useEffect(() => {
-    const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [onClose]);
+  // Escape registration, outside-click close, and focus capture/restore
+  // live in usePopover (shared by all pickers).
+  usePopover(ref, onClose);
 
   return (
-    <div className="popover color-picker" ref={ref} role="dialog" aria-label="Note color">
+    <div
+      className="popover color-picker"
+      ref={ref}
+      role="dialog"
+      aria-label="Note color"
+      // Focusable so usePopover can move focus into the popover on open.
+      tabIndex={-1}
+    >
       {NOTE_COLORS.map((color) => (
         <button
           key={color}
