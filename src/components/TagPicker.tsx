@@ -48,7 +48,10 @@ export function TagPicker({ appliedTagIds, onToggle, onCreate, onClose }: TagPic
 
   return (
     <div className="popover tag-picker" ref={ref} role="dialog" aria-label="Tags">
-      <div className="popover-list">
+      {/* A `menuitemcheckbox` must live under a `menu`; this popover is not a
+          menu. Plain buttons with aria-pressed inside a labelled group give
+          assistive tech the same toggle semantics with valid nesting. */}
+      <div className="popover-list" role="group" aria-label="Applied tags">
         {tags.length === 0 && <p className="popover-empty">No tags yet</p>}
         {tags.map((tag) => {
           const applied = appliedTagIds.has(tag.id);
@@ -57,8 +60,7 @@ export function TagPicker({ appliedTagIds, onToggle, onCreate, onClose }: TagPic
               key={tag.id}
               type="button"
               className="popover-item"
-              role="menuitemcheckbox"
-              aria-checked={applied}
+              aria-pressed={applied}
               onClick={() => onToggle(tag, !applied)}
             >
               <Hash size={14} aria-hidden="true" />
