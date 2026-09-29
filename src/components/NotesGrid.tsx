@@ -6,6 +6,18 @@ import { NoteCard } from "./NoteCard";
 
 const PAGE_SIZE = 60;
 
+/**
+ * Design note — why there is no DOM windowing here:
+ * cards are tabbable and the product is keyboard-centric; a custom scroll
+ * container (.content) + entrance animations mean virtualization would break
+ * Tab-order continuity, find-in-page and AT reading order across window
+ * boundaries, and re-trigger mount animations on every scroll tick. Paint/
+ * layout cost for large collections is already handled by
+ * `content-visibility: auto` (components.css) plus memoized cards, which skip
+ * offscreen work while DOM identity stays intact. Revisit only if measurements
+ * show reconciliation (not paint) dominating at realistic note counts.
+ */
+
 interface NotesGridProps {
   notes: Note[];
   /** Rendered above the regular section (All view, no active search). */

@@ -26,6 +26,8 @@ interface NotesState {
   /** Sets a note's tags; resolves with the server's resulting tag list
    *  (null on failure) so callers (the editor) can merge without a second IPC. */
   setNoteTags: (noteId: string, tagIds: string[]) => Promise<Tag[] | null>;
+  /** Apply/remove one tag across the whole selection (undoable, atomic). */
+  setTagForSelection: (tagId: string, apply: boolean) => Promise<void>;
   createTag: (name: string) => Promise<Tag | null>;
   deleteTag: (tagId: string) => Promise<void>;
   renameTag: (tagId: string, name: string) => Promise<void>;
@@ -152,7 +154,9 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     );
     try {
       await api.setFlagsBulk(ids, flags);
-      ui.clearSelection();
+      // Scoped: only drop the selection if the user hasn't re-selected while
+      // the request was in flight.
+      useUiStore.getState().clearSelectionIfUnchanged(ids);
       await get().refresh();
       const label =
         flags.pinned !== undefined
@@ -300,6 +304,41 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     } catch (e) {
       ui.showSnackbar(errText(e));
       return null;
+    }
+  },
+
+  setTagForSelection: async (tagId, apply) => {
+    const ui = useUiStore.getState();
+    const ids = [...ui.selection];
+    if (!ids.length) return;
+    try {
+      await api.setTagsBulk(ids, tagId, apply);
+      // Snapshot the pre-batch tag lists so the whole change is one Undo.
+      const before = new Map(
+        get()
+          .notes.filter((n) => ids.includes(n.id))
+          .map((n) => [n.id, n.tags] as const),
+      );
+      // Scoped: only drop the selection if the user hasn't re-selected while
+      // the request was in flight.
+      useUiStore.getState().clearSelectionIfUnchanged(ids);
+      await get().refresh();
+      const undoId = ui.registerUndo(apply ? "Tag notes" : "Untag notes", async () => {
+        // Restore each note's exact previous set; FK-safe because refresh
+        // just re-read the world this action created.
+        await Promise.all(
+          [...before.entries()].map(([noteId, tags]) =>
+            api.setNoteTags(noteId, tags.map((t) => t.id)),
+          ),
+        );
+        await get().refresh();
+      });
+      ui.showSnackbar(apply ? "Tag applied" : "Tag removed", {
+        actionLabel: "Undo",
+        undoId,
+      });
+    } catch (e) {
+      ui.showSnackbar(errText(e));
     }
   },
 

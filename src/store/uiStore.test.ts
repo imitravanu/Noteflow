@@ -23,6 +23,25 @@ beforeEach(() => {
   useUiStore.getState().undoStack.clear();
 });
 
+describe("uiStore.clearSelectionIfUnchanged", () => {
+  it("clears only when the selection is exactly the requested ids", () => {
+    useUiStore.getState().selectAll(["a", "b"]);
+    useUiStore.getState().clearSelectionIfUnchanged(["b", "a"]); // order differs
+    expect(useUiStore.getState().selection).toEqual(["a", "b"]); // untouched
+
+    useUiStore.getState().clearSelectionIfUnchanged(["a", "b"]);
+    expect(useUiStore.getState().selection).toEqual([]);
+  });
+
+  it("leaves a mid-flight re-selection alone", () => {
+    useUiStore.getState().selectAll(["a", "b"]);
+    // user re-selects while a bulk action is in flight
+    useUiStore.getState().selectAll(["c"]);
+    useUiStore.getState().clearSelectionIfUnchanged(["a", "b"]);
+    expect(useUiStore.getState().selection).toEqual(["c"]);
+  });
+});
+
 describe("uiStore snackbar queue", () => {
   it("a plain toast does not overwrite a visible toast WITH a live action", () => {
     useUiStore.getState().showSnackbar("Note moved to Trash", {

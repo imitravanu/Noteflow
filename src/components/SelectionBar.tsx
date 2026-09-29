@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { Archive, Pin, Star, Tag, Trash2, Undo2, X } from "lucide-react";
-import { api } from "../services/api";
 import { useNotesStore } from "../store/notesStore";
-import { errText, useUiStore } from "../store/uiStore";
+import { useUiStore } from "../store/uiStore";
 import { TagPicker } from "./TagPicker";
 
 export function SelectionBar() {
@@ -10,6 +9,7 @@ export function SelectionBar() {
   const clearSelection = useUiStore((s) => s.clearSelection);
   const notes = useNotesStore((s) => s.notes);
   const setFlagsForSelection = useNotesStore((s) => s.setFlagsForSelection);
+  const setTagForSelection = useNotesStore((s) => s.setTagForSelection);
   const trashSelection = useNotesStore((s) => s.trashSelection);
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
   const view = useUiStore((s) => s.view);
@@ -124,7 +124,7 @@ export function SelectionBar() {
           {tagPickerOpen && (
             <TagPicker
               appliedTagIds={appliedTagIds}
-              onToggle={(tag, apply) => applyTagToSelection(tag.id, apply)}
+              onToggle={(tag, apply) => void setTagForSelection(tag.id, apply)}
               onClose={() => setTagPickerOpen(false)}
             />
           )}
@@ -148,15 +148,5 @@ export function SelectionBar() {
       </button>
     </div>
   );
-
-  async function applyTagToSelection(tagId: string, apply: boolean) {
-    try {
-      await api.setTagsBulk([...selection], tagId, apply);
-      useUiStore.getState().clearSelection();
-      await useNotesStore.getState().refresh();
-    } catch (e) {
-      useUiStore.getState().showSnackbar(errText(e));
-    }
-  }
 }
 

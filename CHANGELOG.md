@@ -19,7 +19,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 - Note cards are memoized and no longer subscribe to the selection size, so autosave round-trips and selection changes no longer re-render every visible card; tilt/spotlight mousemove is coalesced to one layout read per frame; `will-change` is scoped to the hovered card (every card used to hold a permanent compositing layer).
 - Types: `NotePatch.color`, `api.createNote` and `ColorPicker` use the `NoteColor` union instead of loose `string`.
-- Tests: +10 regression tests this batch (snackbar queue ×5, focus-cycle math ×5) on top of the flush-before-switch ×3 in the previous commit.
+- Popovers: color/tag/reminder pickers now share one `usePopover` hook — they take focus when opened and hand it back to the trigger on close (only if focus was still inside), so keyboard users are never left behind the popover. Selection-bar tagging moved to a new store action `setTagForSelection` (one atomic bulk call + full-list Undo, replacing a fire-and-forget direct-IPC path); finishing bulk actions clears the selection only when the user hasn't re-selected mid-flight (`clearSelectionIfUnchanged`).
+- Design decision recorded in `NotesGrid`: no DOM virtualization — cards are tabbable and the product is keyboard-centric; `content-visibility: auto` + memoized cards already skip offscreen paint/layout while keeping Tab order, find-in-page and AT reading order intact.
+- Tests: +17 across this release (71 → 88): flush-before-switch ×3, snackbar queue ×5, focus-cycle math ×5, scoped selection clear ×2, bulk tag + undo ×2.
 
 ## [1.4.0] - 2026-09-23
 

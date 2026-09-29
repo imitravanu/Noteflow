@@ -91,6 +91,9 @@ interface UiState {
     orderedIds: string[],
   ) => void;
   clearSelection: () => void;
+  /** Clears the selection only if it is still exactly `ids` — a bulk action
+   *  finishing after the user re-selected must not wipe the new selection. */
+  clearSelectionIfUnchanged: (ids: string[]) => void;
   selectAll: (ids: string[]) => void;
 
   showSnackbar: (
@@ -210,6 +213,16 @@ export const useUiStore = create<UiState>((set, get) => ({
   },
 
   clearSelection: () => set({ selection: [], anchorId: null }),
+
+  clearSelectionIfUnchanged: (ids) => {
+    const { selection } = get();
+    if (
+      selection.length === ids.length &&
+      ids.every((id, i) => selection[i] === id)
+    ) {
+      set({ selection: [], anchorId: null });
+    }
+  },
 
   selectAll: (ids) => set({ selection: [...ids], anchorId: ids[0] ?? null }),
 

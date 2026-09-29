@@ -1,8 +1,8 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Check, Hash, Plus } from "lucide-react";
 import type { Tag } from "../types";
 import { useNotesStore } from "../store/notesStore";
-import { useUiStore } from "../store/uiStore";
+import { usePopover } from "../hooks/usePopover";
 
 interface TagPickerProps {
   /** Tags already applied to every target note. */
@@ -18,25 +18,9 @@ export function TagPicker({ appliedTagIds, onToggle, onCreate, onClose }: TagPic
   const [newName, setNewName] = useState("");
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const id = useId();
-  const closeRef = useRef(onClose);
-  closeRef.current = onClose;
-
-  // Escape is owned by the global cascade (see utils/escape.ts): register so
-  // it closes *this* popover instead of the editor/selection underneath it.
-  useEffect(() => {
-    const { registerPopover, unregisterPopover } = useUiStore.getState();
-    registerPopover(id, () => closeRef.current());
-    return () => unregisterPopover(id);
-  }, [id]);
-
-  useEffect(() => {
-    const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [onClose]);
+  // Escape registration, outside-click close, and focus discipline
+  // (shared by all pickers) live in usePopover.
+  usePopover(ref, onClose);
 
   const submit = async () => {
     const name = newName.trim();
@@ -47,7 +31,14 @@ export function TagPicker({ appliedTagIds, onToggle, onCreate, onClose }: TagPic
   };
 
   return (
-    <div className="popover tag-picker" ref={ref} role="dialog" aria-label="Tags">
+    <div
+      className="popover tag-picker"
+      ref={ref}
+      role="dialog"
+      aria-label="Tags"
+      // Focusable so usePopover can move focus into the popover on open.
+      tabIndex={-1}
+    >
       {/* A `menuitemcheckbox` must live under a `menu`; this popover is not a
           menu. Plain buttons with aria-pressed inside a labelled group give
           assistive tech the same toggle semantics with valid nesting. */}

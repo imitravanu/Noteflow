@@ -1,5 +1,5 @@
-import { useEffect, useId, useRef, useState } from "react";
-import { useUiStore } from "../store/uiStore";
+import { useRef, useState } from "react";
+import { usePopover } from "../hooks/usePopover";
 import {
   formatReminderTime,
   fromLocalInputValue,
@@ -19,29 +19,12 @@ interface ReminderPickerProps {
 /** One-shot reminder picker: quick presets, an exact time, and a clear action. */
 export function ReminderPicker({ value, onSet, onClose }: ReminderPickerProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const id = useId();
-  // Always call the latest onClose (it is re-created every render).
-  const closeRef = useRef(onClose);
-  closeRef.current = onClose;
   const [draft, setDraft] = useState(() =>
     toLocalInputValue(value ?? reminderPresets()[0].at),
   );
-
-  // Escape is owned by the global cascade (see utils/escape.ts): register so it
-  // closes *this* popover instead of the editor underneath it.
-  useEffect(() => {
-    const { registerPopover, unregisterPopover } = useUiStore.getState();
-    registerPopover(id, () => closeRef.current());
-    return () => unregisterPopover(id);
-  }, [id]);
-
-  useEffect(() => {
-    const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [onClose]);
+  // Escape registration, outside-click close, and focus discipline
+  // (shared by all pickers) live in usePopover.
+  usePopover(ref, onClose);
 
   const at = fromLocalInputValue(draft);
   // `datetime-local` has minute precision, so "now" always reads as the past —
@@ -49,7 +32,14 @@ export function ReminderPicker({ value, onSet, onClose }: ReminderPickerProps) {
   const valid = isValidReminderTime(at, Date.now() - 60_000);
 
   return (
-    <div className="popover reminder-picker" ref={ref} role="dialog" aria-label="Note reminder">
+    <div
+      className="popover reminder-picker"
+      ref={ref}
+      role="dialog"
+      aria-label="Note reminder"
+      // Focusable so usePopover can move focus into the popover on open.
+      tabIndex={-1}
+    >
       <div className="reminder-presets">
         {reminderPresets().map((preset) => (
           <button
