@@ -3,7 +3,9 @@
 All notable changes to NoteFlow are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [1.4.1] - 2026-09-30
+
+Chief-engineer audit follow-up: everything verified against source, every fix behind a regression test (Vitest 71 → 88).
 
 ### Fixed
 - Snackbar: a due reminder (or any notification toast) no longer destroys a visible toast with a live affordance — newcomers queue behind it and surface when it auto-hides (capped FIFO). Undo-result feedback still claims the slot, since the clicked toast hid itself by definition.

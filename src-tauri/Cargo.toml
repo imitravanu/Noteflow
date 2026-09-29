@@ -1,6 +1,6 @@
 [package]
 name = "noteflow"
-version = "1.4.0"
+version = "1.4.1"
 description = "NoteFlow — offline-first desktop notes for Linux"
 authors = ["mitravanu"]
 edition = "2021"
