@@ -30,6 +30,10 @@ export interface ConfirmConfig {
 
 let snackbarSeq = 1;
 
+/** Waiting toasts beyond this many drop the oldest (a runaway backlog is
+ *  never worth unbounded memory; the newest is the one users care about). */
+const SNACKBAR_QUEUE_MAX = 4;
+
 interface UiState {
   page: "notes" | "settings";
   view: NoteView;
@@ -46,6 +50,12 @@ interface UiState {
   /** Flush callback registered by the open editor (Ctrl+S / close). */
   editorFlush: (() => Promise<void>) | null;
   snackbar: SnackbarState | null;
+  /**
+   * Toasts waiting their turn. A snackbar with a live affordance (Undo,
+   * reminder "Open") is never silently replaced — the newcomer queues and
+   * surfaces when the current one auto-hides. Capped; oldest dropped.
+   */
+  snackbarQueue: SnackbarState[];
   confirm: ConfirmConfig | null;
   theme: Theme;
   /** Off-canvas sidebar visibility on narrow windows. */
@@ -85,7 +95,15 @@ interface UiState {
 
   showSnackbar: (
     message: string,
-    opts?: { actionLabel?: string; action?: () => void; undoId?: number },
+    opts?: {
+      actionLabel?: string;
+      action?: () => void;
+      undoId?: number;
+      /** Outcome feedback (undo results): claim the visible slot even if an
+       *  actionable toast is showing — its affordance was just used, so it
+       *  must not sit in front of the queue forever. */
+      replace?: boolean;
+    },
   ) => void;
   hideSnackbar: () => void;
   askConfirm: (config: ConfirmConfig) => void;
@@ -119,6 +137,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   editorNote: null,
   editorFlush: null,
   snackbar: null,
+  snackbarQueue: [],
   confirm: null,
   theme: "system",
   sidebarOpen: false,
@@ -196,16 +215,30 @@ export const useUiStore = create<UiState>((set, get) => ({
 
   showSnackbar: (message, opts) => {
     const undoId = opts?.undoId;
-    set({
-      snackbar: {
-        id: snackbarSeq++,
-        message,
-        actionLabel: opts?.actionLabel,
-        action: undoId != null ? () => void get().undoById(undoId) : opts?.action,
-      },
-    });
+    const entry: SnackbarState = {
+      id: snackbarSeq++,
+      message,
+      actionLabel: opts?.actionLabel,
+      action: undoId != null ? () => void get().undoById(undoId) : opts?.action,
+    };
+    // A visible toast whose affordance is still live (Undo, reminder "Open")
+    // is never overwritten: the newcomer waits its turn instead. A toast with
+    // no action carries nothing to lose, so it is replaced outright — and
+    // outcome feedback (`replace`, e.g. "Undid: …") always takes the slot,
+    // because the clicked toast hid itself before this call ran.
+    const current = get().snackbar;
+    if (current?.action && !opts?.replace) {
+      set({ snackbarQueue: [...get().snackbarQueue, entry].slice(-SNACKBAR_QUEUE_MAX) });
+    } else {
+      set({ snackbar: entry });
+    }
   },
-  hideSnackbar: () => set({ snackbar: null }),
+  hideSnackbar: () => {
+    // Auto-hide / manual dismiss advances the queue, so a protected toast's
+    // replacement surfaces instead of being lost.
+    const [next, ...rest] = get().snackbarQueue;
+    set({ snackbar: next ?? null, snackbarQueue: rest });
+  },
 
   askConfirm: (config) => set({ confirm: config }),
   closeConfirm: () => set({ confirm: null }),
@@ -275,11 +308,13 @@ export const useUiStore = create<UiState>((set, get) => ({
       // Yield once: the snackbar button hides the current snackbar right
       // after this action starts, so our replacement message must come after.
       await Promise.resolve();
-      get().showSnackbar("That action can no longer be undone.");
+      get().showSnackbar("That action can no longer be undone.", { replace: true });
       return;
     }
     await entry.undo();
-    get().showSnackbar(`Undid: ${entry.label}`);
+    // Outcome of the toast the user just acted on: claim the slot outright
+    // instead of queueing behind (or duplicating with) the toast in view.
+    get().showSnackbar(`Undid: ${entry.label}`, { replace: true });
   },
 
   undo: async () => {
@@ -289,7 +324,7 @@ export const useUiStore = create<UiState>((set, get) => ({
       return;
     }
     await entry.undo();
-    get().showSnackbar(`Undid: ${entry.label}`);
+    get().showSnackbar(`Undid: ${entry.label}`, { replace: true });
   },
 }));
 

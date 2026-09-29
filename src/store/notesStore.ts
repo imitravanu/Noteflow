@@ -23,7 +23,9 @@ interface NotesState {
   restoreNotes: (ids: string[]) => Promise<void>;
   deletePermanent: (ids: string[]) => Promise<void>;
   emptyTrash: () => Promise<void>;
-  setNoteTags: (noteId: string, tagIds: string[]) => Promise<void>;
+  /** Sets a note's tags; resolves with the server's resulting tag list
+   *  (null on failure) so callers (the editor) can merge without a second IPC. */
+  setNoteTags: (noteId: string, tagIds: string[]) => Promise<Tag[] | null>;
   createTag: (name: string) => Promise<Tag | null>;
   deleteTag: (tagId: string) => Promise<void>;
   renameTag: (tagId: string, name: string) => Promise<void>;
@@ -294,8 +296,10 @@ export const useNotesStore = create<NotesState>((set, get) => ({
         notes: get().notes.map((n) => (n.id === noteId ? { ...n, tags } : n)),
       });
       await get().refresh();
+      return tags;
     } catch (e) {
       ui.showSnackbar(errText(e));
+      return null;
     }
   },
 

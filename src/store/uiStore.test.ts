@@ -14,12 +14,62 @@ beforeEach(() => {
     selection: [],
     anchorId: null,
     snackbar: null,
+    snackbarQueue: [],
     openPopover: null,
     editorNoteId: null,
     editorReturnFocusId: null,
     editorFlush: null,
   });
   useUiStore.getState().undoStack.clear();
+});
+
+describe("uiStore snackbar queue", () => {
+  it("a plain toast does not overwrite a visible toast WITH a live action", () => {
+    useUiStore.getState().showSnackbar("Note moved to Trash", {
+      actionLabel: "Undo",
+      action: () => {},
+    });
+    useUiStore.getState().showSnackbar("Reminder: Groceries");
+
+    const s = useUiStore.getState();
+    expect(s.snackbar?.message).toBe("Note moved to Trash"); // Undo affordance survived
+    expect(s.snackbarQueue.map((q) => q.message)).toEqual(["Reminder: Groceries"]);
+  });
+
+  it("a plain toast IS replaced when the current toast has no affordance to lose", () => {
+    useUiStore.getState().showSnackbar("Nothing to undo.");
+    useUiStore.getState().showSnackbar("Reminder: Groceries");
+    expect(useUiStore.getState().snackbar?.message).toBe("Reminder: Groceries");
+    expect(useUiStore.getState().snackbarQueue).toEqual([]);
+  });
+
+  it("hiding advances the queue in order", () => {
+    useUiStore.getState().showSnackbar("Trash", { actionLabel: "Undo", action: () => {} });
+    useUiStore.getState().showSnackbar("first");
+    useUiStore.getState().showSnackbar("second");
+    useUiStore.getState().hideSnackbar();
+    expect(useUiStore.getState().snackbar?.message).toBe("first");
+    useUiStore.getState().hideSnackbar();
+    expect(useUiStore.getState().snackbar?.message).toBe("second");
+    useUiStore.getState().hideSnackbar();
+    expect(useUiStore.getState().snackbar).toBeNull();
+  });
+
+  it("replace:true claims the slot behind an actionable toast (undo outcome feedback)", () => {
+    useUiStore.getState().showSnackbar("Something stale", {
+      actionLabel: "Undo",
+      action: () => {},
+    });
+    useUiStore.getState().showSnackbar("Undid: Move to Trash", { replace: true });
+    expect(useUiStore.getState().snackbar?.message).toBe("Undid: Move to Trash");
+  });
+
+  it("the queue is capped, oldest-first", () => {
+    useUiStore.getState().showSnackbar("Anchor", { actionLabel: "Undo", action: () => {} });
+    for (let i = 1; i <= 6; i++) useUiStore.getState().showSnackbar(`t${i}`);
+    const q = useUiStore.getState().snackbarQueue.map((e) => e.message);
+    expect(q).toEqual(["t3", "t4", "t5", "t6"]); // t1/t2 dropped, newest kept
+  });
 });
 
 describe("uiStore.openEditor (the note-switch data-loss regression)", () => {

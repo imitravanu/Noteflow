@@ -1,14 +1,19 @@
 import { useEffect, useRef } from "react";
 import { useUiStore } from "../store/uiStore";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 export function ConfirmDialog() {
   const confirm = useUiStore((s) => s.confirm);
   const closeConfirm = useUiStore((s) => s.closeConfirm);
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (confirm) cancelRef.current?.focus();
   }, [confirm]);
+  // aria-modal="true" promises containment; trap delivers it so Tab can no
+  // longer escape into the background UI while a destructive action waits.
+  useFocusTrap(dialogRef, confirm !== null);
 
   if (!confirm) return null;
 
@@ -27,6 +32,7 @@ export function ConfirmDialog() {
     >
       <div
         className="dialog"
+        ref={dialogRef}
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="dialog-title"

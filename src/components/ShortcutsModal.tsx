@@ -1,5 +1,7 @@
+import { useRef } from "react";
 import { Keyboard, X } from "lucide-react";
 import { useUiStore } from "../store/uiStore";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 const SHORTCUT_GROUPS = [
   {
@@ -33,6 +35,10 @@ const SHORTCUT_GROUPS = [
 export function ShortcutsModal() {
   const shortcutsOpen = useUiStore((s) => s.shortcutsOpen);
   const setShortcutsOpen = useUiStore((s) => s.setShortcutsOpen);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  // Hooks must run before the early return; the trap itself is a no-op
+  // while `active` is false.
+  useFocusTrap(dialogRef, shortcutsOpen);
 
   if (!shortcutsOpen) return null;
 
@@ -44,7 +50,7 @@ export function ShortcutsModal() {
       aria-labelledby="shortcuts-title"
       onClick={() => setShortcutsOpen(false)}
     >
-      <div className="dialog shortcuts-dialog" onClick={(e) => e.stopPropagation()}>
+      <div className="dialog shortcuts-dialog" ref={dialogRef} onClick={(e) => e.stopPropagation()}>
         <div className="shortcuts-header">
           <div className="shortcuts-header-left">
             <Keyboard size={18} className="theme-accent-color" />
