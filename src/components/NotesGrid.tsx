@@ -74,7 +74,7 @@ export function NotesGrid({ notes, showPinnedSection }: NotesGridProps) {
         note={note}
         selected={selectedSet.has(note.id)}
         query={query}
-        delayMs={Math.min((i + delayOffset) * 34, 550)}
+        delayMs={Math.min((i + delayOffset) * 18, 250)}
         getOrderedIds={getOrderedIds}
       />
     ));
