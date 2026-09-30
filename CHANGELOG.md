@@ -3,6 +3,14 @@
 All notable changes to NoteFlow are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.5.1] - 2026-09-30
+
+### Changed
+- The 1.5.0 motion was real but nearly imperceptible (220–320 ms fades, 18–28 px displacement — under the threshold where short transitions read as "it just appeared"). Everything amplified into a visible wave: the editor springs up over 0.45 s from 44 px below at 0.90 scale, cards enter over 0.5 s from 26 px at 0.93 scale on a 34 ms stagger, and the page header / section titles rise with them. Closing sinks over 0.28 s. Verified frame-by-frame in the app's exact engine (WebKitGTK snapshot diff: mid-entrance vs settled).
+
+### Added
+- Note-to-note switching inside the editor now **crossfades**: the outgoing note ghosts (a lightweight copy that sinks away under the incoming panel's spring) instead of content-popping. `prefers-reduced-motion` skips the ghost and all holds entirely.
+
 ## [1.5.0] - 2026-09-30
 
 ### Added
