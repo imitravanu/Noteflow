@@ -3,6 +3,12 @@
 All notable changes to NoteFlow are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.5.2] - 2026-09-30
+
+### Changed
+- **Motion re-tuned for a premium feel.** 1.5.1 over-corrected "make it visible" into slow-and-big, which reads as cheap. Everything is now short-distance and fast, the way Apple sheets actually move: editor entrance 0.32 s from 18 px at 0.965 scale (opacity settled by 40 % so it never looks like a fading ghost), cards 0.34 s from 10 px on a quick 18 ms stagger (capped at 250 ms, not a 550 ms cascade), backdrop 0.18 s.
+- Removed the note-switch crossfade ghost entirely — two overlapping panels with mismatched content was the cheapest-looking element in the app. Switching notes now simply replays the crisp entrance, like iOS presenting a new sheet.
+
 ## [1.5.1] - 2026-09-30
 
 ### Changed
