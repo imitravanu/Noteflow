@@ -70,10 +70,6 @@ export function NoteEditor() {
   // Close animation: when the store id clears, the last committed note +
   // draft stay on screen for one exit cycle (`exitingId`), then unmount.
   const [exitingId, setExitingId] = useState<string | null>(null);
-  // Note-switch animation: the outgoing note ghosts under the incoming
-  // panel's entrance (a real crossfade instead of a content pop).
-  const [swapId, setSwapId] = useState<string | null>(null);
-  const swapSnapRef = useRef<{ note: Note; draft: Draft } | null>(null);
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
   const [inlineTagPickerOpen, setInlineTagPickerOpen] = useState(false);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
@@ -260,18 +256,6 @@ export function NoteEditor() {
     prevNoteIdRef.current = noteId;
     if (noteId) {
       setExitingId(null); // reopening mid-exit cancels the dying snapshot
-      // A→B switch: ghost the outgoing panel (refs still hold the OLD note
-      // here — the load effect runs after this one) under the new panel's
-      // entrance, so switching crossfades instead of popping.
-      if (
-        prev &&
-        prev !== noteId &&
-        noteRef.current &&
-        !window.matchMedia("(prefers-reduced-motion: reduce)").matches
-      ) {
-        swapSnapRef.current = { note: noteRef.current, draft: draftRef.current };
-        setSwapId(prev);
-      }
       return;
     }
     if (!prev || !noteRef.current) return;
@@ -286,17 +270,6 @@ export function NoteEditor() {
     const t = window.setTimeout(() => setExitingId(null), 280);
     return () => window.clearTimeout(t);
   }, [exitingId]);
-
-  // Ghost lifetime: outlives neither the new panel's entrance nor the user's
-  // attention — one sink-and-fade, then gone.
-  useEffect(() => {
-    if (!swapId) return;
-    const t = window.setTimeout(() => {
-      setSwapId(null);
-      swapSnapRef.current = null;
-    }, 320);
-    return () => window.clearTimeout(t);
-  }, [swapId]);
 
   // A snapshot that is only aria-hidden stays *tabbable* for the length of
   // the exit animation — set `inert` (WebkitGTK supports it; React 18 types
@@ -465,31 +438,10 @@ export function NoteEditor() {
   const stats = countWordsAndChars(draft.content, draft.checklist);
 
   return (
-    <>
-      {/* Switch-ghost: the outgoing note sinking away under the incoming
-          panel's spring. Deliberately a lightweight copy (glass shell +
-          old text, no controls) — it is fully covered by the real panel
-          within a frame or two; only its edge motion is visible. */}
-      {swapId && swapSnapRef.current && (
-        <div className="editor-overlay is-swapping" aria-hidden="true">
-          <div className={`editor color-${swapSnapRef.current.draft.color}`}>
-            <div className="editor-ghost-body">
-              <div className="editor-ghost-title">
-                {swapSnapRef.current.draft.title || "Untitled Note"}
-              </div>
-              {/* Ghost only ever shows the first screenful — don't lay out
-                  a 500k-char note for a 320ms fade. */}
-              <div className="editor-ghost-text">
-                {swapSnapRef.current.draft.content.slice(0, 2000)}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      <div
-        className={exiting ? "editor-overlay is-exiting" : "editor-overlay"}
-        ref={overlayRef}
-        role={exiting ? undefined : "dialog"}
+    <div
+      className={exiting ? "editor-overlay is-exiting" : "editor-overlay"}
+      ref={overlayRef}
+      role={exiting ? undefined : "dialog"}
       aria-modal={exiting ? undefined : true}
       aria-label={exiting ? undefined : "Note editor"}
       aria-hidden={exiting || undefined}
@@ -880,7 +832,6 @@ export function NoteEditor() {
         </footer>
       </div>
     </div>
-    </>
   );
 
   function addChecklistItemOnBlur() {
