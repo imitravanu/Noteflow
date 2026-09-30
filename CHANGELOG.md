@@ -3,6 +3,18 @@
 All notable changes to NoteFlow are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.5.0] - 2026-09-30
+
+### Added
+- **iOS-style motion choreography.** The editor now springs open — frosted backdrop fades while the glass panel rises from under-scale — and for the first time plays a real closing animation instead of vanishing: the note holds for a 220 ms ease-in exit as an inert, click-through snapshot. Switching notes replays the entrance per note and lands the caret in the new title.
+- Grid cards enter with a deeper spring rise (16 px + scale from 0.96, 0.4 s) on a tightened 28 ms stagger; the page header, section titles and the empty/loading state animate in with them, so opening the app reads as one gesture.
+- Everything honors `prefers-reduced-motion`: durations collapse via the existing global rule, and the exit hold is skipped entirely so closing never waits.
+
+### Fixed
+- The `3edccc9` revert had reset `.grid-empty` to `display: none` — the "Nothing here" state and the "Loading..." placeholder were invisible, so app start rendered as a blank void. Restored to the visible flex-centered placeholder.
+- A card entrance animation running with `fill: both` permanently pinned its end-state transform, overriding the hover lift/tilt after the card arrived. Fill mode switched to `backwards`: stagger delays still hold the start frame, normal CSS wins afterwards.
+- Opening a note missing from the list cache painted the previous note's text for one frame; it now shows the loading panel honestly.
+
 ## [1.4.1] - 2026-09-30
 
 Chief-engineer audit follow-up: everything verified against source, every fix behind a regression test (Vitest 71 → 88).

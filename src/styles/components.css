@@ -646,7 +646,17 @@
 }
 
 .grid-empty {
-  display: none;
+  /* Restore visible placeholder: the 3edccc9 revert reset this to
+     `display: none`, which silently blanked both the "Nothing here"
+     state (NotesGrid) and the "Loading..." state (NotesPage). */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 220px;
+  color: var(--text-3);
+  font-size: 13.5px;
 }
 
 /* ---------- Note card (Apple OS 27 Liquid Glass Index Card) ---------- */
@@ -675,7 +685,11 @@
   overflow: visible;
   transform-style: preserve-3d;
   perspective: 1000px;
-  animation: card-enter 0.35s var(--spring-easing) both;
+  /* `backwards` (not `both`): a filled-forwards animation pins its end
+     transform on the element permanently, which would override the hover
+     lift/tilt after the card's entrance. `backwards` holds the start frame
+     during the stagger delay and then lets normal CSS take over. */
+  animation: card-enter 0.4s var(--spring-easing) backwards;
   transition: box-shadow 0.28s var(--spring-bounce),
     transform 0.35s var(--spring-bounce),
     border-color 0.2s ease;
@@ -1190,7 +1204,7 @@
   background: var(--overlay);
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
-  animation: fade-in 0.18s var(--spring-easing);
+  animation: overlay-enter 0.22s ease-out backwards;
   padding: 16px;
 }
 
@@ -1210,7 +1224,22 @@
   border-radius: var(--radius-xl);
   box-shadow: var(--specular-rim-strong), var(--shadow-liquid-floating);
   overflow: hidden;
-  animation: rise-in 0.24s var(--spring-easing);
+  animation: editor-enter 0.32s var(--spring-easing) backwards;
+}
+
+/* Exit snapshot: NoteEditor keeps rendering the closing note for one
+   animation cycle after the store id clears. Pointer-transparent, click-
+   through, aria-hidden, and out of the tab order — keyboard users are
+   already back on the source card while the glass sinks away. */
+.editor-overlay.is-exiting {
+  pointer-events: none;
+  animation: overlay-exit 0.22s ease-in both;
+}
+.editor-overlay.is-exiting .editor {
+  animation: editor-exit 0.22s cubic-bezier(0.4, 0, 0.6, 1) both;
+}
+.editor-overlay.is-exiting *:focus-visible {
+  outline: none;
 }
 
 /* Editorial Liquid Glass Tint Palettes (Light) */
@@ -2140,13 +2169,41 @@
 @keyframes card-enter {
   from {
     opacity: 0;
-    transform: translateY(12px) scale(0.97);
+    transform: translateY(16px) scale(0.96);
   }
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
 }
+/* Editor motion choreography (iOS sheet feel): the frosted backdrop eases in
+   while the glass panel rises from slightly under-scale with the spring
+   curve; exit is shorter and ease-in — things leaving should accelerate.
+   Re-triggering on note *switch* is by key remount, same animation replays. */
+@keyframes overlay-enter {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes overlay-exit {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes editor-enter {
+  0%   { opacity: 0; transform: translateY(28px) scale(0.94); }
+  60%  { opacity: 1; }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes editor-exit {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateY(18px) scale(0.96); }
+}
+/* Grid chrome enters with the cards so app-launch reads as one gesture. */
+.page-header,
+.section-title,
+.grid-empty {
+  animation: rise-in 0.34s var(--spring-easing) backwards;
+}
+.section-title { animation-delay: 60ms; }
 @keyframes check-pop {
   0%   { transform: scale(0.7); }
   60%  { transform: scale(1.15); }
@@ -2243,7 +2300,7 @@
   }
   /* Everything else: collapse durations/delays so no surface slides, fades,
      or pulses. Zeroing animation-delay matters because grid cards carry
-     inline delays up to 600ms, which would otherwise hold them invisible. */
+     inline delays up to 420ms, which would otherwise hold them invisible. */
   *,
   *::before,
   *::after {

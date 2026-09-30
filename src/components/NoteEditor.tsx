@@ -67,6 +67,9 @@ export function NoteEditor() {
     color: "default",
   });
   const [status, setStatus] = useState<SaveStatus>("saved");
+  // Close animation: when the store id clears, the last committed note +
+  // draft stay on screen for one exit cycle (`exitingId`), then unmount.
+  const [exitingId, setExitingId] = useState<string | null>(null);
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
   const [inlineTagPickerOpen, setInlineTagPickerOpen] = useState(false);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
@@ -76,6 +79,7 @@ export function NoteEditor() {
   const noteRef = useRef(note);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
 
   // Mirror the latest values into refs *after commit* (layout effects run
   // synchronously post-commit, before paint or any event/timer can observe
@@ -138,7 +142,12 @@ export function NoteEditor() {
   const newItemInputRef = useRef<HTMLInputElement>(null);
 
   // ---- load ---------------------------------------------------------------
-  useEffect(() => {
+  // Layout effect so a note *switch* paints the new content on the first
+  // frame of the entrance animation (the remount is keyed on the id): with
+  // a passive effect the panel would replay its enter showing the previous
+  // note's text for a frame before swapping.
+  const lastLoadedIdRef = useRef<string | null>(null);
+  useLayoutEffect(() => {
     if (!noteId) return;
     let alive = true;
     gate.reset();
@@ -146,6 +155,19 @@ export function NoteEditor() {
     setNewItemText("");
     setReminderPickerOpen(false);
     const cached = useNotesStore.getState().notes.find((n) => n.id === noteId);
+  // Cache miss: clear the previous note's content so the honest "Loading"
+  // panel paints instead of the old note's text under a fresh entrance.
+  if (!cached && lastLoadedIdRef.current !== noteId) setNote(null);
+  lastLoadedIdRef.current = noteId;
+    // Note switch (or reopen) without a list cache hit: drop the previous
+    // note's content *before paint* so the loading panel shows instead of
+    // the old note's text for a frame. Cached switches apply synchronously
+    // below and never paint stale content.
+    if (!cached && lastLoadedIdRef.current !== noteId) {
+      setNote(null);
+      setDraft({ title: "", content: "", checklist: [], color: "default" });
+    }
+    lastLoadedIdRef.current = noteId;
     const apply = (n: Note) => {
       if (!alive) return;
       setNote(n);
@@ -216,6 +238,50 @@ export function NoteEditor() {
     }
     lastOpenIdRef.current = noteId;
   }, [noteId]);
+
+  // ---- close animation ------------------------------------------------------
+  // The store clears `editorNoteId` as soon as the autosave flush lands, which
+  // used to yank the editor off-screen mid-motion. Instead: on open→closed
+  // transition, hold the last committed note + draft (the load effect refuses
+  // to clear them, so the state *is* the snapshot) for one exit cycle, then
+  // unmount. Reopening during the hold cancels it. `prefers-reduced-motion`
+  // skips the hold entirely — CSS collapses the animation itself, and nobody
+  // who asked for reduced motion should wait 240 ms for the unmount.
+  // Captured in a layout effect: a passive effect would leave one painted
+  // frame between the store clearing noteId and the snapshot mounting,
+  // which reads as a flicker. Setting state here re-renders before paint.
+  const prevNoteIdRef = useRef(noteId);
+  useLayoutEffect(() => {
+    const prev = prevNoteIdRef.current;
+    prevNoteIdRef.current = noteId;
+    if (noteId) {
+      setExitingId(null); // reopening mid-exit cancels the dying snapshot
+      return;
+    }
+    if (!prev || !noteRef.current) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    setExitingId(prev);
+  }, [noteId]);
+
+  // The hold itself: matches editor-exit's duration; cancelled (and
+  // restartable) if the editor reopens meanwhile.
+  useEffect(() => {
+    if (!exitingId) return;
+    const t = window.setTimeout(() => setExitingId(null), 240);
+    return () => window.clearTimeout(t);
+  }, [exitingId]);
+
+  // A snapshot that is only aria-hidden stays *tabbable* for the length of
+  // the exit animation — set `inert` (WebkitGTK supports it; React 18 types
+  // don't list the attribute, hence the imperative set) so keyboard users
+  // can't land inside a ghost, mirroring what aria-hidden promises AT.
+  const exiting = noteId === null && exitingId !== null;
+  useEffect(() => {
+    const el = overlayRef.current;
+    if (!el || !exiting) return;
+    el.setAttribute("inert", "");
+    return () => el.removeAttribute("inert");
+  }, [exiting, noteId, exitingId]);
 
   // Auto-grow body textarea.
   useEffect(() => {
@@ -341,21 +407,25 @@ export function NoteEditor() {
     }
   };
 
-  // aria-modal containment: Tab stays inside the editor while it is open
-  // (no-ops between notes when nothing is rendered).
+  // aria-modal containment: only while genuinely open. The exit snapshot is
+  // deliberately NOT trapped: focus already returned to the source card, and
+  // the dying overlay is `inert` so its controls can't be tabbed through.
   useFocusTrap(editorRef, noteId !== null);
 
-  if (!noteId) return null;
+  const visibleId = noteId ?? exitingId;
+
+  if (!visibleId) return null;
   if (!note) {
     return (
       <div
         className="editor-overlay"
+        ref={overlayRef}
         role="dialog"
         aria-modal="true"
         aria-label="Loading note"
         onClick={handleOverlayClick}
       >
-        <div className="editor" ref={editorRef}>
+        <div className="editor" key={visibleId} ref={editorRef}>
           <div className="editor-loading">Loading note…</div>
         </div>
       </div>
@@ -369,13 +439,19 @@ export function NoteEditor() {
 
   return (
     <div
-      className="editor-overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Note editor"
+      className={exiting ? "editor-overlay is-exiting" : "editor-overlay"}
+      ref={overlayRef}
+      role={exiting ? undefined : "dialog"}
+      aria-modal={exiting ? undefined : true}
+      aria-label={exiting ? undefined : "Note editor"}
+      aria-hidden={exiting || undefined}
       onClick={handleOverlayClick}
     >
-      <div className={`editor color-${draft.color}`} ref={editorRef} onClick={(e) => e.stopPropagation()}>
+      {/* key = note id: switching notes remounts the panel so the iOS-style
+          entrance replays per note (and autoFocus lands the caret in the new
+          title). Close keeps the same key (exitingId === last note id), so
+          the class swap below runs the exit animation instead. */}
+      <div className={`editor color-${draft.color}`} key={visibleId} ref={editorRef} onClick={(e) => e.stopPropagation()}>
         {/* Refined Header Toolbar */}
         <header className="editor-header">
           <div className="editor-header-left">
