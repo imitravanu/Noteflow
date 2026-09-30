@@ -646,7 +646,17 @@
 }
 
 .grid-empty {
-  display: none;
+  /* Restore visible placeholder: the 3edccc9 revert reset this to
+     `display: none`, which silently blanked both the "Nothing here"
+     state (NotesGrid) and the "Loading..." state (NotesPage). */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 220px;
+  color: var(--text-3);
+  font-size: 13.5px;
 }
 
 /* ---------- Note card (Apple OS 27 Liquid Glass Index Card) ---------- */
