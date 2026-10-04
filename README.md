@@ -53,6 +53,10 @@
 - **Batch Selection:** Multi-select notes via `Shift+Click`, `Ctrl+Click`, or `Ctrl+A` for bulk tagging, coloring, archiving, or deletion.
 - **Export & Backup:** Export individual notes as clean Markdown (`.md`) or export the entire workspace as JSON.
 
+### 🔄 Self-Updating Releases
+- **Update on your terms:** a launch-time check against GitHub Releases surfaces new versions as a toast — one click downloads the signed update, verifies its minisign signature, installs, and relaunches (with live progress).
+- **No dead ends:** the AppImage updates in place; the system `.deb` package links straight to the release page. A manual check lives in Settings → Software Update.
+
 ---
 
 ## ⌨️ Keyboard Shortcuts
