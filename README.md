@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/imitravanu/Noteflow/releases/tag/v1.5.2"><img src="https://img.shields.io/badge/Release-v1.5.2-0071e3?style=flat-square" alt="Version"></a>
-  <a href="https://github.com/imitravanu/Noteflow/releases/download/v1.5.2/noteflow_1.5.2_amd64.deb"><img src="https://img.shields.io/badge/Download-.deb%20(v1.5.2)-34c759?style=flat-square&logo=debian&logoColor=white" alt="Download .deb"></a>
+  <a href="https://github.com/imitravanu/Noteflow/releases/tag/v1.5.3"><img src="https://img.shields.io/badge/Release-v1.5.3-0071e3?style=flat-square" alt="Version"></a>
+  <a href="https://github.com/imitravanu/Noteflow/releases/download/v1.5.3/noteflow_1.5.3_amd64.deb"><img src="https://img.shields.io/badge/Download-.deb%20(v1.5.3)-34c759?style=flat-square&logo=debian&logoColor=white" alt="Download .deb"></a>
   <a href="https://www.linux.org/"><img src="https://img.shields.io/badge/Platform-Linux%20(Wayland%20%2F%20GNOME)-23272e?style=flat-square&logo=linux" alt="Linux"></a>
   <a href="https://tauri.app/"><img src="https://img.shields.io/badge/Tauri-v2.0-24c8db?style=flat-square&logo=tauri&logoColor=white" alt="Tauri"></a>
   <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/Rust-Backend-dea584?style=flat-square&logo=rust&logoColor=white" alt="Rust"></a>
@@ -36,7 +36,7 @@
 
 ### ⚡ Offline-First SQLite Engine (Zero Telemetry)
 - **Local SQLite Database (WAL Mode):** Reads and writes execute at sub-millisecond local speed via Rust and `rusqlite`.
-- **Debounced Safe Autosave:** Real-time autosave indicator with zero data loss. `Ctrl+S` forces immediate SQLite flush.
+- **Debounced Autosave:** Changes save after a brief pause; failed writes retry and keep the draft open. `Ctrl+S` forces an immediate save. An abrupt app exit can lose edits still waiting for their first save, and a power failure can lose the latest database commit.
 - **100% Private:** Zero analytics, zero cloud lock-in, zero telemetry. Your notes stay exclusively on your hardware at `~/.local/share/com.noteflow.app/noteflow.db`.
 
 ### 🔔 One-Shot Reminders
@@ -121,11 +121,11 @@ src-tauri/src/            Rust backend
 For **Ubuntu**, **Debian**, **Linux Mint**, **Pop!_OS**, and Debian-based distributions:
 
 1. **Download the installer:**  
-   👉 **[Download NoteFlow v1.5.2 (.deb)](https://github.com/imitravanu/Noteflow/releases/download/v1.5.2/noteflow_1.5.2_amd64.deb)** (2.6 MB)
+   👉 **[Download NoteFlow v1.5.3 (.deb)](https://github.com/imitravanu/Noteflow/releases/download/v1.5.3/noteflow_1.5.3_amd64.deb)**
 
 2. **Install via terminal:**
    ```bash
-   sudo dpkg -i noteflow_1.5.2_amd64.deb
+   sudo dpkg -i noteflow_1.5.3_amd64.deb
    ```
    *Or simply double-click the `.deb` file in your Linux file manager (Nautilus/Dolphin).*
 

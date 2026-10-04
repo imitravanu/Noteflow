@@ -97,7 +97,7 @@ describe("uiStore.openEditor (the note-switch data-loss regression)", () => {
     useUiStore.setState({ editorNoteId: "n1" });
     useUiStore.getState().registerEditorFlush(() => {
       order.push("flush");
-      return Promise.resolve();
+      return Promise.resolve(true);
     });
 
     await useUiStore.getState().openEditor("n2");
@@ -110,15 +110,15 @@ describe("uiStore.openEditor (the note-switch data-loss regression)", () => {
   });
 
   it("waits for the flush chain to settle before the id changes", async () => {
-    let resolveFlush!: () => void;
+    let resolveFlush!: (saved: boolean) => void;
     useUiStore.setState({ editorNoteId: "n1" });
     useUiStore.getState().registerEditorFlush(
-      () => new Promise<void>((r) => (resolveFlush = r)),
+      () => new Promise<boolean>((r) => (resolveFlush = r)),
     );
 
     const opening = useUiStore.getState().openEditor("n2");
     expect(useUiStore.getState().editorNoteId).toBe("n1"); // not switched yet
-    resolveFlush();
+    resolveFlush(true);
     await opening;
     expect(useUiStore.getState().editorNoteId).toBe("n2");
   });

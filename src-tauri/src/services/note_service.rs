@@ -363,15 +363,40 @@ pub fn take_due_reminder(conn: &Connection, now: i64) -> AppResult<Option<Note>>
     Ok(Some(note))
 }
 
-/// Full snapshot for Settings > Backup: every note regardless of view,
-/// in one read so the JSON file is always consistent.
-pub fn export_all_notes(conn: &Connection) -> AppResult<Vec<Note>> {
+/// Full note list for internal callers, regardless of the current view.
+/// Settings backup uses `export_backup_snapshot` to include orphan tags in the
+/// same SQLite read transaction.
+fn read_all_notes(conn: &Connection) -> AppResult<Vec<Note>> {
     let sql = format!("SELECT {NOTE_COLUMNS} FROM notes ORDER BY updated_at DESC");
     let mut stmt = conn.prepare(&sql)?;
     let notes = stmt
         .query_map([], row_to_note)?
         .collect::<rusqlite::Result<Vec<_>>>()?;
-    attach_tags(conn, notes)
+    Ok(notes)
+}
+
+pub fn export_all_notes(conn: &Connection) -> AppResult<Vec<Note>> {
+    let tx = conn.unchecked_transaction()?;
+    let notes = attach_tags(&tx, read_all_notes(&tx)?)?;
+    tx.commit()?;
+    Ok(notes)
+}
+
+/// Consistent Settings backup snapshot, including orphan tags. All reads share
+/// one SQLite transaction so a concurrent tag edit cannot mix generations.
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BackupSnapshot {
+    pub notes: Vec<Note>,
+    pub tags: Vec<Tag>,
+}
+
+pub fn export_backup_snapshot(conn: &Connection) -> AppResult<BackupSnapshot> {
+    let tx = conn.unchecked_transaction()?;
+    let notes = attach_tags(&tx, read_all_notes(&tx)?)?;
+    let tags = crate::services::tag_service::list_tags(&tx)?;
+    tx.commit()?;
+    Ok(BackupSnapshot { notes, tags })
 }
 
 /// What an import actually did: notes written vs. entries dropped by

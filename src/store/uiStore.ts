@@ -47,8 +47,8 @@ interface UiState {
   editorReturnFocusId: string | null;
   /** Local snapshot of the note being edited, kept current by the editor. */
   editorNote: import("../types").Note | null;
-  /** Flush callback registered by the open editor (Ctrl+S / close). */
-  editorFlush: (() => Promise<void>) | null;
+  /** Flush callback for the mounted editor (Ctrl+S / close / note switch). */
+  editorFlush: (() => Promise<boolean>) | null;
   snackbar: SnackbarState | null;
   /**
    * Toasts waiting their turn. A snackbar with a live affordance (Undo,
@@ -66,7 +66,7 @@ interface UiState {
   openPopover: PopoverHandle | null;
   undoStack: UndoStack;
 
-  setPage: (page: "notes" | "settings") => void;
+  setPage: (page: "notes" | "settings") => Promise<void>;
   setView: (view: NoteView) => void;
   setActiveTag: (tagId: string | null) => void;
   setQuery: (query: string) => void;
@@ -77,13 +77,13 @@ interface UiState {
    * still inside the debounce window (reachable via the reminder "Open"
    * toast or a card click while another note has unsaved changes).
    */
-  openEditor: (noteId: string, returnFocusId?: string | null) => Promise<void>;
+  openEditor: (noteId: string, returnFocusId?: string | null) => Promise<boolean>;
   closeEditor: () => void;
   setEditorNote: (note: import("../types").Note | null) => void;
-  registerEditorFlush: (fn: (() => Promise<void>) | null) => void;
-  flushEditor: () => Promise<void>;
+  registerEditorFlush: (fn: (() => Promise<boolean>) | null) => void;
+  flushEditor: () => Promise<boolean>;
   /** Flushes pending editor edits (if any) and closes the editor. */
-  flushAndCloseEditor: () => Promise<void>;
+  flushAndCloseEditor: () => Promise<boolean>;
 
   toggleSelect: (
     id: string,
@@ -148,7 +148,15 @@ export const useUiStore = create<UiState>((set, get) => ({
   openPopover: null,
   undoStack: new UndoStack(50),
 
-  setPage: (page) => set({ page, selection: [], anchorId: null }),
+  setPage: async (page) => {
+    // Settings replaces NotesPage, which unmounts the editor. Keep the editor
+    // mounted if its latest draft could not be persisted.
+    if (page === "settings" && get().editorNoteId) {
+      const closed = await get().flushAndCloseEditor();
+      if (!closed) return;
+    }
+    set({ page, selection: [], anchorId: null });
+  },
 
   setView: (view) =>
     set({ view, activeTagId: null, selection: [], anchorId: null, page: "notes" }),
@@ -162,7 +170,8 @@ export const useUiStore = create<UiState>((set, get) => ({
     // Must resolve before the id changes: `flushEditor` waits for in-flight
     // saves *and* their chained follow-ups, so no save of the old note can
     // land after the editor has switched to the new one.
-    await get().flushEditor();
+    const saved = await get().flushEditor();
+    if (!saved) return false;
     set({
       editorNoteId: noteId,
       // Switching notes inside an open editor keeps the original return
@@ -173,21 +182,24 @@ export const useUiStore = create<UiState>((set, get) => ({
       selection: [],
       anchorId: null,
     });
+    return true;
   },
   closeEditor: () =>
-    set({ editorNoteId: null, editorNote: null, editorFlush: null }),
+    set({ editorNoteId: null, editorNote: null }),
   setEditorNote: (note) => set({ editorNote: note }),
 
   registerEditorFlush: (fn) => set({ editorFlush: fn }),
 
   flushEditor: async () => {
     const flush = get().editorFlush;
-    if (flush) await flush();
+    return flush ? flush() : true;
   },
 
   flushAndCloseEditor: async () => {
-    await get().flushEditor();
+    const saved = await get().flushEditor();
+    if (!saved) return false;
     get().closeEditor();
+    return true;
   },
 
   toggleSelect: (id, mode, orderedIds) => {
@@ -346,4 +358,3 @@ export function errText(e: unknown): string {
   if (e instanceof Error) return e.message;
   return "Something went wrong.";
 }
-

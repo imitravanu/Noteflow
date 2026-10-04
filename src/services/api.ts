@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
+  BackupSnapshot,
   Counts,
   FlagPatch,
   ImportReport,
@@ -49,8 +50,8 @@ export const api = {
     return invoke<number>("set_flags_bulk", { ids, flags });
   },
 
-  exportAllNotes() {
-    return invoke<Note[]>("export_all_notes");
+  exportBackupSnapshot() {
+    return invoke<BackupSnapshot>("export_backup_snapshot");
   },
 
   importBackup(notes: Note[], tags?: Tag[]) {
@@ -118,4 +119,3 @@ export const api = {
     return invoke<string>("save_text_file", { filename, content });
   },
 };
-

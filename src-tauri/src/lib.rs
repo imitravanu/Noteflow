@@ -34,7 +34,7 @@ pub fn run() {
             commands::notes::update_note,
             commands::notes::set_flags,
             commands::notes::set_flags_bulk,
-            commands::notes::export_all_notes,
+            commands::notes::export_backup_snapshot,
             commands::notes::import_backup,
             commands::notes::trash_notes,
             commands::notes::restore_notes,

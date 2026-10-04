@@ -3,6 +3,17 @@
 All notable changes to NoteFlow are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.5.3] - 2026-10-05
+
+### Fixed
+- Failed editor flushes now keep the current draft open and block note switches, editor close, trashing, and navigation to Settings until the save succeeds. Edits made while a write is in flight join the flush that is waiting on it, and the flush callback stays registered across editor close/reopen cycles.
+- Backup notes and the complete tag list are read inside one SQLite snapshot, including orphan tags. Export file creation reserves names atomically and never overwrites a concurrent or existing backup.
+- Cache misses in the editor now clear the previous snapshot and draft before loading the requested note.
+
+### Changed
+- Autosave documentation now describes the debounce and retry behavior accurately, including the remaining risks from abrupt app exit and power failure.
+- Version checks now include both npm and Cargo lockfiles as well as the application manifests.
+
 ## [1.5.2] - 2026-09-30
 
 ### Changed

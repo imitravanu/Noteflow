@@ -30,8 +30,6 @@ export function SettingsPage() {
   const setPage = useUiStore((s) => s.setPage);
   const setShortcutsOpen = useUiStore((s) => s.setShortcutsOpen);
   const showSnackbar = useUiStore((s) => s.showSnackbar);
-  const tags = useNotesStore((s) => s.tags);
-
   const [dataDir, setDataDir] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -49,10 +47,8 @@ export function SettingsPage() {
   const handleExportBackup = async () => {
     try {
       setExporting(true);
-      // Single atomic snapshot from backend (all views at once).
-      const fullList = await api.exportAllNotes();
-
-      const backup = buildBackupPayload(fullList, tags, __APP_VERSION__);
+      const snapshot = await api.exportBackupSnapshot();
+      const backup = buildBackupPayload(snapshot.notes, snapshot.tags, __APP_VERSION__);
 
       const jsonStr = JSON.stringify(backup, null, 2);
       const dateStr = new Date().toISOString().slice(0, 10);
@@ -255,4 +251,3 @@ export function SettingsPage() {
     </div>
   );
 }
-

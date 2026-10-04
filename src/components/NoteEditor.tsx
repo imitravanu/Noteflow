@@ -146,7 +146,6 @@ export function NoteEditor() {
   // frame of the entrance animation (the remount is keyed on the id): with
   // a passive effect the panel would replay its enter showing the previous
   // note's text for a frame before swapping.
-  const lastLoadedIdRef = useRef<string | null>(null);
   useLayoutEffect(() => {
     if (!noteId) return;
     let alive = true;
@@ -155,19 +154,14 @@ export function NoteEditor() {
     setNewItemText("");
     setReminderPickerOpen(false);
     const cached = useNotesStore.getState().notes.find((n) => n.id === noteId);
-  // Cache miss: clear the previous note's content so the honest "Loading"
-  // panel paints instead of the old note's text under a fresh entrance.
-  if (!cached && lastLoadedIdRef.current !== noteId) setNote(null);
-  lastLoadedIdRef.current = noteId;
     // Note switch (or reopen) without a list cache hit: drop the previous
     // note's content *before paint* so the loading panel shows instead of
     // the old note's text for a frame. Cached switches apply synchronously
     // below and never paint stale content.
-    if (!cached && lastLoadedIdRef.current !== noteId) {
+    if (!cached) {
       setNote(null);
       setDraft({ title: "", content: "", checklist: [], color: "default" });
     }
-    lastLoadedIdRef.current = noteId;
     const apply = (n: Note) => {
       if (!alive) return;
       setNote(n);
@@ -203,7 +197,7 @@ export function NoteEditor() {
   // Stable identity: registered as the editor's flush callback (Ctrl+S,
   // Esc-close) and used by the blur/visibility/unmount safety nets. All
   // mutable save state lives inside the gate.
-  const flush = useCallback(() => gateRef.current?.flush() ?? Promise.resolve(), []);
+  const flush = useCallback(() => gateRef.current?.flush() ?? Promise.resolve(true), []);
 
   useEffect(() => {
     registerEditorFlush(flush);
@@ -638,7 +632,7 @@ export function NoteEditor() {
                     confirmLabel: "Move to trash",
                     danger: true,
                     onConfirm: async () => {
-                      await flush();
+                      if (!(await flush())) return;
                       await trashNotes([note.id]);
                       closeEditor();
                     },
@@ -838,5 +832,3 @@ export function NoteEditor() {
     if (newItemText.trim()) addChecklistItem();
   }
 }
-
-

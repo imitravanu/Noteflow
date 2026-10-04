@@ -59,7 +59,8 @@ export function Sidebar() {
   };
 
   const navigate = (fn: () => void) => {
-    void flushAndCloseEditor().finally(() => {
+    void flushAndCloseEditor().then((saved) => {
+      if (!saved) return;
       fn();
       setSidebarOpen(false);
       setHovered(false);
@@ -224,4 +225,3 @@ export function Sidebar() {
     </>
   );
 }
-

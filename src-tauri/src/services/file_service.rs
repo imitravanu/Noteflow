@@ -2,7 +2,8 @@
 //! Rust. The previous webview `<a download>` + Blob flow is not reliably
 //! honored by bundled WebKitGTK builds, which would silently drop exports.
 
-use std::fs;
+use std::fs::{self, OpenOptions};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use crate::error::AppResult;
@@ -43,9 +44,9 @@ pub fn sanitize_filename(raw: &str) -> String {
     name
 }
 
-/// Returns `dir/filename`, appending `-1`, `-2`… before the extension when a
-/// file with that name already exists — exports never overwrite a user's
-/// previous backup.
+/// Returns an available-looking path, appending `-1`, `-2`… before the
+/// extension when a file with that name already exists. This is not an atomic
+/// reservation; writers should use `write_unique`.
 pub fn unique_path(dir: &Path, filename: &str) -> PathBuf {
     let direct = dir.join(filename);
     if !direct.exists() {
@@ -117,9 +118,48 @@ pub fn save_text_file(data_dir: &Path, raw_filename: &str, content: &str) -> App
 
 /// Filesystem-only core of `save_text_file` (target dir already chosen) —
 /// separated so tests can exercise it without touching the real `$HOME`.
+/// `create_new` reserves each candidate atomically, so concurrent exports
+/// cannot overwrite an earlier backup.
 pub fn write_unique(dir: &Path, raw_filename: &str, content: &str) -> AppResult<PathBuf> {
-    let path = unique_path(dir, &sanitize_filename(raw_filename));
-    fs::write(&path, content)?;
+    let filename = sanitize_filename(raw_filename);
+    let stem = Path::new(&filename)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("noteflow-export");
+    let ext = Path::new(&filename).extension().and_then(|s| s.to_str());
+    let mut suffix = 0_u64;
+    let (path, mut file) = loop {
+        let candidate = if suffix == 0 {
+            filename.clone()
+        } else {
+            match ext {
+                Some(e) => format!("{stem}-{suffix}.{e}"),
+                None => format!("{stem}-{suffix}"),
+            }
+        };
+        let path = dir.join(candidate);
+        match OpenOptions::new().write(true).create_new(true).open(&path) {
+            Ok(file) => break (path, file),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+                suffix = suffix.checked_add(1).ok_or_else(|| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::AlreadyExists,
+                        "could not find an unused export filename",
+                    )
+                })?;
+            }
+            Err(error) => return Err(error.into()),
+        }
+    };
+
+    let write_result = file.write_all(content.as_bytes());
+    let write_result = write_result.and_then(|()| file.sync_all());
+    if let Err(error) = write_result {
+        drop(file);
+        let _ = fs::remove_file(&path);
+        return Err(error.into());
+    }
+    drop(file);
     log::info!("wrote {} ({} bytes)", path.display(), content.len());
     Ok(path)
 }

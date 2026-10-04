@@ -7,10 +7,10 @@ import type { SaveStatus } from "../types";
  *
  * Guarantees:
  *  - `dirty()` re-arms the debounce on every edit; no edit is scheduled twice.
- *  - `flush()` during an in-flight save queues exactly one follow-up run that
- *    picks up the *latest* draft, and the returned promise resolves only
- *    after that follow-up completes — callers (Ctrl+S, Esc-close) can rely
- *    on "when this resolves, my newest text is on disk".
+ *  - `flush()` waits for the active write and any follow-up for edits made
+ *    during that write. It returns `true` only when the latest draft is
+ *    persisted; on failure it returns `false`, retains dirty state, and keeps
+ *    retrying so navigation can stay blocked without losing the draft.
  *  - A failed save re-arms a retry with exponential backoff (1s → 2s → 4s →
  *    cap 5s) instead of silently leaving edits unsaved until the next
  *    keystroke.
@@ -32,8 +32,8 @@ export interface SaveGateOptions {
 export interface SaveGate {
   /** New edits exist: marks dirty and (re)arms the debounced save. */
   dirty(): void;
-  /** Saves now (clearing the debounce); resolves when the text is persisted. */
-  flush(): Promise<void>;
+  /** Saves now (clearing the debounce); true means the latest draft is persisted. */
+  flush(): Promise<boolean>;
   /** Whether unsaved edits exist. */
   isDirty(): boolean;
   /** Drops pending work — used when the editor switches to another note. */
@@ -62,7 +62,7 @@ export function createSaveGate(options: SaveGateOptions): SaveGate {
    * Promise of the outermost run. Chained follow-ups are awaited by it, so
    * returning this from a mid-flight `flush()` covers the whole chain.
    */
-  let currentRun: Promise<void> = Promise.resolve();
+  let currentRun: Promise<boolean> = Promise.resolve(true);
 
   const clearTimer = () => {
     if (timer !== undefined) {
@@ -80,16 +80,18 @@ export function createSaveGate(options: SaveGateOptions): SaveGate {
     }, ms);
   };
 
-  async function perform(): Promise<void> {
-    if (!dirty) return;
+  async function perform(): Promise<boolean> {
+    if (!dirty) return true;
     inflight = true;
     dirty = false;
     onStatus("saving");
-    let chained: Promise<void> | null = null;
+    let saved = false;
+    let chained: Promise<boolean> | null = null;
     try {
-      const ok = await save();
-      if (ok) {
+      saved = await save();
+      if (saved) {
         retryMs = initialRetryMs; // success resets the backoff
+        clearTimer();
         onStatus("saved");
       } else {
         dirty = true; // keep the edits; retry with backoff
@@ -97,6 +99,14 @@ export function createSaveGate(options: SaveGateOptions): SaveGate {
         arm(retryMs);
         retryMs = Math.min(retryMs * 2, maxRetryMs);
       }
+    } catch {
+      // Treat thrown IPC errors like an explicit failed result. A flush caller
+      // must be able to keep the current editor open until persistence succeeds.
+      saved = false;
+      dirty = true;
+      onStatus("error");
+      arm(retryMs);
+      retryMs = Math.min(retryMs * 2, maxRetryMs);
     } finally {
       inflight = false;
       if (pending) {
@@ -106,10 +116,11 @@ export function createSaveGate(options: SaveGateOptions): SaveGate {
     }
     // Awaiting the chain is what lets a caller blocked on `currentRun`
     // (flush-during-inflight) know *its* edits landed, not just the first save.
-    if (chained) await chained;
+    if (chained) return await chained;
+    return saved;
   }
 
-  function flush(): Promise<void> {
+  function flush(): Promise<boolean> {
     clearTimer();
     if (!dirty) return currentRun;
     if (inflight) {
@@ -123,6 +134,10 @@ export function createSaveGate(options: SaveGateOptions): SaveGate {
   return {
     dirty() {
       dirty = true;
+      // A caller may be waiting on the current flush (for example, a note
+      // switch). Ensure edits made while that write is in flight are included
+      // in the same awaited flush chain.
+      if (inflight) pending = true;
       onStatus("saving");
       arm(debounceMs);
     },

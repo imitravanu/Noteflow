@@ -51,9 +51,11 @@ pub fn set_flags_bulk(
 }
 
 #[tauri::command(async)]
-pub fn export_all_notes(state: State<'_, AppState>) -> AppResult<Vec<Note>> {
+pub fn export_backup_snapshot(
+    state: State<'_, AppState>,
+) -> AppResult<note_service::BackupSnapshot> {
     let conn = lock_conn(&state)?;
-    note_service::export_all_notes(&conn)
+    note_service::export_backup_snapshot(&conn)
 }
 
 /// Restore from a Settings backup file. `tags` is the backup's top-level tag

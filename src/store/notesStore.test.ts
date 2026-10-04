@@ -67,7 +67,7 @@ describe("notesStore.createNote (the Ctrl+N data-loss regression)", () => {
     const order: string[] = [];
     useUiStore.getState().registerEditorFlush(() => {
       order.push("flush");
-      return Promise.resolve();
+      return Promise.resolve(true);
     });
     route({
       create_note: () => makeNote("n1"),
@@ -80,7 +80,11 @@ describe("notesStore.createNote (the Ctrl+N data-loss regression)", () => {
 
     // Flush must land BEFORE the editor switches notes — switching resets the
     // save gate, which drops any buffer still inside its debounce window.
-    expect(order).toEqual(["flush"]);
+    // Two flushes since 1.5.3: createNote's pre-check (which avoids creating
+    // an orphan empty row when the current draft cannot be persisted), then
+    // openEditor's own flush before changing subjects. In the app the second
+    // is a no-op — the save gate is clean by then.
+    expect(order).toEqual(["flush", "flush"]);
     expect(useUiStore.getState().editorNoteId).toBe("n1");
   });
 });

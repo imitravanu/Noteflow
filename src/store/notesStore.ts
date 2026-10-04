@@ -64,6 +64,9 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   createNote: async () => {
     const ui = useUiStore.getState();
     try {
+      // Avoid creating an orphan empty row when an existing editor cannot
+      // persist its draft. openEditor checks again before changing subjects.
+      if (!(await ui.flushEditor())) return;
       const note = await api.createNote();
       await get().refresh();
       // openEditor flushes the open editor (if any) before switching, so
@@ -377,4 +380,3 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     }
   },
 }));
-

@@ -82,3 +82,8 @@ export interface ImportReport {
   skipped: number;
 }
 
+/** Notes and orphan tags read from one backend snapshot for backup export. */
+export interface BackupSnapshot {
+  notes: Note[];
+  tags: Tag[];
+}
