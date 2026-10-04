@@ -46,6 +46,17 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
 
+      - name: Verify signing secrets are configured
+        # createUpdaterArtifacts requires the private key; fail in seconds
+        # instead of after a full Rust release build + bundling.
+        run: |
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "::error::TAURI_SIGNING_PRIVATE_KEY secret is not set — add it under Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+
       - name: Run Tests, Lint & Typecheck
         run: |
           npm run typecheck
