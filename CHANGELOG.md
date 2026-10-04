@@ -3,6 +3,16 @@
 All notable changes to NoteFlow are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.6.0] - 2026-10-05
+
+### Added
+- Automatic updates: on launch, NoteFlow checks GitHub Releases for a newer version and announces it in a toast. Clicking **Update** is the only confirmation needed — the download (with live progress), minisign signature verification, install, and relaunch then run end-to-end.
+- Settings → Software Update adds a manual "Check for Updates" button with up-to-date / unavailable feedback.
+
+### Changed
+- Release builds now produce updater artifacts (`latest.json` plus signed install packages) when the signing secrets are configured in CI.
+- Packages that cannot replace their own binary in place (the system `.deb`) link to the release page instead of failing silently.
+
 ## [1.5.3] - 2026-10-05
 
 ### Fixed

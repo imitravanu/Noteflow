@@ -8,12 +8,14 @@ import {
   Monitor,
   Moon,
   Palette,
+  RefreshCw,
   ShieldCheck,
   Sparkles,
   Sun,
 } from "lucide-react";
 import type { Theme } from "../types";
 import { api } from "../services/api";
+import { checkManually } from "../services/updateFlow";
 import { useNotesStore } from "../store/notesStore";
 import { useUiStore } from "../store/uiStore";
 import { buildBackupPayload, parseBackupJson, type ParsedBackup } from "../utils/backup";
@@ -33,6 +35,7 @@ export function SettingsPage() {
   const [dataDir, setDataDir] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [checkingUpdates, setCheckingUpdates] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const refresh = useNotesStore((s) => s.refresh);
   const themeRefs = useRef<Partial<Record<Theme, HTMLButtonElement | null>>>({});
@@ -43,6 +46,15 @@ export function SettingsPage() {
       .then(setDataDir)
       .catch(() => setDataDir(null));
   }, []);
+
+  const handleCheckUpdates = async () => {
+    setCheckingUpdates(true);
+    try {
+      await checkManually();
+    } finally {
+      setCheckingUpdates(false);
+    }
+  };
 
   const handleExportBackup = async () => {
     try {
@@ -235,6 +247,27 @@ export function SettingsPage() {
           Notes are stored offline in a local SQLite database (WAL mode). Nothing leaves this computer.
         </p>
         {dataDir && <code className="settings-path">{dataDir}</code>}
+      </section>
+
+      <section className="settings-card" aria-labelledby="settings-updates">
+        <h2 id="settings-updates">
+          <RefreshCw size={16} aria-hidden="true" /> Software Update
+        </h2>
+        <p className="settings-muted">
+          NoteFlow checks GitHub Releases for a newer version on launch and offers to install it —
+          one click downloads the signed update and restarts into it.
+        </p>
+        <div className="settings-actions">
+          <button
+            type="button"
+            className="btn btn-secondary"
+            disabled={checkingUpdates}
+            onClick={() => void handleCheckUpdates()}
+          >
+            <RefreshCw size={15} aria-hidden="true" />
+            {checkingUpdates ? "Checking…" : "Check for Updates"}
+          </button>
+        </div>
       </section>
 
       <section className="settings-card" aria-labelledby="settings-about">

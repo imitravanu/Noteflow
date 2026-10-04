@@ -3,5 +3,11 @@
   "identifier": "default",
   "description": "Default capability for the main NoteFlow window",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": [
+    "core:default",
+    "updater:default",
+    "process:default",
+    "process:allow-restart",
+    "opener:default"
+  ]
 }
