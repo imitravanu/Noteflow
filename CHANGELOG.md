@@ -3,6 +3,19 @@
 All notable changes to NoteFlow are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.7.0] - 2026-10-07
+
+### Fixed
+- Reminders keep a persistent in-app alert until explicitly opened or dismissed. An app crash or closed window no longer silently consumes the reminder; acknowledging an older alert cannot clear a newly rescheduled time.
+- Bulk Undo restores flags and tags in a single database transaction, retains a failed action for retry, and only restores notes that the corresponding Trash action actually moved.
+- Backup import skips malformed entries independently, reports skipped records and corrected dates, and prevents extreme foreign timestamps from poisoning note sort order. Schema v3 repairs affected existing databases.
+- Short Unicode searches now fold case across note text, checklist items, and tags. Large pinned collections render in pages.
+- Update checks share one in-flight request and keep each installer tied to the release it checked; failed installation reports the failure accurately.
+- Editor, autosave, Trash, and destructive-action state races found in the engineering audit are corrected.
+
+### Changed
+- Backup files are capped at 128 MB, with an early database size check before exporting and a file size check before importing.
+
 ## [1.6.0] - 2026-10-05
 
 ### Added
@@ -75,7 +88,7 @@ Chief-engineer audit follow-up: everything verified against source, every fix be
 ## [1.4.0] - 2026-09-23
 
 ### Added
-- **Reminders.** Every note has a one-shot reminder: open the editor's bell, pick a quick preset ("In 1 hour", "Tomorrow 9:00") or an exact `datetime-local` time, and the app announces it when it comes due — with an **Open** action that jumps straight to the note. A pending reminder shows as a bell badge on the card (labelled "Overdue" / "in 25m" / "tomorrow 09:00") and as an active toolbar button. Reminders are claimed from SQLite inside a single transaction, so each one fires exactly once, and one that came due while the app was closed still fires at the next launch instead of expiring silently. Firing is one-shot by design: the time clears when it fires, and archived/trashed notes stay quiet.
+- **Reminders.** Every note has a one-shot reminder: open the editor's bell, pick a quick preset ("In 1 hour", "Tomorrow 9:00") or an exact `datetime-local` time, and the app announces it when it comes due — with an **Open** action that jumps straight to the note. A pending reminder shows as a bell badge on the card (labelled "Overdue" / "in 25m" / "tomorrow 09:00") and as an active toolbar button. The original implementation cleared reminders before showing the alert; release 1.7.0 changes this to explicit acknowledgment. Archived and trashed notes stay quiet.
 - **Unicode-aware indexed search.** Search now runs through FTS5 trigram indexes (`notes_fts`, `tags_fts`) created in schema v2, so it keeps the substring behaviour users expect (`"oat milk"` finds "buy oat milk") while folding unicode case the way `LIKE` never could — `CAFÉ` now finds `Café` — and does it with an index lookup per row instead of a full-table scan. Checklists and tag names are indexed as text (never raw JSON), and a legacy database is backfilled once on upgrade.
 - Editor/window robustness: the reminder popover participates in the global Escape cascade like the color and tag pickers, closes on outside click, and resets when the editor switches notes.
 
@@ -85,7 +98,7 @@ Chief-engineer audit follow-up: everything verified against source, every fix be
 - Versions stay single-sourced: `package.json` = `src-tauri/tauri.conf.json` = `src-tauri/Cargo.toml`, enforced by `npm run check:versions`.
 
 ### Fixed
-- A reminder can no longer be announced twice, and can no longer be lost: claiming and clearing happen in the same SQLite transaction.
+- Reminder selection and clearing were combined into one SQLite transaction. Release 1.7.0 fixes the remaining loss window between that transaction and displaying the alert.
 
 ## [1.3.1] - 2026-09-22
 

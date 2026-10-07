@@ -37,9 +37,13 @@ export const api = {
     return invoke<Note>("set_reminder", { id, reminderAt });
   },
 
-  /** Consumes the oldest due reminder; resolves `null` when none is waiting. */
-  takeDueReminder() {
-    return invoke<Note | null>("take_due_reminder");
+  /** Reads the oldest due reminder; resolves `null` when none is waiting. */
+  peekDueReminder() {
+    return invoke<Note | null>("peek_due_reminder");
+  },
+
+  acknowledgeReminder(id: string, expectedAt: number) {
+    return invoke<boolean>("acknowledge_reminder", { id, expectedAt });
   },
 
   setFlags(id: string, flags: FlagPatch) {
@@ -50,16 +54,24 @@ export const api = {
     return invoke<number>("set_flags_bulk", { ids, flags });
   },
 
+  restoreFlagsBulk(entries: Array<{ id: string } & FlagPatch>) {
+    return invoke<number>("restore_flags_bulk", { entries });
+  },
+
+  restoreTagsBulk(entries: Array<{ noteId: string; tagIds: string[] }>) {
+    return invoke<number>("restore_tags_bulk", { entries });
+  },
+
   exportBackupSnapshot() {
     return invoke<BackupSnapshot>("export_backup_snapshot");
   },
 
-  importBackup(notes: Note[], tags?: Tag[]) {
+  importBackup(notes: unknown[], tags?: unknown[]) {
     return invoke<ImportReport>("import_backup", { notes, tags: tags ?? null });
   },
 
   trashNotes(ids: string[]) {
-    return invoke<number>("trash_notes", { ids });
+    return invoke<string[]>("trash_notes", { ids });
   },
 
   restoreNotes(ids: string[]) {

@@ -3,51 +3,59 @@ import { api } from "../services/api";
 import { useNotesStore } from "../store/notesStore";
 import { useUiStore } from "../store/uiStore";
 
-/** How often the app checks for reminders that have come due. */
 const POLL_MS = 30_000;
-/** Backlog drain: check again soon after a reminder fired, so several due
- *  reminders surface in sequence instead of 30s apart. */
-const FOLLOW_UP_MS = 4_000;
+const FOLLOW_UP_MS = 1_000;
 
 /**
- * Fires due reminders. The backend hands out (and clears) at most one reminder
- * per call, which is what makes firing exactly-once: no double toast, and a
- * reminder that came due while the app was closed is still announced at the
- * next launch instead of silently expiring.
+ * Shows one due reminder at a time. A reminder stays in SQLite until its
+ * snackbar has actually left the screen. Closing or crashing the app before
+ * then causes it to appear again on the next launch instead of being lost.
  */
 export function useReminders() {
   useEffect(() => {
     let alive = true;
     let timer: number | undefined;
 
-    const check = async () => {
-      let fired = false;
-      try {
-        const due = await api.takeDueReminder();
-        if (!alive) return;
-        if (due) {
-          fired = true;
-          const ui = useUiStore.getState();
-          // The list (and its bell badges) must reflect that the reminder is
-          // spent, even if the note itself is not open.
-          void useNotesStore.getState().refresh();
-          ui.showSnackbar(`Reminder: ${due.title || "Untitled"}`, {
-            actionLabel: "Open",
-            // openEditor flushes the current dirty draft before switching —
-            // otherwise the gate reset would drop up to a debounce window of
-            // typed edits, or an in-flight save could merge the old note's
-            // payload into the newly opened one.
-            action: () => void useUiStore.getState().openEditor(due.id),
-          });
-        }
-      } catch {
-        /* transient IPC failure: the next poll retries, nothing is consumed */
-      }
+    const schedule = (delay: number) => {
       if (!alive) return;
-      timer = window.setTimeout(check, fired ? FOLLOW_UP_MS : POLL_MS);
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = window.setTimeout(() => void check(), delay);
     };
 
-    void check(); // catch reminders that came due while the app was closed
+    const check = async () => {
+      timer = undefined;
+      try {
+        const due = await api.peekDueReminder();
+        if (!alive) return;
+        if (due?.reminderAt != null) {
+          const expectedAt = due.reminderAt;
+          useUiStore.getState().showSnackbar(`Reminder: ${due.title || "Untitled"}`, {
+            actionLabel: "Open",
+            persistent: true,
+            action: () => void useUiStore.getState().openEditor(due.id),
+            onDismiss: (reason) => {
+              if (!alive) return;
+              if (reason === "replaced") {
+                schedule(FOLLOW_UP_MS);
+                return;
+              }
+              void api.acknowledgeReminder(due.id, expectedAt)
+                .then(() => useNotesStore.getState().refresh())
+                .catch(() => {
+                  // The schedule remains in SQLite and will be shown again.
+                })
+                .finally(() => schedule(FOLLOW_UP_MS));
+            },
+          });
+          return;
+        }
+      } catch {
+        // Transient IPC error: no reminder has been consumed.
+      }
+      schedule(POLL_MS);
+    };
+
+    void check();
     return () => {
       alive = false;
       if (timer !== undefined) window.clearTimeout(timer);

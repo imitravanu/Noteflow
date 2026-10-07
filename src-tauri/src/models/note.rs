@@ -26,7 +26,7 @@ pub struct Note {
     pub archived: bool,
     pub deleted: bool,
     pub deleted_at: Option<i64>,
-    /// One-shot reminder time, cleared when the reminder is claimed.
+    /// One-shot reminder time, cleared after its alert is dismissed.
     pub reminder_at: Option<i64>,
     pub checklist: Vec<ChecklistItem>,
     pub tags: Vec<Tag>,

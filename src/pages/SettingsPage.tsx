@@ -26,6 +26,8 @@ const THEMES: { value: Theme; label: string; description: string; icon: typeof S
   { value: "system", label: "System", description: "Follow your desktop setting", icon: Monitor },
 ];
 
+const MAX_BACKUP_BYTES = 128 * 1024 * 1024;
+
 export function SettingsPage() {
   const theme = useUiStore((s) => s.theme);
   const setTheme = useUiStore((s) => s.setTheme);
@@ -63,6 +65,10 @@ export function SettingsPage() {
       const backup = buildBackupPayload(snapshot.notes, snapshot.tags, __APP_VERSION__);
 
       const jsonStr = JSON.stringify(backup, null, 2);
+      if (new TextEncoder().encode(jsonStr).byteLength > MAX_BACKUP_BYTES) {
+        showSnackbar("Backup exceeds the 128 MB file limit. Your notes were not changed.");
+        return;
+      }
       const dateStr = new Date().toISOString().slice(0, 10);
       const filename = `noteflow-backup-${dateStr}.json`;
       // Written by Rust straight to disk — webview `<a download>` is not
@@ -95,6 +101,10 @@ export function SettingsPage() {
   const handleImportFile = async (file: File) => {
     try {
       setImporting(true);
+      if (file.size > MAX_BACKUP_BYTES) {
+        showSnackbar("Backup exceeds the 128 MB file limit.");
+        return;
+      }
       const text = await file.text();
       let parsed: ParsedBackup;
       try {
@@ -107,13 +117,17 @@ export function SettingsPage() {
       await refresh();
       const base =
         report.inserted === 0
-          ? "Nothing new — backup already imported."
+          ? report.skipped > 0
+            ? "No notes imported."
+            : "Nothing new — backup already imported."
           : `Imported ${report.inserted} note${report.inserted === 1 ? "" : "s"}.`;
-      showSnackbar(
-        report.skipped > 0
-          ? `${base} Skipped ${report.skipped} oversized or invalid entr${report.skipped === 1 ? "y" : "ies"}.`
-          : base,
-      );
+      const skipped = report.skipped > 0
+        ? ` Skipped ${report.skipped} oversized or invalid entr${report.skipped === 1 ? "y" : "ies"}.`
+        : "";
+      const normalized = report.normalizedDates > 0
+        ? ` Corrected ${report.normalizedDates} invalid date${report.normalizedDates === 1 ? "" : "s"}.`
+        : "";
+      showSnackbar(`${base}${skipped}${normalized}`);
     } catch {
       showSnackbar("Failed to import backup.");
     } finally {
@@ -186,7 +200,7 @@ export function SettingsPage() {
           <Download size={16} aria-hidden="true" /> Data & Backup
         </h2>
         <p className="settings-muted">
-          Export all your notes, checklists, and tags as a portable JSON backup file.
+          Export all your notes, checklists, and tags as a portable JSON backup file (up to 128 MB).
         </p>
         <div className="settings-actions">
           <button

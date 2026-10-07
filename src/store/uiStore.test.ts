@@ -83,6 +83,32 @@ describe("uiStore snackbar queue", () => {
     expect(useUiStore.getState().snackbar?.message).toBe("Undid: Move to Trash");
   });
 
+  it("a clicked toast cannot dismiss the progress toast created by its action", () => {
+    useUiStore.getState().showSnackbar("Update available", {
+      actionLabel: "Update",
+      action: () => useUiStore.getState().showSnackbar("Updating…", { replace: true }),
+    });
+    const clicked = useUiStore.getState().snackbar!;
+    clicked.action?.();
+    useUiStore.getState().hideSnackbar(clicked.id);
+    expect(useUiStore.getState().snackbar?.message).toBe("Updating…");
+  });
+
+  it("retains a persistent reminder until the user dismisses it", () => {
+    const dismissed = vi.fn();
+    useUiStore.getState().showSnackbar("Reminder", {
+      actionLabel: "Open",
+      action: () => {},
+      persistent: true,
+      onDismiss: dismissed,
+    });
+    const reminder = useUiStore.getState().snackbar!;
+    expect(reminder.persistent).toBe(true);
+    expect(dismissed).not.toHaveBeenCalled();
+    useUiStore.getState().hideSnackbar(reminder.id);
+    expect(dismissed).toHaveBeenCalledWith("dismissed");
+  });
+
   it("the queue is capped, oldest-first", () => {
     useUiStore.getState().showSnackbar("Anchor", { actionLabel: "Undo", action: () => {} });
     for (let i = 1; i <= 6; i++) useUiStore.getState().showSnackbar(`t${i}`);
@@ -181,6 +207,44 @@ describe("uiStore undo snackbar", () => {
   it("Ctrl+Z with an empty stack says there is nothing to undo", async () => {
     await useUiStore.getState().undo();
     expect(useUiStore.getState().snackbar?.message).toBe("Nothing to undo.");
+  });
+
+  it("keeps a failed Undo available for retry", async () => {
+    let attempts = 0;
+    const id = useUiStore.getState().registerUndo("archive", () => {
+      attempts += 1;
+      if (attempts === 1) throw new Error("Storage unavailable");
+    });
+
+    await useUiStore.getState().undoById(id);
+    expect(useUiStore.getState().undoStack.size).toBe(1);
+    expect(useUiStore.getState().snackbar?.actionLabel).toBe("Retry");
+
+    await useUiStore.getState().undoById(id);
+    expect(attempts).toBe(2);
+    expect(useUiStore.getState().undoStack.size).toBe(0);
+  });
+});
+
+describe("uiStore snackbar dismissal", () => {
+  it("distinguishes a displayed alert from one replaced before dismissal", () => {
+    const reasons: string[] = [];
+    const ui = useUiStore.getState();
+    ui.showSnackbar("reminder", {
+      actionLabel: "Open",
+      action: () => {},
+      onDismiss: (reason) => reasons.push(reason),
+    });
+    ui.hideSnackbar();
+    expect(reasons).toEqual(["dismissed"]);
+
+    ui.showSnackbar("reminder again", {
+      actionLabel: "Open",
+      action: () => {},
+      onDismiss: (reason) => reasons.push(reason),
+    });
+    ui.showSnackbar("urgent", { replace: true });
+    expect(reasons).toEqual(["dismissed", "replaced"]);
   });
 });
 

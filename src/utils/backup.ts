@@ -10,21 +10,26 @@ export interface BackupFile {
 }
 
 export interface ParsedBackup {
-  notes: Note[];
+  notes: unknown[];
   /** Top-level tag list (v1.3.1+); older backups omit it. */
-  tags?: Tag[];
+  tags?: unknown[];
 }
 
 /** Parses Settings backup JSON. Accepts `{notes:[...]}` or raw `[...]`. Throws on invalid shape. */
 export function parseBackupJson(text: string): ParsedBackup {
-  const parsed = JSON.parse(text) as BackupFile | Note[];
+  const parsed: unknown = JSON.parse(text);
   if (Array.isArray(parsed)) return { notes: parsed };
-  if (!Array.isArray(parsed.notes)) {
+  if (!parsed || typeof parsed !== "object" || !Array.isArray((parsed as { notes?: unknown }).notes)) {
     throw new Error("Not a NoteFlow backup file.");
   }
+  const backup = parsed as { notes: unknown[]; tags?: unknown };
   return {
-    notes: parsed.notes,
-    tags: Array.isArray(parsed.tags) ? parsed.tags : undefined,
+    notes: backup.notes,
+    // Preserve a malformed top-level tag value as one invalid entry so the
+    // importer reports it instead of silently dropping that part of a file.
+    tags: backup.tags === undefined
+      ? undefined
+      : Array.isArray(backup.tags) ? backup.tags : [backup.tags],
   };
 }
 

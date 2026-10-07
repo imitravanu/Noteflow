@@ -25,7 +25,7 @@ describe("parseBackupJson", () => {
   it("accepts wrapped (with/without tags) and raw shapes", () => {
     const wrapped = JSON.stringify({ version: "1.2.0", notes: [note("a")] });
     const parsed = parseBackupJson(wrapped);
-    expect(parsed.notes.map((n) => n.id)).toEqual(["a"]);
+    expect(parsed.notes).toMatchObject([{ id: "a" }]);
     expect(parsed.tags).toBeUndefined(); // v1.3.0 backups: no top-level tags
 
     const withTags = JSON.stringify({
@@ -33,11 +33,14 @@ describe("parseBackupJson", () => {
       tags: [{ id: "t1", name: "work" }] satisfies Tag[],
     });
     const p2 = parseBackupJson(withTags);
-    expect(p2.notes.map((n) => n.id)).toEqual(["b"]);
+    expect(p2.notes).toMatchObject([{ id: "b" }]);
     expect(p2.tags).toEqual([{ id: "t1", name: "work" }]);
 
     const raw = JSON.stringify([note("c")]);
-    expect(parseBackupJson(raw).notes.map((n) => n.id)).toEqual(["c"]);
+    expect(parseBackupJson(raw).notes).toMatchObject([{ id: "c" }]);
+
+    expect(parseBackupJson(JSON.stringify({ notes: [note("d")], tags: { bad: true } })).tags)
+      .toEqual([{ bad: true }]);
   });
 
   it("rejects non-backup files", () => {

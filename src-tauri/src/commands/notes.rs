@@ -3,7 +3,7 @@ use tauri::State;
 use crate::commands::{lock_conn, AppState};
 use crate::error::AppResult;
 use crate::models::{FlagPatch, Note, NotePatch, NoteView, Tag};
-use crate::services::note_service::{self, Counts, ImportReport};
+use crate::services::note_service::{self, Counts, FlagRestore, ImportReport, TagRestore};
 
 #[tauri::command(async)]
 pub fn list_notes(
@@ -51,6 +51,21 @@ pub fn set_flags_bulk(
 }
 
 #[tauri::command(async)]
+pub fn restore_flags_bulk(
+    state: State<'_, AppState>,
+    entries: Vec<FlagRestore>,
+) -> AppResult<usize> {
+    let conn = lock_conn(&state)?;
+    note_service::restore_flags_bulk(&conn, &entries)
+}
+
+#[tauri::command(async)]
+pub fn restore_tags_bulk(state: State<'_, AppState>, entries: Vec<TagRestore>) -> AppResult<usize> {
+    let conn = lock_conn(&state)?;
+    note_service::restore_tags_bulk(&conn, &entries)
+}
+
+#[tauri::command(async)]
 pub fn export_backup_snapshot(
     state: State<'_, AppState>,
 ) -> AppResult<note_service::BackupSnapshot> {
@@ -63,17 +78,17 @@ pub fn export_backup_snapshot(
 #[tauri::command(async)]
 pub fn import_backup(
     state: State<'_, AppState>,
-    notes: Vec<Note>,
-    tags: Option<Vec<Tag>>,
+    notes: Vec<serde_json::Value>,
+    tags: Option<Vec<serde_json::Value>>,
 ) -> AppResult<ImportReport> {
     let conn = lock_conn(&state)?;
-    note_service::import_backup(&conn, &notes, tags.as_deref().unwrap_or(&[]))
+    note_service::import_backup_values(&conn, notes, tags.unwrap_or_default())
 }
 
 #[tauri::command(async)]
-pub fn trash_notes(state: State<'_, AppState>, ids: Vec<String>) -> AppResult<usize> {
+pub fn trash_notes(state: State<'_, AppState>, ids: Vec<String>) -> AppResult<Vec<String>> {
     let conn = lock_conn(&state)?;
-    note_service::trash_notes(&conn, &ids)
+    note_service::trash_notes_changed(&conn, &ids)
 }
 
 #[tauri::command(async)]
@@ -132,9 +147,19 @@ pub fn set_reminder(
     note_service::set_reminder(&conn, &id, reminder_at)
 }
 
-/// Returns (and consumes) the oldest due reminder, if one is waiting.
+/// Returns the oldest due reminder without consuming it.
 #[tauri::command(async)]
-pub fn take_due_reminder(state: State<'_, AppState>) -> AppResult<Option<Note>> {
+pub fn peek_due_reminder(state: State<'_, AppState>) -> AppResult<Option<Note>> {
     let conn = lock_conn(&state)?;
-    note_service::take_due_reminder(&conn, note_service::now_millis())
+    note_service::peek_due_reminder(&conn, note_service::now_millis())
+}
+
+#[tauri::command(async)]
+pub fn acknowledge_reminder(
+    state: State<'_, AppState>,
+    id: String,
+    expected_at: i64,
+) -> AppResult<bool> {
+    let conn = lock_conn(&state)?;
+    note_service::acknowledge_reminder(&conn, &id, expected_at)
 }

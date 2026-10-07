@@ -26,11 +26,17 @@ fn sanitize_color(color: &str) -> &str {
 /// clock jumps backwards (NTP corrections, VM snapshots).
 static LAST_MILLIS: AtomicI64 = AtomicI64::new(0);
 
-pub fn now_millis() -> i64 {
-    let now = SystemTime::now()
+pub const MAX_FUTURE_SKEW_MS: i64 = 100 * 365 * 24 * 60 * 60 * 1000;
+
+pub fn wall_millis() -> i64 {
+    SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis() as i64)
-        .unwrap_or(0);
+        .unwrap_or(0)
+}
+
+pub fn now_millis() -> i64 {
+    let now = wall_millis();
     let mut last = LAST_MILLIS.load(Ordering::Relaxed);
     loop {
         // Monotonic: never go backwards, and never hand out the same
@@ -127,13 +133,6 @@ fn attach_tags(conn: &Connection, mut notes: Vec<Note>) -> AppResult<Vec<Note>> 
         note.tags = tags_by_note.remove(&note.id).unwrap_or_default();
     }
     Ok(notes)
-}
-
-fn escape_like(query: &str) -> String {
-    query
-        .replace('\\', "\\\\")
-        .replace('%', "\\%")
-        .replace('_', "\\_")
 }
 
 /// Shortest query the trigram index can answer (FTS5 trigram tokens are three
@@ -308,6 +307,95 @@ pub fn set_flags_bulk(conn: &Connection, ids: &[String], flags: &FlagPatch) -> A
     Ok(total)
 }
 
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FlagRestore {
+    pub id: String,
+    pub pinned: Option<bool>,
+    pub favorite: Option<bool>,
+    pub archived: Option<bool>,
+}
+
+/// Restores a batch's previous flags in one transaction, so Undo cannot
+/// leave the first half changed when a later ID is missing or invalid.
+pub fn restore_flags_bulk(conn: &Connection, entries: &[FlagRestore]) -> AppResult<usize> {
+    let tx = conn.unchecked_transaction()?;
+    let mut changed = 0;
+    for entry in entries {
+        let count = tx.execute(
+            "UPDATE notes SET
+                pinned = COALESCE(?1, pinned),
+                favorite = COALESCE(?2, favorite),
+                archived = COALESCE(?3, archived)
+             WHERE id = ?4",
+            params![
+                entry.pinned.map(i64::from),
+                entry.favorite.map(i64::from),
+                entry.archived.map(i64::from),
+                entry.id,
+            ],
+        )?;
+        if count == 0 {
+            return Err(AppError::NotFound(
+                "A note in this Undo no longer exists.".into(),
+            ));
+        }
+        changed += count;
+    }
+    tx.commit()?;
+    Ok(changed)
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TagRestore {
+    pub note_id: String,
+    pub tag_ids: Vec<String>,
+}
+
+/// Replaces multiple notes' tag sets atomically for Undo.
+pub fn restore_tags_bulk(conn: &Connection, entries: &[TagRestore]) -> AppResult<usize> {
+    let tx = conn.unchecked_transaction()?;
+    for entry in entries {
+        let exists: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM notes WHERE id = ?1",
+            params![entry.note_id],
+            |row| row.get(0),
+        )?;
+        if exists == 0 {
+            return Err(AppError::NotFound(
+                "A note in this Undo no longer exists.".into(),
+            ));
+        }
+        for tag_id in &entry.tag_ids {
+            let exists: i64 = tx.query_row(
+                "SELECT COUNT(*) FROM tags WHERE id = ?1",
+                params![tag_id],
+                |row| row.get(0),
+            )?;
+            if exists == 0 {
+                return Err(AppError::NotFound(
+                    "A tag in this Undo no longer exists.".into(),
+                ));
+            }
+        }
+    }
+    for entry in entries {
+        tx.execute(
+            "DELETE FROM note_tags WHERE note_id = ?1",
+            params![entry.note_id],
+        )?;
+        for tag_id in &entry.tag_ids {
+            tx.execute(
+                "INSERT INTO note_tags (note_id, tag_id) VALUES (?1, ?2)",
+                params![entry.note_id, tag_id],
+            )?;
+        }
+    }
+    tx.commit()?;
+    Ok(entries.len())
+}
+
 /// Sets (or, with `None`, clears) a note's reminder.
 ///
 /// Reminders are metadata, so — like flags — they deliberately leave
@@ -330,15 +418,11 @@ pub fn set_reminder(conn: &Connection, id: &str, reminder_at: Option<i64>) -> Ap
     Ok(note)
 }
 
-/// Hands back the oldest due reminder and clears it inside the same
-/// transaction. Claiming it is what makes firing exactly-once: a later poll (or
-/// a second window) can never announce the same reminder twice, and one that
-/// came due while the app was closed still fires on the next launch rather than
-/// piling up. One reminder per call keeps a backlog surfacing one snackbar at a
-/// time instead of silently overwriting the earlier ones.
-pub fn take_due_reminder(conn: &Connection, now: i64) -> AppResult<Option<Note>> {
-    let tx = conn.unchecked_transaction()?;
-    let due_id: Option<String> = tx
+/// Returns the oldest due reminder without consuming it. The frontend
+/// acknowledges it only after the alert leaves the screen, so a crash before
+/// display or dismissal retries the reminder on the next launch.
+pub fn peek_due_reminder(conn: &Connection, now: i64) -> AppResult<Option<Note>> {
+    let due_id: Option<String> = conn
         .query_row(
             "SELECT id FROM notes
               WHERE deleted = 0 AND archived = 0
@@ -350,17 +434,16 @@ pub fn take_due_reminder(conn: &Connection, now: i64) -> AppResult<Option<Note>>
         )
         .optional()?;
 
-    let Some(id) = due_id else {
-        return Ok(None); // nothing to claim: the transaction rolls back as a no-op
-    };
+    due_id.map(|id| get_note(conn, &id)).transpose()
+}
 
-    tx.execute(
-        "UPDATE notes SET reminder_at = NULL WHERE id = ?1",
-        params![id],
-    )?;
-    let note = get_note(&tx, &id)?;
-    tx.commit()?;
-    Ok(Some(note))
+/// Clears only the schedule that was shown. If the user rescheduled the note
+/// while the toast was visible, acknowledging the old alert cannot erase it.
+pub fn acknowledge_reminder(conn: &Connection, id: &str, expected_at: i64) -> AppResult<bool> {
+    Ok(conn.execute(
+        "UPDATE notes SET reminder_at = NULL WHERE id = ?1 AND reminder_at = ?2",
+        params![id, expected_at],
+    )? > 0)
 }
 
 /// Full note list for internal callers, regardless of the current view.
@@ -393,6 +476,25 @@ pub struct BackupSnapshot {
 
 pub fn export_backup_snapshot(conn: &Connection) -> AppResult<BackupSnapshot> {
     let tx = conn.unchecked_transaction()?;
+    // Refuse an oversized snapshot before deserializing every row and sending
+    // duplicate copies through IPC and the webview. The frontend checks the
+    // exact serialized JSON size before writing it to disk.
+    let note_bytes: i64 = tx.query_row(
+        "SELECT COALESCE(SUM(LENGTH(id) + LENGTH(title) + LENGTH(content) +
+                             LENGTH(checklist) + 1024), 0) FROM notes",
+        [],
+        |row| row.get(0),
+    )?;
+    let tag_bytes: i64 = tx.query_row(
+        "SELECT COALESCE(SUM(LENGTH(id) + LENGTH(name) + 256), 0) FROM tags",
+        [],
+        |row| row.get(0),
+    )?;
+    if note_bytes.saturating_add(tag_bytes) > 128 * 1024 * 1024 {
+        return Err(AppError::Invalid(
+            "Backup exceeds the 128 MB file limit. Your notes were not changed.".into(),
+        ));
+    }
     let notes = attach_tags(&tx, read_all_notes(&tx)?)?;
     let tags = crate::services::tag_service::list_tags(&tx)?;
     tx.commit()?;
@@ -407,6 +509,41 @@ pub fn export_backup_snapshot(conn: &Connection) -> AppResult<BackupSnapshot> {
 pub struct ImportReport {
     pub inserted: usize,
     pub skipped: usize,
+    pub normalized_dates: usize,
+}
+
+/// Deserializes entries independently so one malformed note cannot prevent
+/// valid notes in the same backup from being restored.
+pub fn import_backup_values(
+    conn: &Connection,
+    notes: Vec<serde_json::Value>,
+    extra_tags: Vec<serde_json::Value>,
+) -> AppResult<ImportReport> {
+    let mut invalid = 0;
+    let parsed_notes: Vec<Note> = notes
+        .into_iter()
+        .filter_map(|value| match serde_json::from_value(value) {
+            Ok(note) => Some(note),
+            Err(_) => {
+                invalid += 1;
+                None
+            }
+        })
+        .collect();
+    let parsed_tags: Vec<Tag> = extra_tags
+        .into_iter()
+        .filter_map(|value| match serde_json::from_value(value) {
+            Ok(tag) => Some(tag),
+            Err(_) => {
+                invalid += 1;
+                None
+            }
+        })
+        .collect();
+
+    let mut report = import_backup(conn, &parsed_notes, &parsed_tags)?;
+    report.skipped += invalid;
+    Ok(report)
 }
 
 /// Restore from a Settings backup file. Never overwrites: existing ids are
@@ -425,19 +562,10 @@ pub fn import_backup(
     let mut report = ImportReport {
         inserted: 0,
         skipped: 0,
+        normalized_dates: 0,
     };
     if notes.is_empty() && extra_tags.is_empty() {
         return Ok(report);
-    }
-    if notes.len() > 5000 {
-        return Err(AppError::Invalid(
-            "Backup holds too many notes (max 5000).".into(),
-        ));
-    }
-    if extra_tags.len() > 5000 {
-        return Err(AppError::Invalid(
-            "Backup holds too many tags (max 5000).".into(),
-        ));
     }
     let tx = conn.unchecked_transaction()?;
 
@@ -473,6 +601,7 @@ pub fn import_backup(
         )?;
     }
 
+    let max_date = wall_millis().saturating_add(MAX_FUTURE_SKEW_MS);
     for note in notes {
         if note.id.trim().is_empty() || note.id.len() > 64 {
             report.skipped += 1; // unusable id — the note can never come back
@@ -501,14 +630,19 @@ pub fn import_backup(
             AppError::Internal(format!("Could not restore the checklist: {e}"))
         })?;
         let color = sanitize_color(note.color.trim()).to_string();
-        let created = if note.created_at > 0 {
+        // Malformed backups may carry i64::MAX or dates beyond the range a
+        // real note can reasonably have. Never feed those into the monotonic
+        // clock: it would then stop issuing increasing timestamps.
+        let created = if note.created_at > 0 && note.created_at <= max_date {
             note.created_at
         } else {
+            report.normalized_dates += 1;
             now_millis()
         };
-        let updated = if note.updated_at >= created {
+        let updated = if note.updated_at >= created && note.updated_at <= max_date {
             note.updated_at
         } else {
+            report.normalized_dates += 1;
             created
         };
         // Fold the foreign clock into ours so a fast-clock backup can never
@@ -573,28 +707,45 @@ fn ids_placeholders(ids: &[String]) -> String {
     vec!["?"; ids.len()].join(",")
 }
 
-pub fn trash_notes(conn: &Connection, ids: &[String]) -> AppResult<usize> {
+pub fn trash_notes_changed(conn: &Connection, ids: &[String]) -> AppResult<Vec<String>> {
     if ids.is_empty() {
-        return Ok(0);
+        return Ok(Vec::new());
     }
     let tx = conn.unchecked_transaction()?;
     let now = now_millis();
-    let mut total = 0;
+    let mut changed = Vec::new();
     for chunk in ids.chunks(CHUNK_SIZE) {
+        let find_sql = format!(
+            "SELECT id FROM notes WHERE deleted = 0 AND id IN ({})",
+            ids_placeholders(chunk)
+        );
+        let mut find = tx.prepare(&find_sql)?;
+        let active: Vec<String> = find
+            .query_map(rusqlite::params_from_iter(chunk), |row| row.get(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        drop(find);
+        if active.is_empty() {
+            continue;
+        }
         let sql = format!(
             "UPDATE notes SET deleted = 1, deleted_at = ?1 WHERE id IN ({}) AND deleted = 0",
-            ids_placeholders(chunk)
+            ids_placeholders(&active)
         );
         let mut stmt = tx.prepare(&sql)?;
         let bound = std::iter::once(rusqlite::types::Value::Integer(now)).chain(
-            chunk
+            active
                 .iter()
                 .map(|id| rusqlite::types::Value::Text(id.clone())),
         );
-        total += stmt.execute(rusqlite::params_from_iter(bound))?;
+        stmt.execute(rusqlite::params_from_iter(bound))?;
+        changed.extend(active);
     }
     tx.commit()?;
-    Ok(total)
+    Ok(changed)
+}
+
+pub fn trash_notes(conn: &Connection, ids: &[String]) -> AppResult<usize> {
+    Ok(trash_notes_changed(conn, ids)?.len())
 }
 
 /// Restores trashed notes to the active list. `archived` is cleared too, so
@@ -764,6 +915,7 @@ pub fn list_notes(
 ) -> AppResult<Vec<Note>> {
     let mut where_parts: Vec<&str> = Vec::new();
     let mut filter_params: Vec<String> = Vec::new();
+    let mut short_query: Option<String> = None;
 
     match view {
         NoteView::All => where_parts.push("deleted = 0 AND archived = 0"),
@@ -812,36 +964,14 @@ pub fn list_notes(
                 filter_params.push(fts_literal(q));
                 filter_params.push(fts_literal(q));
             } else {
-                // 1–2 characters: shorter than a trigram, so the index cannot
-                // answer it. Escaped LIKE keeps the pre-1.4 behaviour (and its
-                // ASCII-only case folding) for these two cases.
-                where_parts.push(
-                    "(title LIKE ? ESCAPE '\\' OR content LIKE ? ESCAPE '\\'
-                      OR EXISTS (
-                          SELECT 1 FROM json_each(
-                              CASE WHEN json_valid(notes.checklist)
-                                   THEN notes.checklist ELSE '[]' END
-                          )
-                          WHERE json_extract(value, '$.text') LIKE ? ESCAPE '\\'
-                      )
-                      OR EXISTS (
-                          SELECT 1 FROM note_tags nt JOIN tags t ON t.id = nt.tag_id
-                          WHERE nt.note_id = notes.id AND t.name LIKE ? ESCAPE '\\'
-                      ))",
-                );
-                let pattern = format!("%{}%", escape_like(q));
-                // Title + body patterns, then checklist item text and tag name.
-                filter_params.push(pattern.clone());
-                filter_params.push(pattern.clone());
-                filter_params.push(pattern.clone());
-                filter_params.push(pattern);
+                // FTS5 trigram cannot index a 1–2 character needle. Search
+                // the selected view in Rust so these queries still fold
+                // Unicode case, including checklist text and tag names.
+                short_query = Some(q.to_lowercase());
             }
         }
     }
 
-    // NOTE: the indexed arms above fold unicode case correctly; the 1–2
-    // character fallback keeps SQLite LIKE's ASCII-only folding, which is the
-    // one remaining gap (trigram tokens are three characters wide).
     let sql = format!(
         "SELECT {NOTE_COLUMNS} FROM notes WHERE {} ORDER BY {order_by}",
         where_parts.join(" AND ")
@@ -855,7 +985,22 @@ pub fn list_notes(
         )?
         .collect::<rusqlite::Result<Vec<_>>>()?;
 
-    attach_tags(conn, notes)
+    let mut notes = attach_tags(conn, notes)?;
+    if let Some(needle) = short_query {
+        notes.retain(|note| {
+            note.title.to_lowercase().contains(&needle)
+                || note.content.to_lowercase().contains(&needle)
+                || note
+                    .checklist
+                    .iter()
+                    .any(|item| item.text.to_lowercase().contains(&needle))
+                || note
+                    .tags
+                    .iter()
+                    .any(|tag| tag.name.to_lowercase().contains(&needle))
+        });
+    }
+    Ok(notes)
 }
 
 #[derive(Debug, serde::Serialize)]

@@ -1,4 +1,4 @@
-use rusqlite::Connection;
+use rusqlite::{params, Connection};
 
 use crate::error::AppResult;
 
@@ -68,7 +68,8 @@ macro_rules! checklist_text {
 /// substring* search (`"oat milk"` matches "buy oat milk") while still folding
 /// unicode case, which plain `LIKE` only does for ASCII ("CAFÉ" now finds
 /// "Café"). Trigrams are also what forces the 3-character minimum: queries
-/// shorter than that are answered by the `LIKE` fallback in `note_service`.
+/// shorter than that are answered by a Unicode-folding scan of the selected
+/// view in `note_service`.
 ///
 /// `notes_fts` and `tags_fts` are addressed by the *rowid* of their source
 /// table (`notes.rowid` / `tags.rowid`) so search can join back with an index
@@ -148,6 +149,28 @@ pub fn run(conn: &Connection) -> AppResult<()> {
         tx.execute_batch(&backfill_notes)?;
         tx.execute_batch("INSERT INTO tags_fts(rowid, name) SELECT rowid, name FROM tags;")?;
         tx.pragma_update(None, "user_version", 2)?;
+        tx.commit()?;
+    }
+
+    if version < 3 {
+        // Older imports could store extreme timestamps, which kept those
+        // notes above every later edit and could exceed JavaScript Date's
+        // range. Preserve the notes while normalizing only invalid dates.
+        let now = crate::services::note_service::wall_millis();
+        let max_date = now.saturating_add(crate::services::note_service::MAX_FUTURE_SKEW_MS);
+        let tx = conn.unchecked_transaction()?;
+        tx.execute(
+            "UPDATE notes
+             SET created_at = CASE WHEN created_at <= 0 OR created_at > ?1 THEN ?2 ELSE created_at END,
+                 updated_at = CASE WHEN updated_at <= 0 OR updated_at > ?1 THEN ?2 ELSE updated_at END
+             WHERE created_at <= 0 OR created_at > ?1 OR updated_at <= 0 OR updated_at > ?1",
+            params![max_date, now],
+        )?;
+        tx.execute(
+            "UPDATE notes SET updated_at = created_at WHERE updated_at < created_at",
+            [],
+        )?;
+        tx.pragma_update(None, "user_version", 3)?;
         tx.commit()?;
     }
 

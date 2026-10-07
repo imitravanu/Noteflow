@@ -1,13 +1,13 @@
 import { useUiStore } from "../store/uiStore";
 import {
   checkForUpdate,
-  installPendingUpdate,
   openReleasePage,
   relaunchApp,
   type AppUpdateInfo,
 } from "./updater";
 
 type SnackbarOpts = Parameters<ReturnType<typeof useUiStore.getState>["showSnackbar"]>[1];
+const announced = new WeakSet<AppUpdateInfo>();
 
 function toast(message: string, opts?: SnackbarOpts): void {
   useUiStore.getState().showSnackbar(message, opts);
@@ -19,17 +19,27 @@ function toast(message: string, opts?: SnackbarOpts): void {
  * then run end-to-end without further prompts.
  */
 export function announceUpdate(info: AppUpdateInfo): void {
+  if (announced.has(info)) return;
+  announced.add(info);
+  let started = false;
   toast(`NoteFlow v${info.version} is available`, {
     actionLabel: "Update",
-    action: () => void runUpdate(info.version),
+    action: () => {
+      started = true;
+      void runUpdate(info);
+    },
+    onDismiss: () => {
+      if (!started) void info.close();
+    },
   });
 }
 
-async function runUpdate(version: string): Promise<void> {
+async function runUpdate(info: AppUpdateInfo): Promise<void> {
+  const version = info.version;
   // `replace` claims the slot: the clicked "Update" toast hid itself, and a
   // progress readout may never sit behind the queue.
   toast(`Updating to v${version}…`, { replace: true });
-  const installed = await installPendingUpdate((percent) => {
+  const installed = await info.install((percent) => {
     toast(`Updating to v${version}… ${percent}%`, { replace: true });
   });
   if (installed) {
@@ -40,9 +50,9 @@ async function runUpdate(version: string): Promise<void> {
     }, 900);
     return;
   }
-  // The system .deb cannot replace its own binary in place — send the user to
-  // the signed release assets instead of dead-ending on a plugin error.
-  toast(`Auto-install is unavailable for this package — download v${version} manually.`, {
+  // A .deb package, failed download, or failed signature check can all reject
+  // installation. Report only what is known, then offer the release details.
+  toast(`Automatic installation failed. NoteFlow was not updated. View v${version} release details.`, {
     replace: true,
     actionLabel: "Open",
     action: () => void openReleasePage(version).catch(() => {}),

@@ -52,6 +52,13 @@ export class UndoStack {
     return this.entries.splice(index, 1)[0];
   }
 
+  /** Returns a failed Undo to its original identity for a retry. */
+  restore(entry: UndoEntry): void {
+    if (this.entries.some((item) => item.id === entry.id)) return;
+    this.entries.push(entry);
+    if (this.entries.length > this.cap) this.entries.shift();
+  }
+
   clear(): void {
     this.entries = [];
   }
@@ -84,4 +91,3 @@ export function expandRangeSelection(
   }
   return result;
 }
-

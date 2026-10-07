@@ -64,7 +64,10 @@ export function NotesGrid({ notes, showPinnedSection }: NotesGridProps) {
 
   const pinned = showPinnedSection ? notes.filter((n) => n.pinned) : [];
   const regular = showPinnedSection ? notes.filter((n) => !n.pinned) : notes;
-  const visibleRegular = regular.slice(0, visibleCount);
+  // The page limit covers both sections. A large pinned collection must not
+  // mount every card before the regular section starts paging.
+  const visiblePinned = pinned.slice(0, visibleCount);
+  const visibleRegular = regular.slice(0, Math.max(0, visibleCount - pinned.length));
   const selectedSet = useMemo(() => new Set(selection), [selection]);
 
   const renderCards = (list: Note[], delayOffset = 0) =>
@@ -95,14 +98,16 @@ export function NotesGrid({ notes, showPinnedSection }: NotesGridProps) {
           <h2 className="section-title">
             <Pin size={13} aria-hidden="true" /> Pinned
           </h2>
-          <div className="notes-grid">{renderCards(pinned)}</div>
+          <div className="notes-grid">{renderCards(visiblePinned)}</div>
         </section>
       )}
-      <section aria-label="Notes">
-        {pinned.length > 0 && regular.length > 0 && <h2 className="section-title">Others</h2>}
-        <div className="notes-grid">{renderCards(visibleRegular, Math.min(pinned.length, 20))}</div>
-      </section>
-      {visibleCount < regular.length && <div ref={sentinelRef} className="grid-sentinel" />}
+      {visibleRegular.length > 0 && (
+        <section aria-label="Notes">
+          {pinned.length > 0 && <h2 className="section-title">Others</h2>}
+          <div className="notes-grid">{renderCards(visibleRegular, Math.min(pinned.length, 20))}</div>
+        </section>
+      )}
+      {visibleCount < notes.length && <div ref={sentinelRef} className="grid-sentinel" />}
     </div>
   );
 }

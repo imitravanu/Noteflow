@@ -80,6 +80,7 @@ export interface ImportReport {
   inserted: number;
   /** Entries rejected for being oversized or invalid (never silently hidden). */
   skipped: number;
+  normalizedDates: number;
 }
 
 /** Notes and orphan tags read from one backend snapshot for backup export. */

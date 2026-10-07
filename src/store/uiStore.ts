@@ -18,6 +18,8 @@ export interface SnackbarState {
   message: string;
   actionLabel?: string;
   action?: () => void;
+  persistent?: boolean;
+  onDismiss?: (reason: "dismissed" | "replaced") => void;
 }
 
 export interface ConfirmConfig {
@@ -106,9 +108,11 @@ interface UiState {
        *  actionable toast is showing — its affordance was just used, so it
        *  must not sit in front of the queue forever. */
       replace?: boolean;
+      persistent?: boolean;
+      onDismiss?: (reason: "dismissed" | "replaced") => void;
     },
   ) => void;
-  hideSnackbar: () => void;
+  hideSnackbar: (expectedId?: number) => void;
   askConfirm: (config: ConfirmConfig) => void;
   closeConfirm: () => void;
 
@@ -245,6 +249,8 @@ export const useUiStore = create<UiState>((set, get) => ({
       message,
       actionLabel: opts?.actionLabel,
       action: undoId != null ? () => void get().undoById(undoId) : opts?.action,
+      persistent: opts?.persistent,
+      onDismiss: opts?.onDismiss,
     };
     // A visible toast whose affordance is still live (Undo, reminder "Open")
     // is never overwritten: the newcomer waits its turn instead. A toast with
@@ -253,16 +259,23 @@ export const useUiStore = create<UiState>((set, get) => ({
     // because the clicked toast hid itself before this call ran.
     const current = get().snackbar;
     if (current?.action && !opts?.replace) {
-      set({ snackbarQueue: [...get().snackbarQueue, entry].slice(-SNACKBAR_QUEUE_MAX) });
+      const queue = [...get().snackbarQueue, entry];
+      const dropped = queue.splice(0, Math.max(0, queue.length - SNACKBAR_QUEUE_MAX));
+      set({ snackbarQueue: queue });
+      dropped.forEach((item) => item.onDismiss?.("replaced"));
     } else {
       set({ snackbar: entry });
+      current?.onDismiss?.("replaced");
     }
   },
-  hideSnackbar: () => {
+  hideSnackbar: (expectedId) => {
     // Auto-hide / manual dismiss advances the queue, so a protected toast's
     // replacement surfaces instead of being lost.
+    const current = get().snackbar;
+    if (expectedId !== undefined && current?.id !== expectedId) return;
     const [next, ...rest] = get().snackbarQueue;
     set({ snackbar: next ?? null, snackbarQueue: rest });
+    current?.onDismiss?.("dismissed");
   },
 
   askConfirm: (config) => set({ confirm: config }),
@@ -336,10 +349,17 @@ export const useUiStore = create<UiState>((set, get) => ({
       get().showSnackbar("That action can no longer be undone.", { replace: true });
       return;
     }
-    await entry.undo();
-    // Outcome of the toast the user just acted on: claim the slot outright
-    // instead of queueing behind (or duplicating with) the toast in view.
-    get().showSnackbar(`Undid: ${entry.label}`, { replace: true });
+    try {
+      await entry.undo();
+      get().showSnackbar(`Undid: ${entry.label}`, { replace: true });
+    } catch (error) {
+      get().undoStack.restore(entry);
+      get().showSnackbar(`Could not undo: ${errText(error)}`, {
+        replace: true,
+        actionLabel: "Retry",
+        undoId: entry.id,
+      });
+    }
   },
 
   undo: async () => {
@@ -348,8 +368,17 @@ export const useUiStore = create<UiState>((set, get) => ({
       get().showSnackbar("Nothing to undo.");
       return;
     }
-    await entry.undo();
-    get().showSnackbar(`Undid: ${entry.label}`, { replace: true });
+    try {
+      await entry.undo();
+      get().showSnackbar(`Undid: ${entry.label}`, { replace: true });
+    } catch (error) {
+      get().undoStack.restore(entry);
+      get().showSnackbar(`Could not undo: ${errText(error)}`, {
+        replace: true,
+        actionLabel: "Retry",
+        undoId: entry.id,
+      });
+    }
   },
 }));
 

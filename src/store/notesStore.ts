@@ -216,14 +216,17 @@ export const useNotesStore = create<NotesState>((set, get) => ({
                 : `Unarchive ${ids.length} notes`
               : `Update ${ids.length} notes`;
       const undoId = ui.registerUndo(label, async () => {
-        await Promise.all(
-          ids.map((id) => {
+        await api.restoreFlagsBulk(
+          ids.flatMap((id) => {
             const prev = before.get(id);
-            return api.setFlags(id, {
-              pinned: flags.pinned !== undefined ? prev?.pinned : undefined,
-              favorite: flags.favorite !== undefined ? prev?.favorite : undefined,
-              archived: flags.archived !== undefined ? prev?.archived : undefined,
-            });
+            return prev
+              ? [{
+                  id,
+                  pinned: flags.pinned !== undefined ? prev.pinned : undefined,
+                  favorite: flags.favorite !== undefined ? prev.favorite : undefined,
+                  archived: flags.archived !== undefined ? prev.archived : undefined,
+                }]
+              : [];
           }),
         );
         await get().refresh();
@@ -247,16 +250,17 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     const ui = useUiStore.getState();
     if (!ids.length) return false;
     try {
-      const count = await api.trashNotes(ids);
+      const changedIds = await api.trashNotes(ids);
+      const count = changedIds.length;
       if (count === 0) {
         await get().refresh();
         ui.showSnackbar("Nothing to move — those notes are no longer active.");
         return false;
       }
-      set({ notes: get().notes.filter((n) => !ids.includes(n.id)) });
+      set({ notes: get().notes.filter((n) => !changedIds.includes(n.id)) });
       await get().refresh();
       const undoId = ui.registerUndo("Move to Trash", async () => {
-        const restored = await api.restoreNotes(ids);
+        const restored = await api.restoreNotes(changedIds);
         await get().refresh();
         if (restored === 0) {
           useUiStore.getState().showSnackbar("Nothing to undo — already deleted.");
@@ -299,7 +303,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
       const undoId = ui.registerUndo("Restore note", async () => {
         const reTrashed = await api.trashNotes(ids);
         await get().refresh();
-        if (reTrashed === 0) {
+        if (reTrashed.length === 0) {
           useUiStore.getState().showSnackbar("Nothing to undo — already deleted.");
         } else {
           ui.showSnackbar("Undid: Restore note");
@@ -385,12 +389,11 @@ export const useNotesStore = create<NotesState>((set, get) => ({
       useUiStore.getState().clearSelectionIfUnchanged(ids);
       await get().refresh();
       const undoId = ui.registerUndo(apply ? "Tag notes" : "Untag notes", async () => {
-        // Restore each note's exact previous set; FK-safe because refresh
-        // just re-read the world this action created.
-        await Promise.all(
-          [...before.entries()].map(([noteId, tags]) =>
-            api.setNoteTags(noteId, tags.map((t) => t.id)),
-          ),
+        await api.restoreTagsBulk(
+          [...before.entries()].map(([noteId, tags]) => ({
+            noteId,
+            tagIds: tags.map((tag) => tag.id),
+          })),
         );
         await get().refresh();
       });

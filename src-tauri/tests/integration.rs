@@ -324,6 +324,19 @@ fn trash_restore_and_permanent_delete() {
 }
 
 #[test]
+fn trash_reports_only_ids_it_newly_changed() {
+    let conn = temp_db();
+    let active = note_service::create_note(&conn, None).unwrap();
+    let already_trashed = note_service::create_note(&conn, None).unwrap();
+    note_service::trash_notes(&conn, std::slice::from_ref(&already_trashed.id)).unwrap();
+
+    let changed =
+        note_service::trash_notes_changed(&conn, &[active.id.clone(), already_trashed.id.clone()])
+            .unwrap();
+    assert_eq!(changed, vec![active.id]);
+}
+
+#[test]
 fn settings_roundtrip() {
     let conn = temp_db();
     assert_eq!(settings_service::get_setting(&conn, "theme").unwrap(), None);
@@ -756,6 +769,57 @@ fn bulk_flags_update_atomically() {
 }
 
 #[test]
+fn batch_undo_rolls_back_when_any_note_or_tag_is_missing() {
+    let conn = temp_db();
+    let first = note_service::create_note(&conn, None).unwrap();
+    let tag = tag_service::create_tag(&conn, "Original").unwrap();
+    note_service::set_flags(
+        &conn,
+        &first.id,
+        &FlagPatch {
+            pinned: Some(true),
+            favorite: None,
+            archived: None,
+        },
+    )
+    .unwrap();
+    note_service::set_note_tags(&conn, &first.id, std::slice::from_ref(&tag.id)).unwrap();
+
+    let flags = vec![
+        note_service::FlagRestore {
+            id: first.id.clone(),
+            pinned: Some(false),
+            favorite: None,
+            archived: None,
+        },
+        note_service::FlagRestore {
+            id: "missing".into(),
+            pinned: Some(false),
+            favorite: None,
+            archived: None,
+        },
+    ];
+    assert!(note_service::restore_flags_bulk(&conn, &flags).is_err());
+    assert!(note_service::get_note(&conn, &first.id).unwrap().pinned);
+
+    let tags = vec![
+        note_service::TagRestore {
+            note_id: first.id.clone(),
+            tag_ids: vec![],
+        },
+        note_service::TagRestore {
+            note_id: "missing".into(),
+            tag_ids: vec![tag.id.clone()],
+        },
+    ];
+    assert!(note_service::restore_tags_bulk(&conn, &tags).is_err());
+    assert_eq!(
+        note_service::get_note(&conn, &first.id).unwrap().tags.len(),
+        1
+    );
+}
+
+#[test]
 fn export_all_covers_every_view() {
     let conn = temp_db();
     let keep = note_service::create_note(&conn, None).unwrap();
@@ -1035,6 +1099,70 @@ fn imported_future_timestamps_cannot_invert_new_edits() {
 }
 
 #[test]
+fn malformed_backup_entries_are_skipped_without_losing_valid_notes() {
+    let conn = temp_db();
+    let mut valid = note_service::create_note(&conn, None).unwrap();
+    valid.id = "restored-valid".into();
+    let report = note_service::import_backup_values(
+        &conn,
+        vec![
+            serde_json::to_value(valid).unwrap(),
+            serde_json::json!({ "id": "missing-required-fields" }),
+        ],
+        vec![serde_json::json!({ "id": 42, "name": false })],
+    )
+    .unwrap();
+
+    assert_eq!(report.inserted, 1);
+    assert_eq!(report.skipped, 2);
+    assert!(note_service::get_note(&conn, "restored-valid").is_ok());
+}
+
+#[test]
+fn extreme_imported_dates_are_normalized_before_the_monotonic_clock_sees_them() {
+    let conn = temp_db();
+    let mut foreign = note_service::create_note(&conn, None).unwrap();
+    foreign.id = "extreme-date".into();
+    foreign.created_at = i64::MAX;
+    foreign.updated_at = i64::MAX;
+
+    let report = note_service::import_backup(&conn, &[foreign], &[]).unwrap();
+    assert_eq!(report.inserted, 1);
+    assert_eq!(report.normalized_dates, 2);
+    let restored = note_service::get_note(&conn, "extreme-date").unwrap();
+    let fresh = note_service::create_note(&conn, None).unwrap();
+    assert!(restored.updated_at < fresh.updated_at);
+    assert!(fresh.updated_at < i64::MAX);
+}
+
+#[test]
+fn schema_v3_repairs_extreme_dates_in_existing_databases() {
+    let dir = std::env::temp_dir().join(format!("noteflow-v3-{}", uuid::Uuid::new_v4()));
+    let conn = database::open_db(&dir).unwrap();
+    let note = note_service::create_note(&conn, None).unwrap();
+    conn.execute(
+        "UPDATE notes SET created_at = ?1, updated_at = ?1 WHERE id = ?2",
+        rusqlite::params![i64::MAX, note.id],
+    )
+    .unwrap();
+    conn.pragma_update(None, "user_version", 2).unwrap();
+    drop(conn);
+
+    let reopened = database::open_db(&dir).unwrap();
+    let repaired = note_service::get_note(&reopened, &note.id).unwrap();
+    assert!(repaired.created_at < i64::MAX);
+    assert!(repaired.updated_at < i64::MAX);
+    assert_eq!(
+        reopened
+            .query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))
+            .unwrap(),
+        3
+    );
+    drop(reopened);
+    fs::remove_dir_all(dir).ok();
+}
+
+#[test]
 fn search_folds_unicode_case_through_the_trigram_index() {
     let conn = temp_db();
     let note = note_service::create_note(&conn, None).unwrap();
@@ -1055,8 +1183,10 @@ fn search_folds_unicode_case_through_the_trigram_index() {
     // the space inside one phrase).
     assert_eq!(hits("notes"), vec![note.id.clone()]);
     assert_eq!(hits("ïve rés"), vec![note.id.clone()]);
-    // 1–2 characters are narrower than a trigram and take the LIKE fallback.
+    // 1–2 characters are narrower than a trigram but still fold Unicode case.
     assert_eq!(hits("fé"), vec![note.id.clone()]);
+    assert_eq!(hits("FÉ"), vec![note.id.clone()]);
+    assert_eq!(hits("Ï"), vec![note.id.clone()]);
     assert!(hits("zz").is_empty());
 }
 
@@ -1132,7 +1262,7 @@ fn search_index_stays_in_sync_with_edits_tags_and_deletes() {
 }
 
 #[test]
-fn reminders_are_scheduled_claimed_once_and_kept_out_of_the_edit_clock() {
+fn reminders_remain_pending_until_acknowledged_and_stay_out_of_the_edit_clock() {
     let conn = temp_db();
     let first = note_service::create_note(&conn, None).unwrap();
     let second = note_service::create_note(&conn, None).unwrap();
@@ -1145,24 +1275,34 @@ fn reminders_are_scheduled_claimed_once_and_kept_out_of_the_edit_clock() {
     note_service::set_reminder(&conn, &second.id, Some(1_000)).unwrap();
 
     // Nothing is handed out early, and the oldest due reminder comes first.
-    assert!(note_service::take_due_reminder(&conn, 500)
+    assert!(note_service::peek_due_reminder(&conn, 500)
         .unwrap()
         .is_none());
-    let claimed = note_service::take_due_reminder(&conn, 1_500)
+    let due = note_service::peek_due_reminder(&conn, 1_500)
         .unwrap()
         .expect("second note is due");
-    assert_eq!(claimed.id, second.id);
-    // Claiming clears it, so a later poll can never announce it twice.
-    assert_eq!(claimed.reminder_at, None);
-    assert!(note_service::take_due_reminder(&conn, 1_500)
+    assert_eq!(due.id, second.id);
+    assert_eq!(due.reminder_at, Some(1_000));
+    // A crash before acknowledgment leaves the reminder available on restart.
+    assert_eq!(
+        note_service::peek_due_reminder(&conn, 1_500)
+            .unwrap()
+            .unwrap()
+            .id,
+        second.id
+    );
+    assert!(!note_service::acknowledge_reminder(&conn, &second.id, 999).unwrap());
+    assert!(note_service::acknowledge_reminder(&conn, &second.id, 1_000).unwrap());
+    assert!(note_service::peek_due_reminder(&conn, 1_500)
         .unwrap()
         .is_none());
 
-    let claimed = note_service::take_due_reminder(&conn, 60_000)
+    let due = note_service::peek_due_reminder(&conn, 60_000)
         .unwrap()
         .expect("first note is due");
-    assert_eq!(claimed.id, first.id);
-    assert!(note_service::take_due_reminder(&conn, 60_000)
+    assert_eq!(due.id, first.id);
+    assert!(note_service::acknowledge_reminder(&conn, &first.id, 2_000).unwrap());
+    assert!(note_service::peek_due_reminder(&conn, 60_000)
         .unwrap()
         .is_none());
 
@@ -1196,15 +1336,32 @@ fn reminders_stay_quiet_for_archived_trashed_and_future_notes() {
     note_service::set_reminder(&conn, &later.id, Some(900_000)).unwrap();
 
     assert!(
-        note_service::take_due_reminder(&conn, 1_000)
+        note_service::peek_due_reminder(&conn, 1_000)
             .unwrap()
             .is_none(),
         "archived/trashed notes stay quiet and a future reminder is not due"
     );
-    let due = note_service::take_due_reminder(&conn, 900_000)
+    let due = note_service::peek_due_reminder(&conn, 900_000)
         .unwrap()
         .expect("the third note is due now");
     assert_eq!(due.id, later.id);
+}
+
+#[test]
+fn acknowledging_an_old_alert_does_not_clear_a_rescheduled_reminder() {
+    let conn = temp_db();
+    let note = note_service::create_note(&conn, None).unwrap();
+    note_service::set_reminder(&conn, &note.id, Some(1_000)).unwrap();
+    assert!(note_service::peek_due_reminder(&conn, 1_000)
+        .unwrap()
+        .is_some());
+
+    note_service::set_reminder(&conn, &note.id, Some(2_000)).unwrap();
+    assert!(!note_service::acknowledge_reminder(&conn, &note.id, 1_000).unwrap());
+    assert_eq!(
+        note_service::get_note(&conn, &note.id).unwrap().reminder_at,
+        Some(2_000)
+    );
 }
 
 #[test]
@@ -1259,7 +1416,7 @@ fn existing_v1_databases_are_indexed_and_keep_their_reminders() {
         .query_row("PRAGMA user_version", [], |r| r.get(0))
         .unwrap();
     assert_eq!(
-        version, 2,
+        version, 3,
         "the migration must record the new schema version"
     );
 
@@ -1269,12 +1426,13 @@ fn existing_v1_databases_are_indexed_and_keep_their_reminders() {
         assert_eq!(hits.len(), 1, "legacy note should match {q:?}");
         assert_eq!(hits[0].id, "legacy-1");
     }
-    // The reserved reminder column survives the upgrade and is still due.
-    let due = note_service::take_due_reminder(&conn, 43_000)
+    // The reminder column survives the upgrade and is still due.
+    let due = note_service::peek_due_reminder(&conn, 43_000)
         .unwrap()
         .expect("a legacy reminder still fires");
     assert_eq!(due.id, "legacy-1");
-    assert_eq!(due.reminder_at, None, "claiming clears it");
+    assert_eq!(due.reminder_at, Some(42_000));
+    assert!(note_service::acknowledge_reminder(&conn, &due.id, 42_000).unwrap());
 
     // Reopening an already-upgraded database must not backfill twice: a second
     // copy of each row would duplicate every search result.

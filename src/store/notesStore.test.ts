@@ -169,7 +169,7 @@ describe("notesStore.refresh (stale-response protection)", () => {
 describe("notesStore.trash / undo", () => {
   it("moves to trash, then Ctrl+Z restores through restore_notes", async () => {
     route({
-      trash_notes: () => 1,
+      trash_notes: () => ["n1"],
       restore_notes: () => 1,
       list_notes: () => [],
       list_tags: () => [],
@@ -206,6 +206,22 @@ describe("notesStore.trash / undo", () => {
     expect(useUiStore.getState().undoStack.size).toBe(0);
   });
 
+  it("undoes only notes newly moved by a mixed stale Trash request", async () => {
+    route({
+      trash_notes: () => ["active"],
+      restore_notes: () => 1,
+      list_notes: () => [],
+      list_tags: () => [],
+      get_counts: () => ({ ...ZERO_COUNTS, trash: 2 }),
+    });
+    useNotesStore.setState({ notes: [makeNote("active")] });
+
+    await useNotesStore.getState().trashNotes(["active", "already-trashed"]);
+    await useUiStore.getState().undo();
+
+    expect(mockedInvoke).toHaveBeenCalledWith("restore_notes", { ids: ["active"] });
+  });
+
   it("does not claim a permanent deletion when the note was restored", async () => {
     route({
       delete_notes_permanent: () => 0,
@@ -223,12 +239,12 @@ describe("notesStore.setTagForSelection", () => {
     const t = { id: "tag1", name: "Work" };
     useNotesStore.setState({ notes: [makeNote("a"), makeNote("b")], tags: [t] });
     useUiStore.setState({ selection: ["a", "b"] });
-    const setNoteTagsCalls: string[][] = [];
+    const restoredTagSets: Array<{ noteId: string; tagIds: string[] }>[] = [];
     route({
       set_tags_bulk: (args) => (args?.apply ? 2 : 0),
-      set_note_tags: (args) => {
-        setNoteTagsCalls.push(args!.tagIds as string[]);
-        return [t];
+      restore_tags_bulk: (args) => {
+        restoredTagSets.push(args!.entries as Array<{ noteId: string; tagIds: string[] }>);
+        return 2;
       },
       list_notes: () => [makeNote("a"), makeNote("b")],
       list_tags: () => [t],
@@ -245,7 +261,7 @@ describe("notesStore.setTagForSelection", () => {
 
     // Undo restores each note's previous (tagless) list exactly.
     await useUiStore.getState().undo();
-    expect(setNoteTagsCalls).toEqual([[], []]);
+    expect(restoredTagSets).toEqual([[{ noteId: "a", tagIds: [] }, { noteId: "b", tagIds: [] }]]);
   });
 
   it("does not clear a selection the user changed mid-flight", async () => {
@@ -279,10 +295,13 @@ describe("notesStore.setTagForSelection", () => {
     useNotesStore.setState({ notes: [makeNote("a", { tags: [work] })], tags: [work, later] });
     useUiStore.setState({ selection: ["a"] });
     let resolveWrite!: (count: number) => void;
-    const restored: string[][] = [];
+    const restored: Array<{ noteId: string; tagIds: string[] }>[] = [];
     route({
       set_tags_bulk: () => new Promise<number>((resolve) => { resolveWrite = resolve; }),
-      set_note_tags: (args) => { restored.push(args!.tagIds as string[]); return [work]; },
+      restore_tags_bulk: (args) => {
+        restored.push(args!.entries as Array<{ noteId: string; tagIds: string[] }>);
+        return 1;
+      },
       list_notes: () => [makeNote("a", { tags: [work, later] })],
       list_tags: () => [work, later],
       get_counts: () => ({ ...ZERO_COUNTS, all: 1 }),
@@ -294,6 +313,6 @@ describe("notesStore.setTagForSelection", () => {
     await pending;
     await useUiStore.getState().undo();
 
-    expect(restored).toEqual([["work"]]);
+    expect(restored).toEqual([[{ noteId: "a", tagIds: ["work"] }]]);
   });
 });

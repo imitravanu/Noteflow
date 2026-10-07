@@ -67,12 +67,13 @@ describe("updateFlow", () => {
   });
 
   it("falls back to the release page when auto-install is unavailable (.deb)", async () => {
-    mocks.check.mockResolvedValue(fakeUpdate(false));
+    const update = fakeUpdate(false);
+    mocks.check.mockResolvedValue(update);
     await checkOnLaunch();
     useUiStore.getState().snackbar?.action?.();
 
     await vi.waitFor(() => {
-      expect(useUiStore.getState().snackbar?.message).toContain("download v9.9.9 manually");
+      expect(useUiStore.getState().snackbar?.message).toContain("Automatic installation failed");
     });
     const fallback = useUiStore.getState().snackbar;
     expect(fallback?.actionLabel).toBe("Open");
@@ -82,6 +83,33 @@ describe("updateFlow", () => {
       "https://github.com/imitravanu/Noteflow/releases/tag/v9.9.9",
     );
     expect(mocks.relaunch).not.toHaveBeenCalled();
+    expect(update.close).toHaveBeenCalledOnce();
+  });
+
+  it("shares overlapping checks without queuing duplicate update actions", async () => {
+    let resolveCheck!: (update: ReturnType<typeof fakeUpdate>) => void;
+    mocks.check.mockReturnValue(new Promise((resolve) => { resolveCheck = resolve; }));
+
+    const launch = checkOnLaunch();
+    const manual = checkManually();
+    resolveCheck(fakeUpdate(true));
+    await Promise.all([launch, manual]);
+
+    expect(mocks.check).toHaveBeenCalledOnce();
+    expect(useUiStore.getState().snackbar?.actionLabel).toBe("Update");
+    expect(useUiStore.getState().snackbarQueue).toEqual([]);
+  });
+
+  it("keeps each toast bound to its own update after a newer check", async () => {
+    const first = fakeUpdate(true);
+    const second = { ...fakeUpdate(true), version: "10.0.0" };
+    mocks.check.mockResolvedValueOnce(first).mockResolvedValueOnce(second);
+
+    await checkOnLaunch();
+    await checkManually();
+    useUiStore.getState().snackbar?.action?.();
+    await vi.waitFor(() => expect(first.downloadAndInstall).toHaveBeenCalledOnce());
+    expect(second.downloadAndInstall).not.toHaveBeenCalled();
   });
 
   it("manual check reports when already up to date", async () => {
