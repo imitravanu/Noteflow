@@ -15,7 +15,7 @@ import {
 import type { Note } from "../types";
 import { useNotesStore } from "../store/notesStore";
 import { useUiStore } from "../store/uiStore";
-import { formatRelativeTime } from "../utils/format";
+import { formatRelativeTime, safeIsoDateTime } from "../utils/format";
 import { formatReminderTime } from "../utils/reminder";
 import { bodyPreview } from "../utils/highlight";
 import { Highlighted } from "./Highlighted";
@@ -324,10 +324,9 @@ export const NoteCard = memo(function NoteCard({
         </span>
         <time
           className="note-card-time"
-          dateTime={(() => {
-            const t = view === "trash" ? (note.deletedAt ?? note.updatedAt) : note.updatedAt;
-            return Number.isFinite(t) && t > 0 ? new Date(t).toISOString() : new Date().toISOString();
-          })()}
+          dateTime={safeIsoDateTime(
+            view === "trash" ? (note.deletedAt ?? note.updatedAt) : note.updatedAt,
+          )}
         >
           {formatRelativeTime(
             view === "trash" ? (note.deletedAt ?? note.updatedAt) : note.updatedAt,
@@ -360,7 +359,9 @@ function PermanentDeleteButton({ noteId }: { noteId: string }) {
           message: "This note will be permanently deleted. This cannot be undone.",
           confirmLabel: "Delete forever",
           danger: true,
-          onConfirm: () => deletePermanent([noteId]),
+          onConfirm: async () => {
+            await deletePermanent([noteId]);
+          },
         })
       }
     >

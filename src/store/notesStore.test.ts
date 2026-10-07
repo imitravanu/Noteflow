@@ -124,6 +124,46 @@ describe("notesStore.refresh (stale-response protection)", () => {
     expect(useNotesStore.getState().notes.map((n) => n.id)).toEqual(["n2"]);
     expect(useNotesStore.getState().loading).toBe(false);
   });
+
+  it("does not let a refresh from before autosave overwrite the saved note", async () => {
+    const old = makeNote("n1", { title: "old" });
+    const saved = makeNote("n1", { title: "saved", updatedAt: 3 });
+    useNotesStore.setState({ notes: [old] });
+    let resolveStale!: (notes: Note[]) => void;
+    let listCalls = 0;
+    route({
+      list_notes: () => {
+        listCalls += 1;
+        return listCalls === 1
+          ? new Promise<Note[]>((resolve) => { resolveStale = resolve; })
+          : [saved];
+      },
+      list_tags: () => [],
+      get_counts: () => ({ ...ZERO_COUNTS, all: 1 }),
+      update_note: () => saved,
+    });
+
+    const staleRefresh = useNotesStore.getState().refresh();
+    await useNotesStore.getState().updateNote("n1", { title: "saved" });
+    resolveStale([old]);
+    await staleRefresh;
+
+    expect(useNotesStore.getState().notes[0].title).toBe("saved");
+    expect(listCalls).toBe(2);
+  });
+
+  it("keeps a newer reminder and tags when an older autosave reply arrives", async () => {
+    const tag = { id: "new-tag", name: "New" };
+    useNotesStore.setState({ notes: [makeNote("n1", { reminderAt: 1000, tags: [tag] })] });
+    route({ update_note: () => makeNote("n1", { title: "saved", updatedAt: 3 }) });
+
+    await useNotesStore.getState().updateNote("n1", { title: "saved" });
+
+    const note = useNotesStore.getState().notes[0];
+    expect(note.title).toBe("saved");
+    expect(note.reminderAt).toBe(1000);
+    expect(note.tags).toEqual([tag]);
+  });
 });
 
 describe("notesStore.trash / undo", () => {
@@ -153,6 +193,28 @@ describe("notesStore.trash / undo", () => {
     expect(mockedInvoke).toHaveBeenCalledWith("restore_notes", { ids: ["ghost"] });
     expect(useUiStore.getState().snackbar?.message).toMatch(/Nothing to restore/);
     expect(useUiStore.getState().undoStack.size).toBe(0);
+  });
+
+  it("keeps the selection when moving notes to Trash fails", async () => {
+    route({ trash_notes: () => { throw new Error("Storage unavailable"); } });
+    useNotesStore.setState({ notes: [makeNote("n1")] });
+    useUiStore.setState({ selection: ["n1"] });
+
+    await useNotesStore.getState().trashSelection();
+
+    expect(useUiStore.getState().selection).toEqual(["n1"]);
+    expect(useUiStore.getState().undoStack.size).toBe(0);
+  });
+
+  it("does not claim a permanent deletion when the note was restored", async () => {
+    route({
+      delete_notes_permanent: () => 0,
+      list_notes: () => [makeNote("n1")],
+      list_tags: () => [],
+      get_counts: () => ({ ...ZERO_COUNTS, all: 1 }),
+    });
+    expect(await useNotesStore.getState().deletePermanent(["n1"])).toBe(false);
+    expect(useUiStore.getState().snackbar?.message).toMatch(/Nothing deleted/);
   });
 });
 
@@ -209,5 +271,29 @@ describe("notesStore.setTagForSelection", () => {
 
     await useNotesStore.getState().setTagForSelection("tag1", true);
     expect(useUiStore.getState().selection).toEqual(["a", "b"]); // survived
+  });
+
+  it("undoes to the tags from before a concurrent refresh", async () => {
+    const work = { id: "work", name: "Work" };
+    const later = { id: "later", name: "Later" };
+    useNotesStore.setState({ notes: [makeNote("a", { tags: [work] })], tags: [work, later] });
+    useUiStore.setState({ selection: ["a"] });
+    let resolveWrite!: (count: number) => void;
+    const restored: string[][] = [];
+    route({
+      set_tags_bulk: () => new Promise<number>((resolve) => { resolveWrite = resolve; }),
+      set_note_tags: (args) => { restored.push(args!.tagIds as string[]); return [work]; },
+      list_notes: () => [makeNote("a", { tags: [work, later] })],
+      list_tags: () => [work, later],
+      get_counts: () => ({ ...ZERO_COUNTS, all: 1 }),
+    });
+
+    const pending = useNotesStore.getState().setTagForSelection("later", true);
+    useNotesStore.setState({ notes: [makeNote("a", { tags: [work, later] })] });
+    resolveWrite(1);
+    await pending;
+    await useUiStore.getState().undo();
+
+    expect(restored).toEqual([["work"]]);
   });
 });

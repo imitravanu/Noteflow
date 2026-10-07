@@ -619,7 +619,9 @@ pub fn restore_notes(conn: &Connection, ids: &[String]) -> AppResult<usize> {
     Ok(total)
 }
 
-/// Hard delete. `note_tags` rows cascade automatically via foreign keys.
+/// Hard delete only notes already in Trash. A stale selection must never
+/// delete a note that was restored between confirmation and this command.
+/// `note_tags` rows cascade automatically via foreign keys.
 pub fn delete_notes_permanent(conn: &Connection, ids: &[String]) -> AppResult<usize> {
     if ids.is_empty() {
         return Ok(0);
@@ -628,7 +630,7 @@ pub fn delete_notes_permanent(conn: &Connection, ids: &[String]) -> AppResult<us
     let mut total = 0;
     for chunk in ids.chunks(CHUNK_SIZE) {
         let sql = format!(
-            "DELETE FROM notes WHERE id IN ({})",
+            "DELETE FROM notes WHERE deleted = 1 AND id IN ({})",
             ids_placeholders(chunk)
         );
         let mut stmt = tx.prepare(&sql)?;

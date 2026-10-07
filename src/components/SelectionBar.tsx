@@ -48,9 +48,11 @@ export function SelectionBar() {
                     : `All ${selection.length} selected notes will be permanently deleted. This cannot be undone.`,
                 confirmLabel: "Delete forever",
                 danger: true,
-                onConfirm: () => {
-                  void deletePermanent([...selection]);
-                  clearSelection();
+                onConfirm: async () => {
+                  const ids = [...selection];
+                  if (await deletePermanent(ids)) {
+                    useUiStore.getState().clearSelectionIfUnchanged(ids);
+                  }
                 },
               })
             }
@@ -149,4 +151,3 @@ export function SelectionBar() {
     </div>
   );
 }
-

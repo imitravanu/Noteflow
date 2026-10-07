@@ -23,6 +23,7 @@ export function NotesPage() {
 
   const notes = useNotesStore((s) => s.notes);
   const tags = useNotesStore((s) => s.tags);
+  const trashCount = useNotesStore((s) => s.counts.trash);
   const loading = useNotesStore((s) => s.loading);
   const refresh = useNotesStore((s) => s.refresh);
   const createNote = useNotesStore((s) => s.createNote);
@@ -117,14 +118,14 @@ export function NotesPage() {
           <p>{subtitle}</p>
         </div>
         <div className="page-header-actions">
-          {view === "trash" && notes.length > 0 && (
+          {view === "trash" && trashCount > 0 && (
             <button
               type="button"
               className="btn btn-ghost danger"
               onClick={() =>
                 askConfirm({
                   title: "Empty trash?",
-                  message: `All ${notes.length} note${notes.length === 1 ? "" : "s"} in Trash will be permanently deleted. This cannot be undone.`,
+                  message: `All ${trashCount} note${trashCount === 1 ? "" : "s"} in Trash will be permanently deleted, including notes hidden by search. This cannot be undone.`,
                   confirmLabel: "Empty trash",
                   danger: true,
                   onConfirm: () => emptyTrash(),
@@ -155,4 +156,3 @@ export function NotesPage() {
     </div>
   );
 }
-

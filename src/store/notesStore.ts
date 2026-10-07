@@ -5,6 +5,7 @@ import { errText, useUiStore } from "./uiStore";
 
 /** Monotonic token so stale async list results never overwrite fresh ones. */
 let requestSeq = 0;
+let activeRefreshes = 0;
 
 interface NotesState {
   notes: Note[];
@@ -18,10 +19,10 @@ interface NotesState {
   setReminder: (id: string, reminderAt: number | null) => Promise<Note | null>;
   setFlags: (id: string, flags: FlagPatch) => Promise<Note | null>;
   setFlagsForSelection: (flags: FlagPatch) => Promise<void>;
-  trashNotes: (ids: string[]) => Promise<void>;
+  trashNotes: (ids: string[]) => Promise<boolean>;
   trashSelection: () => Promise<void>;
   restoreNotes: (ids: string[]) => Promise<void>;
-  deletePermanent: (ids: string[]) => Promise<void>;
+  deletePermanent: (ids: string[]) => Promise<boolean>;
   emptyTrash: () => Promise<void>;
   /** Sets a note's tags; resolves with the server's resulting tag list
    *  (null on failure) so callers (the editor) can merge without a second IPC. */
@@ -46,6 +47,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   refresh: async () => {
     const ui = useUiStore.getState();
     const token = ++requestSeq;
+    activeRefreshes += 1;
     try {
       const [notes, tags, counts] = await Promise.all([
         api.listNotes(ui.view, ui.activeTagId, ui.query),
@@ -58,6 +60,8 @@ export const useNotesStore = create<NotesState>((set, get) => ({
       if (token !== requestSeq) return;
       set({ loading: false });
       ui.showSnackbar(errText(e));
+    } finally {
+      activeRefreshes -= 1;
     }
   },
 
@@ -80,10 +84,28 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   updateNote: async (id, patch) => {
     try {
       const updated = await api.updateNote(id, patch);
+      // A list request may have read the old row before this write, then be
+      // delayed by its tags/counts requests. Invalidate that response.
+      const hadPendingRefresh = activeRefreshes > 0;
+      requestSeq += 1;
       const sorted = get()
-        .notes.map((n) => (n.id === id ? updated : n))
+        .notes.map((n) =>
+          n.id === id
+            ? {
+                ...n,
+                title: updated.title,
+                content: updated.content,
+                color: updated.color,
+                checklist: updated.checklist,
+                updatedAt: updated.updatedAt,
+              }
+            : n,
+        )
         .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt);
       set({ notes: sorted });
+      // Re-evaluate search membership after text changes, or replace any
+      // invalidated list request with one that observes the committed write.
+      if (hadPendingRefresh || useUiStore.getState().query.trim()) void get().refresh();
       return updated;
     } catch (e) {
       useUiStore.getState().showSnackbar(errText(e));
@@ -98,7 +120,14 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   setReminder: async (id, reminderAt) => {
     try {
       const updated = await api.setReminder(id, reminderAt);
-      set({ notes: get().notes.map((n) => (n.id === id ? updated : n)) });
+      const hadPendingRefresh = activeRefreshes > 0;
+      requestSeq += 1;
+      set({
+        notes: get().notes.map((n) =>
+          n.id === id ? { ...n, reminderAt: updated.reminderAt } : n,
+        ),
+      });
+      if (hadPendingRefresh) void get().refresh();
       return updated;
     } catch (e) {
       useUiStore.getState().showSnackbar(errText(e));
@@ -112,7 +141,18 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     const before = get().notes.find((n) => n.id === id);
     try {
       const updated = await api.setFlags(id, flags);
-      set({ notes: get().notes.map((n) => (n.id === id ? updated : n)) });
+      set({
+        notes: get().notes.map((n) =>
+          n.id === id
+            ? {
+                ...n,
+                pinned: updated.pinned,
+                favorite: updated.favorite,
+                archived: updated.archived,
+              }
+            : n,
+        ),
+      });
       await get().refresh();
       if (flags.pinned !== undefined && before) {
         const label = flags.pinned ? "Pin note" : "Unpin note";
@@ -205,9 +245,14 @@ export const useNotesStore = create<NotesState>((set, get) => ({
 
   trashNotes: async (ids) => {
     const ui = useUiStore.getState();
-    if (!ids.length) return;
+    if (!ids.length) return false;
     try {
       const count = await api.trashNotes(ids);
+      if (count === 0) {
+        await get().refresh();
+        ui.showSnackbar("Nothing to move — those notes are no longer active.");
+        return false;
+      }
       set({ notes: get().notes.filter((n) => !ids.includes(n.id)) });
       await get().refresh();
       const undoId = ui.registerUndo("Move to Trash", async () => {
@@ -223,16 +268,19 @@ export const useNotesStore = create<NotesState>((set, get) => ({
         actionLabel: "Undo",
         undoId,
       });
+      return true;
     } catch (e) {
       ui.showSnackbar(errText(e));
+      return false;
     }
   },
 
   trashSelection: async () => {
     const ui = useUiStore.getState();
     const ids = [...ui.selection];
-    ui.clearSelection();
-    await get().trashNotes(ids);
+    if (await get().trashNotes(ids)) {
+      useUiStore.getState().clearSelectionIfUnchanged(ids);
+    }
   },
 
   restoreNotes: async (ids) => {
@@ -268,14 +316,23 @@ export const useNotesStore = create<NotesState>((set, get) => ({
 
   deletePermanent: async (ids) => {
     const ui = useUiStore.getState();
-    if (!ids.length) return;
+    if (!ids.length) return false;
     try {
-      await api.deleteNotesPermanent(ids);
+      const count = await api.deleteNotesPermanent(ids);
+      if (count === 0) {
+        await get().refresh();
+        ui.showSnackbar("Nothing deleted — those notes may have been restored.");
+        return false;
+      }
       set({ notes: get().notes.filter((n) => !ids.includes(n.id)) });
       await get().refresh();
-      ui.showSnackbar("Note permanently deleted");
+      ui.showSnackbar(
+        count === 1 ? "Note permanently deleted" : `${count} notes permanently deleted`,
+      );
+      return true;
     } catch (e) {
       ui.showSnackbar(errText(e));
+      return false;
     }
   },
 
@@ -314,14 +371,15 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     const ui = useUiStore.getState();
     const ids = [...ui.selection];
     if (!ids.length) return;
+    // Undo needs the state before the IPC write. A concurrent refresh can
+    // update `notes` while the request is in flight.
+    const before = new Map(
+      get()
+        .notes.filter((n) => ids.includes(n.id))
+        .map((n) => [n.id, n.tags] as const),
+    );
     try {
       await api.setTagsBulk(ids, tagId, apply);
-      // Snapshot the pre-batch tag lists so the whole change is one Undo.
-      const before = new Map(
-        get()
-          .notes.filter((n) => ids.includes(n.id))
-          .map((n) => [n.id, n.tags] as const),
-      );
       // Scoped: only drop the selection if the user hasn't re-selected while
       // the request was in flight.
       useUiStore.getState().clearSelectionIfUnchanged(ids);

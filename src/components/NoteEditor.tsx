@@ -130,8 +130,19 @@ export function NoteEditor() {
         // (openEditor flushes, but defense-in-depth): only merge results
         // back while this note is still the editor's subject.
         if (noteRef.current?.id !== targetId) return true;
-        setNote((prev) => (prev ? { ...prev, ...updated } : updated));
-        setEditorNote(updated);
+        // Autosave writes content fields only. Its full-row reply may contain
+        // older tags/flags/reminder values from another action in flight.
+        const merged = {
+          ...noteRef.current,
+          title: updated.title,
+          content: updated.content,
+          color: updated.color,
+          checklist: updated.checklist,
+          updatedAt: updated.updatedAt,
+        };
+        noteRef.current = merged;
+        setNote(merged);
+        setEditorNote(merged);
         return true;
       },
       onStatus: setStatus,
@@ -361,7 +372,10 @@ export function NoteEditor() {
       if (next.length === current.length && apply) return; // already applied
       const tags = await useNotesStore.getState().setNoteTags(currentNote.id, next);
       if (!tags) return; // store already surfaced the error
-      const updated = { ...(noteRef.current ?? currentNote), tags };
+      // An IPC reply for the previous editor must not attach its tags to the
+      // note opened while that request was in flight.
+      if (noteRef.current?.id !== currentNote.id) return;
+      const updated = { ...noteRef.current, tags };
       noteRef.current = updated; // keep the chain's next read fresh pre-commit
       setNote(updated);
       setEditorNote(updated);
@@ -374,9 +388,16 @@ export function NoteEditor() {
   // toggles never go stale.
   const handleFlags = async (flags: FlagPatch) => {
     if (!note) return;
-    const updated = await setFlags(note.id, flags);
-    if (updated) {
-      const merged = { ...noteRef.current!, ...updated };
+    const targetId = note.id;
+    const updated = await setFlags(targetId, flags);
+    if (updated && noteRef.current?.id === targetId) {
+      const merged = {
+        ...noteRef.current,
+        pinned: updated.pinned,
+        favorite: updated.favorite,
+        archived: updated.archived,
+      };
+      noteRef.current = merged;
       setNote(merged);
       setEditorNote(merged);
     }
@@ -387,9 +408,12 @@ export function NoteEditor() {
   // this is only ever "schedule" or "clear" — never a toggle of a spent one.
   const handleReminder = async (at: number | null) => {
     if (!note) return;
-    const updated = await setReminder(note.id, at);
+    const targetId = note.id;
+    const updated = await setReminder(targetId, at);
     if (!updated) return;
-    const merged = { ...noteRef.current!, ...updated };
+    if (noteRef.current?.id !== targetId) return;
+    const merged = { ...noteRef.current, reminderAt: updated.reminderAt };
+    noteRef.current = merged;
     setNote(merged);
     setEditorNote(merged);
     showSnackbar(at === null ? "Reminder cleared" : `Reminder set for ${formatDateTime(at)}`);
@@ -633,8 +657,7 @@ export function NoteEditor() {
                     danger: true,
                     onConfirm: async () => {
                       if (!(await flush())) return;
-                      await trashNotes([note.id]);
-                      closeEditor();
+                      if (await trashNotes([note.id])) closeEditor();
                     },
                   })
                 }

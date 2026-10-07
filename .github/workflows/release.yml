@@ -5,6 +5,11 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Existing version tag to build (for example v1.6.0)'
+        required: true
+        type: string
 
 jobs:
   release:
@@ -21,6 +26,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref }}
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -44,7 +51,7 @@ jobs:
       - name: Verify versions (manifests + release tag)
         run: npm run check:versions
         env:
-          RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
 
       - name: Verify signing secrets are configured
         # createUpdaterArtifacts requires the private key; fail in seconds
@@ -63,10 +70,8 @@ jobs:
         # tauri-action reads the env var.
         run: |
           echo "TAURI_SIGNING_PRIVATE_KEY=$(printf '%s' "$TAURI_SIGNING_PRIVATE_KEY" | tr -d '[:space:]')" >> "$GITHUB_ENV"
-          echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=$(printf '%s' "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" | tr -d '[:space:]')" >> "$GITHUB_ENV"
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
       - name: Run Tests, Lint & Typecheck
         run: |
@@ -81,12 +86,12 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # TAURI_SIGNING_PRIVATE_KEY / _PASSWORD arrive via $GITHUB_ENV from the
-          # "Normalize signing key" step (whitespace-stripped). Do NOT map the
-          # raw secrets here — step-level env would override the cleaned values.
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # The normalized private key arrives via $GITHUB_ENV. The password
+          # must remain byte-for-byte intact, including any spaces.
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'NoteFlow ${{ github.ref_name }}'
+          tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+          releaseName: "NoteFlow ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}"
           releaseBody: 'See release notes and download the packages below.'
           releaseDraft: false
           prerelease: false

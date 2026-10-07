@@ -305,11 +305,13 @@ fn trash_restore_and_permanent_delete() {
         1
     );
 
-    // Permanent delete removes the row entirely (idempotent-ish)
+    // A stale batch may still contain a restored note. Only the trashed
+    // note is permanently deleted.
     assert_eq!(
-        note_service::delete_notes_permanent(&conn, std::slice::from_ref(&n2.id)).unwrap(),
+        note_service::delete_notes_permanent(&conn, &[n1.id.clone(), n2.id.clone()]).unwrap(),
         1
     );
+    assert!(note_service::get_note(&conn, &n1.id).is_ok());
     assert!(note_service::get_note(&conn, &n2.id).is_err());
     assert!(note_service::list_notes(&conn, NoteView::Trash, None, None)
         .unwrap()
@@ -698,7 +700,15 @@ fn batch_operations_and_tag_attachments_handle_large_collections() {
     assert_eq!(counts_after_restore.all, 600);
     assert_eq!(counts_after_restore.trash, 0);
 
-    // 5. Verify delete_notes_permanent chunking with 600 IDs
+    // 5. Permanent deletion is Trash-only, even when a stale caller still
+    // holds IDs that have been restored.
+    assert_eq!(
+        note_service::delete_notes_permanent(&conn, &ids).unwrap(),
+        0
+    );
+    assert_eq!(note_service::get_counts(&conn).unwrap().all, 600);
+    note_service::trash_notes(&conn, &ids).unwrap();
+    // Verify delete_notes_permanent chunking with 600 trashed IDs.
     let deleted_count = note_service::delete_notes_permanent(&conn, &ids).unwrap();
     assert_eq!(deleted_count, 600);
     let counts_after_delete = note_service::get_counts(&conn).unwrap();
@@ -819,6 +829,7 @@ fn import_backup_restores_orphan_tags_and_stays_idempotent() {
     assert_eq!(all_tags.len(), 2);
 
     // Wipe everything, like restoring onto a fresh install.
+    note_service::trash_notes(&conn, std::slice::from_ref(&note.id)).unwrap();
     note_service::delete_notes_permanent(&conn, std::slice::from_ref(&note.id)).unwrap();
     tag_service::delete_tag(&conn, &attached.id).unwrap();
     tag_service::delete_tag(&conn, &orphan.id).unwrap();

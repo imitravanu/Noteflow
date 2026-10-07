@@ -244,7 +244,7 @@ export function SettingsPage() {
           <Database size={16} aria-hidden="true" /> Storage & Privacy
         </h2>
         <p className="settings-muted">
-          Notes are stored offline in a local SQLite database (WAL mode). Nothing leaves this computer.
+          Notes stay in a local SQLite database (WAL mode). Update checks contact GitHub; note contents are not sent.
         </p>
         {dataDir && <code className="settings-path">{dataDir}</code>}
       </section>
@@ -254,8 +254,8 @@ export function SettingsPage() {
           <RefreshCw size={16} aria-hidden="true" /> Software Update
         </h2>
         <p className="settings-muted">
-          NoteFlow checks GitHub Releases for a newer version on launch and offers to install it —
-          one click downloads the signed update and restarts into it.
+          NoteFlow checks GitHub Releases on launch. AppImage installs signed updates in place;
+          .deb packages open the release page for manual installation.
         </p>
         <div className="settings-actions">
           <button

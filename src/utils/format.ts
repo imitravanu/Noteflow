@@ -34,6 +34,13 @@ export function formatDateTime(timestamp: number): string {
   });
 }
 
+/** Valid ISO value for a <time> attribute; malformed backup dates have none. */
+export function safeIsoDateTime(timestamp: number): string | undefined {
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return undefined;
+  const date = new Date(timestamp);
+  return Number.isFinite(date.getTime()) ? date.toISOString() : undefined;
+}
+
 /** Computes word and character counts across note body and checklist. */
 export function countWordsAndChars(
   content: string,
@@ -83,5 +90,4 @@ export function noteToMarkdown(note: {
 
   return lines.join("\n").trimEnd() + "\n";
 }
-
 

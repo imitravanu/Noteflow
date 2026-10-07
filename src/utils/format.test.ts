@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countWordsAndChars, formatDateTime, formatRelativeTime, noteToMarkdown } from "./format";
+import { countWordsAndChars, formatDateTime, formatRelativeTime, noteToMarkdown, safeIsoDateTime } from "./format";
 
 const NOW = new Date("2026-08-23T12:00:00Z").getTime();
 
@@ -74,7 +74,11 @@ describe("timestamp resilience", () => {
     expect(formatDateTime(-999)).toBe("—");
     expect(formatDateTime(NOW)).toMatch(/2026/);
   });
-});
 
+  it("omits invalid imported dates instead of throwing while rendering a note", () => {
+    expect(safeIsoDateTime(Number.MAX_SAFE_INTEGER)).toBeUndefined();
+    expect(safeIsoDateTime(NOW)).toBe("2026-08-23T12:00:00.000Z");
+  });
+});
 
 

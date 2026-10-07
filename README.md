@@ -35,20 +35,20 @@
 - **Adaptive Canvas Theme:** Seamless Light, Dark, and System theme synchronizations.
 
 ### ⚡ Offline-First SQLite Engine (Zero Telemetry)
-- **Local SQLite Database (WAL Mode):** Reads and writes execute at sub-millisecond local speed via Rust and `rusqlite`.
+- **Local SQLite Database (WAL Mode):** Notes are read and written locally through Rust and `rusqlite`.
 - **Debounced Autosave:** Changes save after a brief pause; failed writes retry and keep the draft open. `Ctrl+S` forces an immediate save. An abrupt app exit can lose edits still waiting for their first save, and a power failure can lose the latest database commit.
-- **100% Private:** Zero analytics, zero cloud lock-in, zero telemetry. Your notes stay exclusively on your hardware at `~/.local/share/com.noteflow.app/noteflow.db`.
+- **Local notes:** No analytics or account is required. Your notes stay at `~/.local/share/com.noteflow.app/noteflow.db`; update checks contact GitHub without sending note contents.
 
 ### 🔔 One-Shot Reminders
 - **Schedule from the editor:** the bell offers quick presets ("In 1 hour", "Tomorrow 9:00") or an exact date and time; a pending reminder shows as an active toolbar button and a bell badge on the note card ("Overdue", "in 25m", "tomorrow 09:00").
-- **Never lost, never doubled:** each reminder is claimed from SQLite inside a single transaction, so it fires exactly once — and one that came due while the app was closed still fires at the next launch. Archived and trashed notes stay quiet.
+- **One-shot in-app alerts:** a due reminder is claimed once from SQLite, including one that came due while the app was closed. Alerts appear while NoteFlow is running; a crash after the claim but before the alert is shown can miss it. Archived and trashed notes stay quiet.
 
 ### 🔍 Instant Spotlight Search (`Ctrl+K`)
 - Substring and keyword search across title, body content, checklist items, and tags with real-time match highlighting.
 - Backed by FTS5 trigram indexes with unicode case folding, so `CAFÉ` finds `Café` and search stays instant as the collection grows (queries shorter than 3 characters keep the `LIKE` fallback).
 
 ### 🛡️ Safety, Multi-Select & Undo
-- **Safety Stack:** Full undo stack (`Ctrl+Z`) and undo snackbar notifications.
+- **Undo for note actions:** `Ctrl+Z` and snackbar Undo can reverse supported note actions. Text editing uses the editor's native undo.
 - **Soft Trash Recovery:** Deleted notes move to Trash with 1-click restore or permanent delete confirmation.
 - **Batch Selection:** Multi-select notes via `Shift+Click`, `Ctrl+Click`, or `Ctrl+A` for bulk tagging, coloring, archiving, or deletion.
 - **Export & Backup:** Export individual notes as clean Markdown (`.md`) or export the entire workspace as JSON.
