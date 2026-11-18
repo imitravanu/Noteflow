@@ -437,6 +437,15 @@ pub fn peek_due_reminder(conn: &Connection, now: i64) -> AppResult<Option<Note>>
     due_id.map(|id| get_note(conn, &id)).transpose()
 }
 
+/// Returns the oldest due reminder using the *wall clock*. Reminder deadlines
+/// are absolute user-facing times, so they must not be compared against the
+/// monotonic clock below: importing a note dated tomorrow raises that clock,
+/// which would otherwise make a reminder due in an hour fire today. The
+/// monotonic clock stays exclusively for deterministic `updated_at` ordering.
+pub fn peek_due_reminder_wall(conn: &Connection) -> AppResult<Option<Note>> {
+    peek_due_reminder(conn, wall_millis())
+}
+
 /// Clears only the schedule that was shown. If the user rescheduled the note
 /// while the toast was visible, acknowledging the old alert cannot erase it.
 pub fn acknowledge_reminder(conn: &Connection, id: &str, expected_at: i64) -> AppResult<bool> {

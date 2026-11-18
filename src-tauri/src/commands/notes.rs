@@ -151,7 +151,9 @@ pub fn set_reminder(
 #[tauri::command(async)]
 pub fn peek_due_reminder(state: State<'_, AppState>) -> AppResult<Option<Note>> {
     let conn = lock_conn(&state)?;
-    note_service::peek_due_reminder(&conn, note_service::now_millis())
+    // Deadlines are wall-clock instants; `now_millis()` is the monotonic
+    // ordering clock and may be pushed forward by an imported future note.
+    note_service::peek_due_reminder_wall(&conn)
 }
 
 #[tauri::command(async)]

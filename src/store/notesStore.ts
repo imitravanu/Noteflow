@@ -7,6 +7,23 @@ import { errText, useUiStore } from "./uiStore";
 let requestSeq = 0;
 let activeRefreshes = 0;
 
+/** Serialize toolbar and shortcut toggles for the same note. */
+const flagChains = new Map<string, Promise<Note | null>>();
+
+function writtenFlags(patch: FlagPatch, result: FlagPatch = patch): FlagPatch {
+  return {
+    ...(patch.pinned !== undefined && { pinned: result.pinned }),
+    ...(patch.favorite !== undefined && { favorite: result.favorite }),
+    ...(patch.archived !== undefined && { archived: result.archived }),
+  };
+}
+
+function noteForFlag(id: string): Note | null {
+  const { editorNote, editorNoteId } = useUiStore.getState();
+  if (editorNoteId === id && editorNote?.id === id) return editorNote;
+  return useNotesStore.getState().notes.find((n) => n.id === id) ?? null;
+}
+
 interface NotesState {
   notes: Note[];
   tags: Tag[];
@@ -18,6 +35,13 @@ interface NotesState {
   updateNote: (id: string, patch: NotePatch) => Promise<Note | null>;
   setReminder: (id: string, reminderAt: number | null) => Promise<Note | null>;
   setFlags: (id: string, flags: FlagPatch) => Promise<Note | null>;
+  /**
+   * Toggles one boolean flag from the latest committed value.
+   * Calls for the same note are serialized, so two rapid keyboard/toolbar
+   * toggles resolve to the original value instead of both reading the same
+   * stale snapshot and writing the same target twice.
+   */
+  toggleFlag: (id: string, key: "pinned" | "favorite") => Promise<Note | null>;
   setFlagsForSelection: (flags: FlagPatch) => Promise<void>;
   trashNotes: (ids: string[]) => Promise<boolean>;
   trashSelection: () => Promise<void>;
@@ -88,21 +112,19 @@ export const useNotesStore = create<NotesState>((set, get) => ({
       // delayed by its tags/counts requests. Invalidate that response.
       const hadPendingRefresh = activeRefreshes > 0;
       requestSeq += 1;
+      const saved = {
+        title: updated.title,
+        content: updated.content,
+        color: updated.color,
+        checklist: updated.checklist,
+        updatedAt: updated.updatedAt,
+      };
       const sorted = get()
-        .notes.map((n) =>
-          n.id === id
-            ? {
-                ...n,
-                title: updated.title,
-                content: updated.content,
-                color: updated.color,
-                checklist: updated.checklist,
-                updatedAt: updated.updatedAt,
-              }
-            : n,
-        )
+        .notes.map((n) => (n.id === id ? { ...n, ...saved } : n))
         .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt);
       set({ notes: sorted });
+      // IPC returns a full row, but this write only committed content fields.
+      useUiStore.getState().patchEditorNote(id, saved);
       // Re-evaluate search membership after text changes, or replace any
       // invalidated list request with one that observes the committed write.
       if (hadPendingRefresh || useUiStore.getState().query.trim()) void get().refresh();
@@ -138,41 +160,34 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   /** Updates flags and returns the updated note (or null on failure). */
   setFlags: async (id, flags) => {
     const ui = useUiStore.getState();
-    const before = get().notes.find((n) => n.id === id);
-    try {
-      const updated = await api.setFlags(id, flags);
-      set({
-        notes: get().notes.map((n) =>
-          n.id === id
-            ? {
-                ...n,
-                pinned: updated.pinned,
-                favorite: updated.favorite,
-                archived: updated.archived,
-              }
-            : n,
-        ),
-      });
+    const before = noteForFlag(id);
+    const write = async (patch: FlagPatch) => {
+      const updated = await api.setFlags(id, patch);
+      // The response can include stale values for flags this write didn't touch.
+      const committed = writtenFlags(patch, updated);
+      set({ notes: get().notes.map((n) => (n.id === id ? { ...n, ...committed } : n)) });
+      ui.patchEditorNote(id, committed);
       await get().refresh();
+      return updated;
+    };
+    try {
+      const updated = await write(flags);
       if (flags.pinned !== undefined && before) {
         const label = flags.pinned ? "Pin note" : "Unpin note";
         ui.registerUndo(label, async () => {
-          await api.setFlags(id, { pinned: before.pinned });
-          await get().refresh();
+          await write({ pinned: before.pinned });
         });
       }
       if (flags.favorite !== undefined && before) {
         const label = flags.favorite ? "Favorite note" : "Unfavorite note";
         ui.registerUndo(label, async () => {
-          await api.setFlags(id, { favorite: before.favorite });
-          await get().refresh();
+          await write({ favorite: before.favorite });
         });
       }
       if (flags.archived !== undefined && before) {
         const label = flags.archived ? "Archive note" : "Unarchive note";
         const undoId = ui.registerUndo(label, async () => {
-          await api.setFlags(id, { archived: before.archived });
-          await get().refresh();
+          await write({ archived: before.archived });
         });
         ui.showSnackbar(flags.archived ? "Note archived" : "Note restored to notes", {
           actionLabel: "Undo",
@@ -186,6 +201,21 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     }
   },
 
+  toggleFlag: (id, key) => {
+    const previous = flagChains.get(id) ?? Promise.resolve(null);
+    const run = previous.catch(() => null).then(async () => {
+      const current = noteForFlag(id)?.[key];
+      if (current === undefined) return null;
+      return get().setFlags(id, { [key]: !current });
+    });
+    flagChains.set(id, run);
+    const cleanup = () => {
+      if (flagChains.get(id) === run) flagChains.delete(id);
+    };
+    run.then(cleanup, cleanup);
+    return run;
+  },
+
   setFlagsForSelection: async (flags) => {
     const ui = useUiStore.getState();
     const ids = [...ui.selection];
@@ -196,7 +226,16 @@ export const useNotesStore = create<NotesState>((set, get) => ({
         .map((n) => [n.id, n] as const),
     );
     try {
-      await api.setFlagsBulk(ids, flags);
+      const changed = await api.setFlagsBulk(ids, flags);
+      if (changed) {
+        const committed = writtenFlags(flags);
+        const selectedIds = new Set(ids);
+        set({
+          notes: get().notes.map((n) => selectedIds.has(n.id) ? { ...n, ...committed } : n),
+        });
+        const editorId = useUiStore.getState().editorNoteId;
+        if (editorId && selectedIds.has(editorId)) ui.patchEditorNote(editorId, committed);
+      }
       // Scoped: only drop the selection if the user hasn't re-selected while
       // the request was in flight.
       useUiStore.getState().clearSelectionIfUnchanged(ids);
@@ -216,19 +255,18 @@ export const useNotesStore = create<NotesState>((set, get) => ({
                 : `Unarchive ${ids.length} notes`
               : `Update ${ids.length} notes`;
       const undoId = ui.registerUndo(label, async () => {
-        await api.restoreFlagsBulk(
-          ids.flatMap((id) => {
-            const prev = before.get(id);
-            return prev
-              ? [{
-                  id,
-                  pinned: flags.pinned !== undefined ? prev.pinned : undefined,
-                  favorite: flags.favorite !== undefined ? prev.favorite : undefined,
-                  archived: flags.archived !== undefined ? prev.archived : undefined,
-                }]
-              : [];
-          }),
-        );
+        const restored = new Map<string, FlagPatch>();
+        for (const id of ids) {
+          const prev = before.get(id);
+          if (prev) restored.set(id, writtenFlags(flags, prev));
+        }
+        await api.restoreFlagsBulk([...restored].map(([id, patch]) => ({ id, ...patch })));
+        set({
+          notes: get().notes.map((n) => restored.has(n.id) ? { ...n, ...restored.get(n.id) } : n),
+        });
+        const editorId = useUiStore.getState().editorNoteId;
+        const editorFlags = editorId ? restored.get(editorId) : undefined;
+        if (editorId && editorFlags) ui.patchEditorNote(editorId, editorFlags);
         await get().refresh();
       });
       if (flags.archived !== undefined) {

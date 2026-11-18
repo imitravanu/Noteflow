@@ -1365,6 +1365,43 @@ fn acknowledging_an_old_alert_does_not_clear_a_rescheduled_reminder() {
 }
 
 #[test]
+fn importing_a_future_note_cannot_fire_a_reminder_early() {
+    let conn = temp_db();
+    let reminded = note_service::create_note(&conn, None).unwrap();
+    let now = note_service::wall_millis();
+    let due_at = now + 60 * 60 * 1000; // one hour from now
+    note_service::set_reminder(&conn, &reminded.id, Some(due_at)).unwrap();
+
+    // A backup note dated tomorrow raises the monotonic ordering clock when
+    // imported (`bump_last_millis`). Reminder deadlines must ignore that clock.
+    let mut foreign = note_service::create_note(&conn, None).unwrap();
+    foreign.id = "imported-tomorrow".into();
+    foreign.created_at = now + 24 * 60 * 60 * 1000;
+    foreign.updated_at = foreign.created_at;
+    let report = note_service::import_backup(&conn, &[foreign], &[]).unwrap();
+    assert_eq!(report.inserted, 1);
+
+    // The ordering clock really did move past the reminder's deadline.
+    assert!(
+        note_service::now_millis() >= due_at,
+        "import must advance the monotonic note-ordering clock"
+    );
+    // Wall-clock due check: the reminder is still an hour away.
+    assert!(
+        note_service::peek_due_reminder_wall(&conn)
+            .unwrap()
+            .is_none(),
+        "a future-dated import must not make today's reminder fire early"
+    );
+    // The old monotonic comparison is exactly what produced the bug.
+    assert!(
+        note_service::peek_due_reminder(&conn, note_service::now_millis())
+            .unwrap()
+            .is_some()
+    );
+}
+
+#[test]
 fn existing_v1_databases_are_indexed_and_keep_their_reminders() {
     // Simulates the 1.3 -> 1.4 upgrade on a database that already has data: the
     // migration must backfill the FTS mirror from the notes table.

@@ -5,6 +5,7 @@ import { Snackbar } from "./components/Snackbar";
 import { TopBar } from "./components/TopBar";
 import { useAppInit } from "./hooks/useAppInit";
 import { useAppUpdater } from "./hooks/useAppUpdater";
+import { useExitGuard } from "./hooks/useExitGuard";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useReminders } from "./hooks/useReminders";
 import { useTheme } from "./hooks/useTheme";
@@ -18,6 +19,7 @@ export default function App() {
   useKeyboardShortcuts();
   useReminders();
   useAppUpdater();
+  useExitGuard();
 
   const page = useUiStore((s) => s.page);
   const selectionActive = useUiStore((s) => s.selection.length > 0);

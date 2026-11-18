@@ -9,6 +9,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@tauri-apps/plugin-updater", () => ({ check: mocks.check }));
 vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: mocks.relaunch }));
 vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: mocks.openUrl }));
+vi.mock("@tauri-apps/api/window", () => ({
+  getCurrentWindow: () => ({ destroy: vi.fn() }),
+}));
 
 import { useUiStore } from "../store/uiStore";
 import { checkManually, checkOnLaunch } from "./updateFlow";
@@ -33,7 +36,12 @@ beforeEach(() => {
   mocks.check.mockReset();
   mocks.relaunch.mockReset().mockResolvedValue(undefined);
   mocks.openUrl.mockReset().mockResolvedValue(undefined);
-  useUiStore.setState({ snackbar: null, snackbarQueue: [] });
+  useUiStore.setState({
+    snackbar: null,
+    snackbarQueue: [],
+    editorFlush: null,
+    pendingReminderAck: null,
+  });
 });
 
 afterEach(() => {
@@ -64,6 +72,30 @@ describe("updateFlow", () => {
 
     await vi.advanceTimersByTimeAsync(900);
     expect(mocks.relaunch).toHaveBeenCalledOnce();
+  });
+
+  it("does not restart when the latest draft cannot be saved, then retries", async () => {
+    let saved = false;
+    useUiStore.getState().registerEditorFlush(() => Promise.resolve(saved));
+    mocks.check.mockResolvedValue(fakeUpdate(true));
+    await checkOnLaunch();
+    useUiStore.getState().snackbar?.action?.();
+
+    await vi.waitFor(() => {
+      expect(useUiStore.getState().snackbar?.message).toBe(
+        "NoteFlow v9.9.9 installed — restarting…",
+      );
+    });
+
+    await vi.advanceTimersByTimeAsync(900);
+    await vi.waitFor(() => {
+      expect(useUiStore.getState().snackbar?.actionLabel).toBe("Retry");
+    });
+    expect(mocks.relaunch).not.toHaveBeenCalled();
+
+    saved = true;
+    useUiStore.getState().snackbar?.action?.();
+    await vi.waitFor(() => expect(mocks.relaunch).toHaveBeenCalledOnce());
   });
 
   it("falls back to the release page when auto-install is unavailable (.deb)", async () => {

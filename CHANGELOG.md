@@ -3,6 +3,14 @@
 All notable changes to NoteFlow are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.7.1] - 2026-11-19
+
+### Fixed
+- Closing the window no longer loses the final edit. The close request is intercepted and waits for the editor's save gate; if the write fails, NoteFlow stays open with a retryable message instead of exiting with the draft still in memory. The update flow's automatic restart uses the same guard.
+- Reminder **Open** now works from Settings, and the reminder is acknowledged only after the note is actually displayed. A failed draft save or note load leaves it scheduled for the next check instead of consuming it. Clicking a toast action is also distinguished from dismissing it, so "Open" no longer counts as an acknowledgment on its own.
+- Reminder deadlines are compared against the wall clock. Importing a future-dated note no longer pushes the ordering clock past the deadline and fires an hour-away reminder immediately.
+- Rapid pin/favorite toggles (toolbar or Ctrl+Shift+P/F) are serialized through one committed snapshot, so two quick presses write distinct targets and the toolbar cannot be left showing a stale flag.
+
 ## [1.7.0] - 2026-10-07
 
 ### Fixed

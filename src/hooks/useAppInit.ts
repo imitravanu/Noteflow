@@ -1,3 +1,4 @@
+import { isTauri } from "@tauri-apps/api/core";
 import { useEffect } from "react";
 import { useNotesStore } from "../store/notesStore";
 import { useUiStore } from "../store/uiStore";
@@ -6,7 +7,8 @@ import { useUiStore } from "../store/uiStore";
 export function useAppInit() {
   useEffect(() => {
     void useUiStore.getState().initTheme();
-    void useNotesStore.getState().refresh();
+    if (isTauri()) void useNotesStore.getState().refresh();
+    else useNotesStore.setState({ loading: false });
   }, []);
 }
 

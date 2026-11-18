@@ -25,7 +25,10 @@ export function Snackbar() {
           className="snackbar-action"
           onClick={() => {
             snackbar.action?.();
-            hideSnackbar(snackbar.id);
+            // Actions may need to keep the underlying resource (e.g. a
+            // reminder stays scheduled until its note is actually displayed),
+            // so report an action click separately from an explicit dismiss.
+            hideSnackbar(snackbar.id, "action");
           }}
         >
           {snackbar.actionLabel}
@@ -35,7 +38,7 @@ export function Snackbar() {
         <button
           type="button"
           className="snackbar-action"
-          aria-label="Dismiss reminder"
+          aria-label="Dismiss notification"
           onClick={() => hideSnackbar(snackbar.id)}
         >
           <X size={16} aria-hidden="true" />

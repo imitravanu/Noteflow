@@ -4,9 +4,13 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn().mockResolvedValue(null),
 }));
 
+import { invoke } from "@tauri-apps/api/core";
 import { useUiStore } from "./uiStore";
 
+const mockedInvoke = vi.mocked(invoke);
+
 beforeEach(() => {
+  mockedInvoke.mockReset().mockResolvedValue(null);
   useUiStore.setState({
     view: "all",
     activeTagId: null,
@@ -16,9 +20,12 @@ beforeEach(() => {
     snackbar: null,
     snackbarQueue: [],
     openPopover: null,
+    page: "notes",
     editorNoteId: null,
+    editorNote: null,
     editorReturnFocusId: null,
     editorFlush: null,
+    pendingReminderAck: null,
   });
   useUiStore.getState().undoStack.clear();
 });
@@ -159,6 +166,86 @@ describe("uiStore.openEditor (the note-switch data-loss regression)", () => {
   });
 });
 
+describe("uiStore reminder Open (Settings → Notes regression)", () => {
+  it("navigates to Notes and defers acknowledgment until the editor renders the note", async () => {
+    useUiStore.setState({ page: "settings" });
+    useUiStore.getState().registerEditorFlush(() => Promise.resolve(true));
+
+    expect(await useUiStore.getState().openReminderNote("n1", 5_000)).toBe(true);
+    expect(useUiStore.getState().page).toBe("notes");
+    expect(useUiStore.getState().editorNoteId).toBe("n1");
+    expect(useUiStore.getState().pendingReminderAck).toEqual({
+      noteId: "n1",
+      expectedAt: 5_000,
+    });
+    // The reminder is still in SQLite while the editor is loading.
+    expect(mockedInvoke).not.toHaveBeenCalledWith(
+      "acknowledge_reminder",
+      expect.anything(),
+    );
+
+    mockedInvoke.mockResolvedValueOnce(true);
+    expect(await useUiStore.getState().completeReminderOpen("n1")).toBe(true);
+    expect(mockedInvoke).toHaveBeenCalledWith("acknowledge_reminder", {
+      id: "n1",
+      expectedAt: 5_000,
+    });
+    expect(useUiStore.getState().pendingReminderAck).toBeNull();
+  });
+
+  it("preserves the reminder when saving the previous draft fails", async () => {
+    useUiStore.setState({ page: "notes", editorNoteId: "old" });
+    useUiStore.getState().registerEditorFlush(() => Promise.resolve(false));
+
+    expect(await useUiStore.getState().openReminderNote("n1", 5_000)).toBe(false);
+    expect(useUiStore.getState().editorNoteId).toBe("old");
+    expect(useUiStore.getState().pendingReminderAck).toBeNull();
+    expect(mockedInvoke).not.toHaveBeenCalledWith(
+      "acknowledge_reminder",
+      expect.anything(),
+    );
+  });
+
+  it("preserves the reminder when the target note fails to load", async () => {
+    useUiStore.getState().registerEditorFlush(() => Promise.resolve(true));
+    await useUiStore.getState().openReminderNote("n1", 5_000);
+
+    // NoteEditor cancels the pending acknowledgment from its load catch.
+    useUiStore.getState().cancelReminderOpen("n1");
+    expect(await useUiStore.getState().completeReminderOpen("n1")).toBe(false);
+    expect(mockedInvoke).not.toHaveBeenCalledWith(
+      "acknowledge_reminder",
+      expect.anything(),
+    );
+  });
+
+  it("acknowledges immediately when the requested note is already displayed", async () => {
+    const note = {
+      id: "n1",
+      title: "Open",
+      content: "",
+      color: "default" as const,
+      createdAt: 1,
+      updatedAt: 2,
+      pinned: false,
+      favorite: false,
+      archived: false,
+      deleted: false,
+      deletedAt: null,
+      reminderAt: 5_000,
+      checklist: [],
+      tags: [],
+    };
+    useUiStore.setState({ editorNoteId: "n1", editorNote: note });
+
+    expect(await useUiStore.getState().openReminderNote("n1", 5_000)).toBe(true);
+    expect(mockedInvoke).toHaveBeenCalledWith("acknowledge_reminder", {
+      id: "n1",
+      expectedAt: 5_000,
+    });
+  });
+});
+
 describe("uiStore selection", () => {
   it("toggles single select then ctrl-adds", () => {
     const ui = useUiStore.getState();
@@ -245,6 +332,19 @@ describe("uiStore snackbar dismissal", () => {
     });
     ui.showSnackbar("urgent", { replace: true });
     expect(reasons).toEqual(["dismissed", "replaced"]);
+  });
+
+  it("reports an action click separately from an explicit dismissal", () => {
+    const reasons: string[] = [];
+    const ui = useUiStore.getState();
+    ui.showSnackbar("reminder", {
+      actionLabel: "Open",
+      action: () => {},
+      onDismiss: (reason) => reasons.push(reason),
+    });
+    const reminder = useUiStore.getState().snackbar!;
+    ui.hideSnackbar(reminder.id, "action");
+    expect(reasons).toEqual(["action"]);
   });
 });
 

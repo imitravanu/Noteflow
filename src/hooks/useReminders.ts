@@ -24,21 +24,65 @@ export function useReminders() {
 
     const check = async () => {
       timer = undefined;
+      // An "Open" is in progress: the reminder is still scheduled until the
+      // editor renders the note, so don't toast it a second time meanwhile.
+      if (useUiStore.getState().pendingReminderAck !== null) {
+        schedule(FOLLOW_UP_MS);
+        return;
+      }
       try {
         const due = await api.peekDueReminder();
         if (!alive) return;
         if (due?.reminderAt != null) {
           const expectedAt = due.reminderAt;
+          // "Open" is not an acknowledgment: the store navigates to Notes,
+          // opens the note, and consumes the reminder only after the editor
+          // has rendered it. A failed draft save or note load leaves the
+          // schedule in SQLite, so this toast comes back on the follow-up.
+          const openReminder = async () => {
+            try {
+              const opened = await useUiStore.getState().openReminderNote(due.id, expectedAt);
+              if (!alive) return;
+              if (!opened) {
+                useUiStore.getState().showSnackbar(
+                  "Couldn't open that reminder. It will stay scheduled.",
+                  { replace: true },
+                );
+                return;
+              }
+              if (useUiStore.getState().pendingReminderAck === null) {
+                await useNotesStore.getState().refresh();
+              }
+            } catch {
+              if (alive) {
+                useUiStore.getState().showSnackbar(
+                  "Couldn't open that reminder. It will stay scheduled.",
+                  { replace: true },
+                );
+              }
+            } finally {
+              // Re-check after the open attempt settles (or after the editor
+              // acknowledges it), so the toast is never stranded.
+              schedule(FOLLOW_UP_MS);
+            }
+          };
           useUiStore.getState().showSnackbar(`Reminder: ${due.title || "Untitled"}`, {
             actionLabel: "Open",
             persistent: true,
-            action: () => void useUiStore.getState().openEditor(due.id),
+            action: () => void openReminder(),
             onDismiss: (reason) => {
               if (!alive) return;
+              if (reason === "action") {
+                // openReminder owns the follow-up: it must wait for the note
+                // to render (or for the open attempt to fail) first.
+                return;
+              }
               if (reason === "replaced") {
                 schedule(FOLLOW_UP_MS);
                 return;
               }
+              // Explicit dismissal is the only path that consumes a reminder
+              // before its note is opened.
               void api.acknowledgeReminder(due.id, expectedAt)
                 .then(() => useNotesStore.getState().refresh())
                 .catch(() => {

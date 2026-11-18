@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { NoteView, Theme } from "../types";
+import type { Note, NoteView, Theme } from "../types";
 import { UndoStack, expandRangeSelection } from "../utils/undoStack";
 import { api } from "../services/api";
 
@@ -13,13 +13,16 @@ export interface PopoverHandle {
   close: () => void;
 }
 
+/** Why a toast left the screen. "action" is a click on its action button. */
+export type SnackbarDismissReason = "dismissed" | "replaced" | "action";
+
 export interface SnackbarState {
   id: number;
   message: string;
   actionLabel?: string;
   action?: () => void;
   persistent?: boolean;
-  onDismiss?: (reason: "dismissed" | "replaced") => void;
+  onDismiss?: (reason: SnackbarDismissReason) => void;
 }
 
 export interface ConfirmConfig {
@@ -47,8 +50,8 @@ interface UiState {
   editorNoteId: string | null;
   /** Card id the editor hands focus back to when it closes (see NoteEditor). */
   editorReturnFocusId: string | null;
-  /** Local snapshot of the note being edited, kept current by the editor. */
-  editorNote: import("../types").Note | null;
+  /** Committed snapshot of the open note, shared by the toolbar and shortcuts. */
+  editorNote: Note | null;
   /** Flush callback for the mounted editor (Ctrl+S / close / note switch). */
   editorFlush: (() => Promise<boolean>) | null;
   snackbar: SnackbarState | null;
@@ -81,11 +84,29 @@ interface UiState {
    */
   openEditor: (noteId: string, returnFocusId?: string | null) => Promise<boolean>;
   closeEditor: () => void;
-  setEditorNote: (note: import("../types").Note | null) => void;
+  setEditorNote: (note: Note | null) => void;
+  patchEditorNote: (id: string, patch: Partial<Omit<Note, "id">>) => void;
   registerEditorFlush: (fn: (() => Promise<boolean>) | null) => void;
   flushEditor: () => Promise<boolean>;
   /** Flushes pending editor edits (if any) and closes the editor. */
   flushAndCloseEditor: () => Promise<boolean>;
+
+  /**
+   * Reminder the user asked to open, held until the editor has actually
+   * displayed that note. Until then the reminder stays in SQLite, so a failed
+   * draft save or a failed note load cannot consume it.
+   */
+  pendingReminderAck: { noteId: string; expectedAt: number } | null;
+  /**
+   * Navigates to Notes and opens the reminder's note. Resolves false when the
+   * previous draft could not be saved or the editor could not start opening
+   * (the reminder is then left scheduled).
+   */
+  openReminderNote: (noteId: string, expectedAt: number) => Promise<boolean>;
+  /** Editor loaded the pending note: acknowledge its reminder now. */
+  completeReminderOpen: (noteId: string) => Promise<boolean>;
+  /** Editor failed to load the pending note: keep the reminder scheduled. */
+  cancelReminderOpen: (noteId: string) => void;
 
   toggleSelect: (
     id: string,
@@ -109,10 +130,13 @@ interface UiState {
        *  must not sit in front of the queue forever. */
       replace?: boolean;
       persistent?: boolean;
-      onDismiss?: (reason: "dismissed" | "replaced") => void;
+      onDismiss?: (reason: SnackbarDismissReason) => void;
     },
   ) => void;
-  hideSnackbar: (expectedId?: number) => void;
+  hideSnackbar: (
+    expectedId?: number,
+    reason?: SnackbarDismissReason,
+  ) => void;
   askConfirm: (config: ConfirmConfig) => void;
   closeConfirm: () => void;
 
@@ -143,6 +167,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   editorReturnFocusId: null,
   editorNote: null,
   editorFlush: null,
+  pendingReminderAck: null,
   snackbar: null,
   snackbarQueue: [],
   confirm: null,
@@ -189,8 +214,14 @@ export const useUiStore = create<UiState>((set, get) => ({
     return true;
   },
   closeEditor: () =>
-    set({ editorNoteId: null, editorNote: null }),
+    set({ editorNoteId: null, editorNote: null, pendingReminderAck: null }),
   setEditorNote: (note) => set({ editorNote: note }),
+  patchEditorNote: (id, patch) =>
+    set((state) =>
+      state.editorNoteId === id && state.editorNote?.id === id
+        ? { editorNote: { ...state.editorNote, ...patch } }
+        : state,
+    ),
 
   registerEditorFlush: (fn) => set({ editorFlush: fn }),
 
@@ -204,6 +235,48 @@ export const useUiStore = create<UiState>((set, get) => ({
     if (!saved) return false;
     get().closeEditor();
     return true;
+  },
+
+  openReminderNote: async (noteId, expectedAt) => {
+    // The editor only mounts inside NotesPage, so Settings must hand the page
+    // back before the note id can be shown to the user.
+    if (get().page !== "notes") {
+      set({ page: "notes", selection: [], anchorId: null });
+    }
+    const alreadyLoaded =
+      get().editorNoteId === noteId && get().editorNote?.id === noteId;
+    // Register the acknowledgment *before* the editor starts loading. The
+    // editor claims it only after rendering the note; a load failure cancels
+    // it, leaving the reminder in SQLite for the next poll.
+    set({ pendingReminderAck: { noteId, expectedAt } });
+    const opened = await get().openEditor(noteId);
+    if (!opened) {
+      get().cancelReminderOpen(noteId);
+      return false;
+    }
+    if (alreadyLoaded) {
+      // Clicking Open on the note that is already displayed never reruns the
+      // editor's load effect, so acknowledge it here.
+      await get().completeReminderOpen(noteId);
+    }
+    return true;
+  },
+
+  completeReminderOpen: async (noteId) => {
+    const pending = get().pendingReminderAck;
+    if (!pending || pending.noteId !== noteId) return false;
+    set({ pendingReminderAck: null });
+    try {
+      return await api.acknowledgeReminder(noteId, pending.expectedAt);
+    } catch {
+      // The schedule remains in SQLite; the reminder hook will show it again.
+      return false;
+    }
+  },
+
+  cancelReminderOpen: (noteId) => {
+    const pending = get().pendingReminderAck;
+    if (pending?.noteId === noteId) set({ pendingReminderAck: null });
   },
 
   toggleSelect: (id, mode, orderedIds) => {
@@ -268,14 +341,14 @@ export const useUiStore = create<UiState>((set, get) => ({
       current?.onDismiss?.("replaced");
     }
   },
-  hideSnackbar: (expectedId) => {
+  hideSnackbar: (expectedId, reason = "dismissed") => {
     // Auto-hide / manual dismiss advances the queue, so a protected toast's
     // replacement surfaces instead of being lost.
     const current = get().snackbar;
     if (expectedId !== undefined && current?.id !== expectedId) return;
     const [next, ...rest] = get().snackbarQueue;
     set({ snackbar: next ?? null, snackbarQueue: rest });
-    current?.onDismiss?.("dismissed");
+    current?.onDismiss?.(reason);
   },
 
   askConfirm: (config) => set({ confirm: config }),

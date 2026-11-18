@@ -20,12 +20,14 @@ function isEditableTarget(e: KeyboardEvent): boolean {
  * buttons). Previously only selection[0] was toggled, silently ignoring the
  * rest of the selection.
  */
-function togglePinShortcut(
+export function togglePinShortcut(
   ui: ReturnType<typeof useUiStore.getState>,
   notes: ReturnType<typeof useNotesStore.getState>,
 ) {
-  if (ui.editorNote) {
-    void notes.setFlags(ui.editorNote.id, { pinned: !ui.editorNote.pinned });
+  if (ui.editorNoteId) {
+    // Same serialized action as the editor toolbar. Reading the note snapshot
+    // here would let two quick presses both see the pre-write value.
+    void notes.toggleFlag(ui.editorNoteId, "pinned");
     return;
   }
   const selected = notes.notes.filter((n) => ui.selection.includes(n.id));
@@ -33,12 +35,12 @@ function togglePinShortcut(
   void notes.setFlagsForSelection({ pinned: !selected.every((n) => n.pinned) });
 }
 
-function toggleFavoriteShortcut(
+export function toggleFavoriteShortcut(
   ui: ReturnType<typeof useUiStore.getState>,
   notes: ReturnType<typeof useNotesStore.getState>,
 ) {
-  if (ui.editorNote) {
-    void notes.setFlags(ui.editorNote.id, { favorite: !ui.editorNote.favorite });
+  if (ui.editorNoteId) {
+    void notes.toggleFlag(ui.editorNoteId, "favorite");
     return;
   }
   const selected = notes.notes.filter((n) => ui.selection.includes(n.id));

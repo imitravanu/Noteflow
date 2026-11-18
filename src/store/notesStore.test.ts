@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
 import { invoke } from "@tauri-apps/api/core";
-import type { Counts, Note } from "../types";
+import type { Counts, FlagPatch, Note } from "../types";
 import { useNotesStore } from "./notesStore";
 import { useUiStore } from "./uiStore";
 
@@ -56,7 +56,10 @@ beforeEach(() => {
     anchorId: null,
     snackbar: null,
     openPopover: null,
+    page: "notes",
     editorNoteId: null,
+    editorNote: null,
+    pendingReminderAck: null,
     editorFlush: null,
   });
   useUiStore.getState().undoStack.clear();
@@ -231,6 +234,175 @@ describe("notesStore.trash / undo", () => {
     });
     expect(await useNotesStore.getState().deletePermanent(["n1"])).toBe(false);
     expect(useUiStore.getState().snackbar?.message).toMatch(/Nothing deleted/);
+  });
+});
+
+describe("notesStore.toggleFlag (rapid pin/favorite shortcuts)", () => {
+  it.each(["pinned", "favorite"] as const)(
+    "toggles %s after a bulk change and reopen while the list refresh is pending",
+    async (key) => {
+      let row = makeNote("n1");
+      const ui = useUiStore.getState();
+      const notes = useNotesStore.getState();
+      useNotesStore.setState({ notes: [row] });
+      useUiStore.setState({ editorNoteId: row.id, editorNote: row });
+      let finishBulkRefresh: (() => void) | undefined;
+      let deferList = false;
+      route({
+        set_flags: (args) => (row = { ...row, ...(args?.flags as FlagPatch) }),
+        set_flags_bulk: (args) => {
+          row = { ...row, ...(args?.flags as FlagPatch) };
+          deferList = true;
+          return 1;
+        },
+        list_notes: () => {
+          if (!deferList) return [row];
+          deferList = false;
+          const bulkRow = row;
+          return new Promise<Note[]>((resolve) => {
+            finishBulkRefresh = () => resolve([bulkRow]);
+          });
+        },
+        list_tags: () => [],
+        get_counts: () => ZERO_COUNTS,
+      });
+
+      await notes.toggleFlag(row.id, key);
+      expect(row[key]).toBe(true);
+      ui.closeEditor();
+      useUiStore.setState({ selection: [row.id] });
+      const bulk = notes.setFlagsForSelection({ [key]: false });
+      await vi.waitFor(() => expect(finishBulkRefresh).toBeDefined());
+      expect(row[key]).toBe(false);
+      await ui.openEditor(row.id);
+      ui.setEditorNote(useNotesStore.getState().notes[0]);
+
+      await notes.toggleFlag(row.id, key);
+      finishBulkRefresh?.();
+      await bulk;
+
+      expect(row[key]).toBe(true);
+      expect(useUiStore.getState().editorNote?.[key]).toBe(true);
+    },
+  );
+
+  it.each(["pinned", "favorite"] as const)(
+    "retries the same %s target when the first of two queued writes fails",
+    async (key) => {
+      let row = makeNote("n1");
+      useNotesStore.setState({ notes: [row] });
+      useUiStore.setState({ editorNoteId: row.id, editorNote: row });
+      const writes: boolean[] = [];
+      route({
+        set_flags: (args) => {
+          const target = (args?.flags as Pick<Note, typeof key>)[key];
+          writes.push(target);
+          if (writes.length === 1) throw new Error("Storage unavailable");
+          return (row = { ...row, [key]: target });
+        },
+        list_notes: () => [row],
+        list_tags: () => [],
+        get_counts: () => ZERO_COUNTS,
+      });
+
+      const { toggleFlag } = useNotesStore.getState();
+      const [first, second] = await Promise.all([
+        toggleFlag(row.id, key),
+        toggleFlag(row.id, key),
+      ]);
+
+      expect(first).toBeNull();
+      expect(second?.[key]).toBe(true);
+      expect(writes).toEqual([true, true]);
+      expect(useUiStore.getState().editorNote?.[key]).toBe(true);
+    },
+  );
+
+  it("keeps the toolbar's committed flags when an older autosave reply lands", async () => {
+    let row = makeNote("n1");
+    useNotesStore.setState({ notes: [row] });
+    useUiStore.setState({ editorNoteId: row.id, editorNote: row });
+    let replyToSave!: () => void;
+    route({
+      update_note: () => {
+        row = { ...row, title: "New title", updatedAt: 3 };
+        const saved = row;
+        return new Promise<Note>((resolve) => { replyToSave = () => resolve(saved); });
+      },
+      set_flags: (args) => (row = { ...row, ...(args?.flags as FlagPatch) }),
+      list_notes: () => [row],
+      list_tags: () => [],
+      get_counts: () => ZERO_COUNTS,
+    });
+
+    const notes = useNotesStore.getState();
+    const saving = notes.updateNote(row.id, { title: "New title" });
+    await notes.toggleFlag(row.id, "pinned");
+    await notes.toggleFlag(row.id, "favorite");
+    replyToSave();
+    await saving;
+
+    expect(useUiStore.getState().editorNote).toMatchObject({
+      title: "New title",
+      pinned: true,
+      favorite: true,
+    });
+    expect(useNotesStore.getState().notes[0]).toEqual(row);
+    await notes.toggleFlag(row.id, "pinned");
+    expect(row.pinned).toBe(false);
+  });
+
+  it("two rapid pin presses write true then false and restore UI + DB state", async () => {
+    const base = makeNote("pin-note");
+    useNotesStore.setState({ notes: [base] });
+    useUiStore.setState({ editorNoteId: "pin-note", editorNote: base });
+    const writes: boolean[] = [];
+    route({
+      set_flags: (args) => {
+        const pinned = (args?.flags as { pinned?: boolean }).pinned === true;
+        writes.push(pinned);
+        return makeNote("pin-note", { pinned });
+      },
+      list_notes: () => useNotesStore.getState().notes,
+      list_tags: () => [],
+      get_counts: () => ({ ...ZERO_COUNTS, all: 1 }),
+    });
+
+    // Both presses are issued before either IPC reply lands.
+    await Promise.all([
+      useNotesStore.getState().toggleFlag("pin-note", "pinned"),
+      useNotesStore.getState().toggleFlag("pin-note", "pinned"),
+    ]);
+
+    expect(writes).toEqual([true, false]);
+    expect(useNotesStore.getState().notes[0].pinned).toBe(false);
+    expect(useUiStore.getState().editorNote?.pinned).toBe(false);
+  });
+
+  it("does the same for favorite, from the committed snapshot", async () => {
+    const base = makeNote("fav-note", { favorite: true });
+    useNotesStore.setState({ notes: [base] });
+    useUiStore.setState({ editorNoteId: "fav-note", editorNote: base });
+    const writes: boolean[] = [];
+    route({
+      set_flags: (args) => {
+        const favorite = (args?.flags as { favorite?: boolean }).favorite === true;
+        writes.push(favorite);
+        return makeNote("fav-note", { favorite });
+      },
+      list_notes: () => useNotesStore.getState().notes,
+      list_tags: () => [],
+      get_counts: () => ({ ...ZERO_COUNTS, all: 1 }),
+    });
+
+    await Promise.all([
+      useNotesStore.getState().toggleFlag("fav-note", "favorite"),
+      useNotesStore.getState().toggleFlag("fav-note", "favorite"),
+    ]);
+
+    expect(writes).toEqual([false, true]);
+    expect(useNotesStore.getState().notes[0].favorite).toBe(true);
+    expect(useUiStore.getState().editorNote?.favorite).toBe(true);
   });
 });
 

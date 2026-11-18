@@ -1,4 +1,5 @@
 import { useUiStore } from "../store/uiStore";
+import { flushBeforeExit, showExitSaveError } from "./exitFlow";
 import {
   checkForUpdate,
   openReleasePage,
@@ -34,6 +35,35 @@ export function announceUpdate(info: AppUpdateInfo): void {
   });
 }
 
+let restartInFlight = false;
+
+/**
+ * The updater has already replaced the binary; a restart is what swaps the
+ * running process. Flush the editor first so a draft typed during the download
+ * is still persisted. A failed flush cancels the restart (and offers Retry)
+ * instead of exiting and losing the edits.
+ */
+async function restartIntoUpdate(version: string): Promise<void> {
+  if (restartInFlight) return;
+  restartInFlight = true;
+  try {
+    if (!(await flushBeforeExit())) {
+      showExitSaveError(() => void restartIntoUpdate(version));
+      return;
+    }
+    await relaunchApp();
+  } catch {
+    toast(`Could not restart NoteFlow. Quit and reopen to finish updating to v${version}.`, {
+      replace: true,
+      actionLabel: "Retry",
+      action: () => void restartIntoUpdate(version),
+      persistent: true,
+    });
+  } finally {
+    restartInFlight = false;
+  }
+}
+
 async function runUpdate(info: AppUpdateInfo): Promise<void> {
   const version = info.version;
   // `replace` claims the slot: the clicked "Update" toast hid itself, and a
@@ -46,7 +76,7 @@ async function runUpdate(info: AppUpdateInfo): Promise<void> {
     toast(`NoteFlow v${version} installed — restarting…`, { replace: true });
     // One beat so the confirmation toast renders before the process exits.
     setTimeout(() => {
-      void relaunchApp().catch(() => {});
+      void restartIntoUpdate(version);
     }, 900);
     return;
   }

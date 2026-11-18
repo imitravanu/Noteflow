@@ -15,7 +15,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import type { ChecklistItem, FlagPatch, Note, NoteColor, SaveStatus } from "../types";
+import type { ChecklistItem, Note, NoteColor, SaveStatus } from "../types";
 import { api } from "../services/api";
 import { useNotesStore } from "../store/notesStore";
 import { errText, useUiStore } from "../store/uiStore";
@@ -49,11 +49,16 @@ function newId(): string {
 export function NoteEditor() {
   const noteId = useUiStore((s) => s.editorNoteId);
   const setEditorNote = useUiStore((s) => s.setEditorNote);
+  const patchEditorNote = useUiStore((s) => s.patchEditorNote);
   const registerEditorFlush = useUiStore((s) => s.registerEditorFlush);
   const flushAndCloseEditor = useUiStore((s) => s.flushAndCloseEditor);
   const closeEditor = useUiStore((s) => s.closeEditor);
   const askConfirm = useUiStore((s) => s.askConfirm);
   const showSnackbar = useUiStore((s) => s.showSnackbar);
+  const editorNote = useUiStore((s) => s.editorNote);
+  const completeReminderOpen = useUiStore((s) => s.completeReminderOpen);
+  const cancelReminderOpen = useUiStore((s) => s.cancelReminderOpen);
+  const toggleFlag = useNotesStore((s) => s.toggleFlag);
   const setFlags = useNotesStore((s) => s.setFlags);
   const setReminder = useNotesStore((s) => s.setReminder);
   const trashNotes = useNotesStore((s) => s.trashNotes);
@@ -142,7 +147,6 @@ export function NoteEditor() {
         };
         noteRef.current = merged;
         setNote(merged);
-        setEditorNote(merged);
         return true;
       },
       onStatus: setStatus,
@@ -177,6 +181,12 @@ export function NoteEditor() {
       if (!alive) return;
       setNote(n);
       setEditorNote(n);
+      // A reminder "Open" may be waiting for this note to render. Only now is
+      // it safe to consume the reminder; if this load fails, the catch below
+      // cancels it so the schedule survives for the next poll.
+      void completeReminderOpen(n.id).then((acknowledged) => {
+        if (acknowledged) void useNotesStore.getState().refresh();
+      });
       // Don't clobber user edits that started before fresh data arrived.
       if (!gate.isDirty()) {
         setDraft({
@@ -191,10 +201,14 @@ export function NoteEditor() {
       apply(cached);
       // Revalidate in background so a stale list entry never becomes
       // the base for autosave overwrites.
-      api.getNote(noteId).then(apply).catch(() => {});
+      api.getNote(noteId).then((fresh) => {
+        // A committed editor write can land while this read is pending.
+        if (useUiStore.getState().editorNote === cached) apply(fresh);
+      }).catch(() => {});
     } else {
       api.getNote(noteId).then(apply).catch((e) => {
         if (!alive) return;
+        cancelReminderOpen(noteId);
         showSnackbar(errText(e));
         closeEditor();
       });
@@ -202,7 +216,7 @@ export function NoteEditor() {
     return () => {
       alive = false;
     };
-  }, [noteId, gate, setEditorNote, closeEditor, showSnackbar]);
+  }, [noteId, gate, setEditorNote, closeEditor, showSnackbar, completeReminderOpen, cancelReminderOpen]);
 
   // ---- saving -------------------------------------------------------------
   // Stable identity: registered as the editor's flush callback (Ctrl+S,
@@ -378,29 +392,8 @@ export function NoteEditor() {
       const updated = { ...noteRef.current, tags };
       noteRef.current = updated; // keep the chain's next read fresh pre-commit
       setNote(updated);
-      setEditorNote(updated);
+      patchEditorNote(currentNote.id, { tags });
     });
-  };
-
-  // ---- flags ---------------------------------------------------------------
-  // Keeps the editor's local note (and the shortcut-facing snapshot) in sync
-  // with what the database now says, so toolbar state and Ctrl+Shift+P/F
-  // toggles never go stale.
-  const handleFlags = async (flags: FlagPatch) => {
-    if (!note) return;
-    const targetId = note.id;
-    const updated = await setFlags(targetId, flags);
-    if (updated && noteRef.current?.id === targetId) {
-      const merged = {
-        ...noteRef.current,
-        pinned: updated.pinned,
-        favorite: updated.favorite,
-        archived: updated.archived,
-      };
-      noteRef.current = merged;
-      setNote(merged);
-      setEditorNote(merged);
-    }
   };
 
   // ---- reminders -----------------------------------------------------------
@@ -415,7 +408,7 @@ export function NoteEditor() {
     const merged = { ...noteRef.current, reminderAt: updated.reminderAt };
     noteRef.current = merged;
     setNote(merged);
-    setEditorNote(merged);
+    patchEditorNote(targetId, { reminderAt: updated.reminderAt });
     showSnackbar(at === null ? "Reminder cleared" : `Reminder set for ${formatDateTime(at)}`);
   };
 
@@ -454,6 +447,9 @@ export function NoteEditor() {
     status === "saving" ? "Saving…" : status === "error" ? "Save failed" : "Saved";
 
   const stats = countWordsAndChars(draft.content, draft.checklist);
+
+  // The toolbar and shortcut action share the committed editor snapshot.
+  const flagsNote = editorNote?.id === note.id ? editorNote : note;
 
   return (
     <div
@@ -554,33 +550,33 @@ export function NoteEditor() {
             <div className="editor-toolbar-group">
               <button
                 type="button"
-                className={`icon-btn${note.pinned ? " active" : ""}`}
-                aria-label={note.pinned ? "Unpin note" : "Pin note"}
-                aria-pressed={note.pinned}
-                title={note.pinned ? "Unpin (Ctrl+Shift+P)" : "Pin (Ctrl+Shift+P)"}
-                onClick={() => void handleFlags({ pinned: !note.pinned })}
+                className={`icon-btn${flagsNote.pinned ? " active" : ""}`}
+                aria-label={flagsNote.pinned ? "Unpin note" : "Pin note"}
+                aria-pressed={flagsNote.pinned}
+                title={flagsNote.pinned ? "Unpin (Ctrl+Shift+P)" : "Pin (Ctrl+Shift+P)"}
+                onClick={() => void toggleFlag(note.id, "pinned")}
               >
                 <Pin size={16} />
               </button>
               <button
                 type="button"
-                className={`icon-btn${note.favorite ? " active" : ""}`}
-                aria-label={note.favorite ? "Remove from favorites" : "Add to favorites"}
-                aria-pressed={note.favorite}
-                title={note.favorite ? "Unfavorite (Ctrl+Shift+F)" : "Favorite (Ctrl+Shift+F)"}
-                onClick={() => void handleFlags({ favorite: !note.favorite })}
+                className={`icon-btn${flagsNote.favorite ? " active" : ""}`}
+                aria-label={flagsNote.favorite ? "Remove from favorites" : "Add to favorites"}
+                aria-pressed={flagsNote.favorite}
+                title={flagsNote.favorite ? "Unfavorite (Ctrl+Shift+F)" : "Favorite (Ctrl+Shift+F)"}
+                onClick={() => void toggleFlag(note.id, "favorite")}
               >
-                <Star size={16} className={note.favorite ? "starred" : undefined} />
+                <Star size={16} className={flagsNote.favorite ? "starred" : undefined} />
               </button>
               <button
                 type="button"
                 className="icon-btn"
-                aria-label={note.archived ? "Unarchive note" : "Archive note"}
-                aria-pressed={note.archived}
-                title={note.archived ? "Unarchive" : "Archive"}
-                onClick={() => void handleFlags({ archived: !note.archived })}
+                aria-label={flagsNote.archived ? "Unarchive note" : "Archive note"}
+                aria-pressed={flagsNote.archived}
+                title={flagsNote.archived ? "Unarchive" : "Archive"}
+                onClick={() => void setFlags(note.id, { archived: !flagsNote.archived })}
               >
-                {note.archived ? <ArchiveRestore size={16} /> : <Archive size={16} />}
+                {flagsNote.archived ? <ArchiveRestore size={16} /> : <Archive size={16} />}
               </button>
               <div className="editor-popover-wrap">
                 <button
