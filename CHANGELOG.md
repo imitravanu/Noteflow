@@ -3,6 +3,19 @@
 All notable changes to NoteFlow are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.7.2] - 2026-11-20
+
+### Fixed
+
+- Note previews use the full lines available above the footer, and pasted columns keep their visible text within the preview budget.
+- Note card actions stay visible on hover. Checklist previews show the next task or the checklist text that matched a search.
+- The editor keeps its writing surface opaque at compact window sizes, and Tab moves from the title to the body.
+- Creating a note or entering a search from Settings opens the Notes view. Empty views show a single creation action.
+
+### Changed
+
+- Reminder controls distinguish saved times from proposed times, and the selection toolbar clarifies that deletion moves notes to Trash.
+
 ## [1.7.1] - 2026-11-19
 
 ### Fixed
