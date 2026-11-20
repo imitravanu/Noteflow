@@ -1,9 +1,9 @@
 import { useRef, useState } from "react";
 import { usePopover } from "../hooks/usePopover";
 import {
-  formatReminderTime,
   fromLocalInputValue,
   isValidReminderTime,
+  reminderHintLabels,
   reminderPresets,
   toLocalInputValue,
 } from "../utils/reminder";
@@ -22,6 +22,7 @@ export function ReminderPicker({ value, onSet, onClose }: ReminderPickerProps) {
   const [draft, setDraft] = useState(() =>
     toLocalInputValue(value ?? reminderPresets()[0].at),
   );
+  const [pickedPreset, setPickedPreset] = useState<string | null>(null);
   // Escape registration, outside-click close, and focus discipline
   // (shared by all pickers) live in usePopover.
   usePopover(ref, onClose);
@@ -30,6 +31,7 @@ export function ReminderPicker({ value, onSet, onClose }: ReminderPickerProps) {
   // `datetime-local` has minute precision, so "now" always reads as the past —
   // allow a small grace window instead of rejecting the current minute.
   const valid = isValidReminderTime(at, Date.now() - 60_000);
+  const labels = reminderHintLabels(value, at, valid, pickedPreset);
 
   return (
     <div
@@ -46,7 +48,10 @@ export function ReminderPicker({ value, onSet, onClose }: ReminderPickerProps) {
             key={preset.label}
             type="button"
             className="chip reminder-preset"
-            onClick={() => setDraft(toLocalInputValue(preset.at))}
+            onClick={() => {
+              setDraft(toLocalInputValue(preset.at));
+              setPickedPreset(preset.label);
+            }}
           >
             {preset.label}
           </button>
@@ -58,12 +63,20 @@ export function ReminderPicker({ value, onSet, onClose }: ReminderPickerProps) {
         type="datetime-local"
         value={draft}
         aria-label="Reminder date and time"
-        onChange={(e) => setDraft(e.target.value)}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          setPickedPreset(null);
+        }}
       />
 
       <p className="reminder-hint">
-        {value !== null ? `Scheduled ${formatReminderTime(value)}` : "No reminder set"}
-        {at !== null && !valid ? " · choose a time in the future" : ""}
+        <span>{labels.scheduled}</span>
+        {labels.proposed && (
+          <span className="reminder-proposed">{labels.proposed}</span>
+        )}
+        {at !== null && !valid && (
+          <span> · choose a time in the future</span>
+        )}
       </p>
 
       <div className="reminder-actions">

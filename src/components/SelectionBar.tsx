@@ -136,7 +136,7 @@ export function SelectionBar() {
           className="btn btn-ghost btn-sm danger"
           onClick={() => void trashSelection()}
         >
-          <Trash2 size={15} aria-hidden="true" /> Delete
+          <Trash2 size={15} aria-hidden="true" /> Move to Trash
         </button>
       </div>
       <button

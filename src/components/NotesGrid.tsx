@@ -25,7 +25,7 @@ interface NotesGridProps {
 }
 
 export function NotesGrid({ notes, showPinnedSection }: NotesGridProps) {
-  const query = useUiStore((s) => s.query);
+  const query = useUiStore((s) => s.query.trim());
   const selection = useUiStore((s) => s.selection);
   const notesRef = useRef(notes);
   notesRef.current = notes;

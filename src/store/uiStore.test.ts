@@ -246,6 +246,21 @@ describe("uiStore reminder Open (Settings → Notes regression)", () => {
   });
 });
 
+describe("uiStore.setQuery (global search from Settings)", () => {
+  it("returns to Notes with the query intact so results can render", () => {
+    useUiStore.setState({ page: "settings" });
+    useUiStore.getState().setQuery("Verify package");
+    expect(useUiStore.getState().query).toBe("Verify package");
+    expect(useUiStore.getState().page).toBe("notes");
+  });
+
+  it.each(["", "   "])("stays in Settings for an empty or whitespace-only query (%j)", (query) => {
+    useUiStore.setState({ page: "settings" });
+    useUiStore.getState().setQuery(query);
+    expect(useUiStore.getState().page).toBe("settings");
+  });
+});
+
 describe("uiStore selection", () => {
   it("toggles single select then ctrl-adds", () => {
     const ui = useUiStore.getState();

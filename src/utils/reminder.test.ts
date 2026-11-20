@@ -3,6 +3,7 @@ import {
   formatReminderTime,
   fromLocalInputValue,
   isValidReminderTime,
+  reminderHintLabels,
   reminderPresets,
   toLocalInputValue,
 } from "./reminder";
@@ -65,6 +66,27 @@ describe("datetime-local conversion", () => {
     expect(toLocalInputValue(0)).toBe("");
     expect(fromLocalInputValue("")).toBeNull();
     expect(fromLocalInputValue("not-a-date")).toBeNull();
+  });
+});
+
+describe("reminderHintLabels", () => {
+  it("distinguishes a proposed preset from an already saved reminder", () => {
+    const proposedAt = NOW + 3_600_000;
+    expect(reminderHintLabels(null, proposedAt, true, "In 1 hour", NOW)).toEqual({
+      scheduled: "No reminder saved yet",
+      proposed: expect.stringMatching(/^Proposed \(In 1 hour\): .* — not saved yet$/),
+    });
+
+    const saved = NOW - 60_000;
+    expect(reminderHintLabels(saved, proposedAt, true, "Tomorrow 9:00", NOW)).toEqual({
+      scheduled: expect.stringMatching(/^Currently scheduled: Overdue · /),
+      proposed: expect.stringMatching(/^Proposed \(Tomorrow 9:00\): .* — not saved yet$/),
+    });
+  });
+
+  it("shows no proposal for an invalid or unchanged time", () => {
+    expect(reminderHintLabels(null, NOW - 1, false, null, NOW).proposed).toBeNull();
+    expect(reminderHintLabels(NOW + 1, NOW + 1, true, null, NOW).proposed).toBeNull();
   });
 });
 

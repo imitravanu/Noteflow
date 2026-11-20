@@ -193,7 +193,13 @@ export const useUiStore = create<UiState>((set, get) => ({
   setActiveTag: (tagId) =>
     set({ activeTagId: tagId, view: "all", selection: [], anchorId: null, page: "notes" }),
 
-  setQuery: (query) => set({ query }),
+  setQuery: (query) => {
+    // Search is global: starting one from Settings must bring back the page
+    // that renders results. TopBar (and its input) stays mounted, so the query
+    // and the caret survive the page swap. setPage owns the editor save guard.
+    set({ query });
+    if (query.trim() && get().page !== "notes") void get().setPage("notes");
+  },
 
   openEditor: async (noteId, returnFocusId = null) => {
     // Must resolve before the id changes: `flushEditor` waits for in-flight

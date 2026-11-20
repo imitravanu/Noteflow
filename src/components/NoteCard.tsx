@@ -17,7 +17,7 @@ import { useNotesStore } from "../store/notesStore";
 import { useUiStore } from "../store/uiStore";
 import { formatRelativeTime, safeIsoDateTime } from "../utils/format";
 import { formatReminderTime } from "../utils/reminder";
-import { bodyPreview } from "../utils/highlight";
+import { bodyPreview, checklistPreview } from "../utils/highlight";
 import { Highlighted } from "./Highlighted";
 
 async function copyText(text: string): Promise<boolean> {
@@ -62,6 +62,7 @@ export const NoteCard = memo(function NoteCard({
   getOrderedIds,
 }: NoteCardProps) {
   const cardRef = useRef<HTMLElement>(null);
+  const previewRef = useRef<HTMLParagraphElement>(null);
   const toggleSelect = useUiStore((s) => s.toggleSelect);
   const openEditor = useUiStore((s) => s.openEditor);
   const view = useUiStore((s) => s.view);
@@ -75,6 +76,39 @@ export const NoteCard = memo(function NoteCard({
 
   const preview = bodyPreview(note.content);
   const doneCount = note.checklist.filter((c) => c.checked).length;
+  const checklistInfo = checklistPreview(note.checklist, query);
+  const hasPreview = preview.length > 0;
+  const hasChecklist = note.checklist.length > 0;
+  const hasTags = note.tags.length > 0;
+
+  useEffect(() => {
+    const card = cardRef.current;
+    const previewElement = previewRef.current;
+    if (!card || !previewElement) return;
+
+    // The preview is the only flexible row. Watch the fixed rows so changing
+    // the clamp cannot feed back into the space measurement.
+    const fixedRows = card.querySelectorAll(
+      ".note-card-title, .note-card-checklist, .note-card-tags, .note-card-footer",
+    );
+    const observer = new ResizeObserver(() => {
+      const style = getComputedStyle(card);
+      let availableHeight =
+        card.clientHeight -
+        parseFloat(style.paddingTop) -
+        parseFloat(style.paddingBottom) -
+        fixedRows.length * parseFloat(style.rowGap);
+      for (const row of fixedRows) {
+        availableHeight -= parseFloat(getComputedStyle(row).height);
+      }
+      const lineHeight = parseFloat(getComputedStyle(previewElement).lineHeight);
+      const lines = Math.max(0, Math.floor(availableHeight / lineHeight));
+      previewElement.style.setProperty("--preview-lines", String(lines));
+    });
+    observer.observe(card);
+    fixedRows.forEach((row) => observer.observe(row, { box: "border-box" }));
+    return () => observer.disconnect();
+  }, [hasPreview, hasChecklist, hasTags]);
 
   const stop = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -273,20 +307,31 @@ export const NoteCard = memo(function NoteCard({
         <h3 className="note-card-title note-card-title-untitled">Untitled</h3>
       )}
 
-      {preview && (
-        <p className="note-card-preview">
+      {hasPreview && (
+        <p className="note-card-preview" ref={previewRef}>
           <Highlighted text={preview} query={query} />
         </p>
       )}
 
-      {note.checklist.length > 0 && (
+      {hasChecklist && (
         <p className="note-card-checklist">
           <ListChecks size={13} aria-hidden="true" />
-          {doneCount}/{note.checklist.length}
+          <span
+            className={`note-card-checklist-text${checklistInfo.matched ? " is-match" : ""}`}
+            title={checklistInfo.text}
+          >
+            <Highlighted text={checklistInfo.text} query={query} />
+          </span>
+          <span
+            className="note-card-checklist-count"
+            aria-label={`${doneCount} of ${note.checklist.length} complete`}
+          >
+            {doneCount}/{note.checklist.length}
+          </span>
         </p>
       )}
 
-      {note.tags.length > 0 && (
+      {hasTags && (
         <div className="note-card-tags">
           {note.tags.slice(0, 4).map((tag) => (
             <span key={tag.id} className="chip">

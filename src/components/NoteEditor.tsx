@@ -693,6 +693,21 @@ export function NoteEditor() {
                 onChange={(e) => edit({ title: e.target.value })}
               />
 
+              {/* DOM order puts the body directly after the title so Tab from
+                  the title lands in the note body, not on Add tag. CSS `order`
+                  keeps the familiar visual sequence (title, meta, divider,
+                  body) without changing the focus order. */}
+              <textarea
+                ref={bodyRef}
+                className="editor-content"
+                value={draft.content}
+                placeholder="Take a note, or add checklist items below…"
+                aria-label="Note content"
+                // Mirrors import_backup's 500k-character restore cap.
+                maxLength={500000}
+                onChange={(e) => edit({ content: e.target.value })}
+              />
+
               <div className="editor-meta-bar">
                 <div className="editor-meta-info">
                   <Clock size={12} className="editor-meta-icon" aria-hidden="true" />
@@ -743,21 +758,9 @@ export function NoteEditor() {
                   </div>
                 </div>
               </div>
+
+              <div className="editor-divider" />
             </div>
-
-            <div className="editor-divider" />
-
-            {/* Note writing surface */}
-            <textarea
-              ref={bodyRef}
-              className="editor-content"
-              value={draft.content}
-              placeholder="Take a note, or add checklist items below…"
-              aria-label="Note content"
-              // Mirrors import_backup's 500k-character restore cap.
-              maxLength={500000}
-              onChange={(e) => edit({ content: e.target.value })}
-            />
 
             {/* Checklist Section */}
             <section className="editor-checklist" aria-label="Checklist">

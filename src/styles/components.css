@@ -670,10 +670,15 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  height: 200px;
+  gap: 6px;
+  /* A reserved 40px top strip holds the hover toolbar inside the card box.
+     Floating it above the card was clipped by the card's paint boundary in
+     WebKit; keeping it inside is always fully visible and clickable. The
+     title still starts at the same offset relative to the strip, so nothing
+     rewraps or jumps on hover. */
+  height: 256px;
   box-sizing: border-box;
-  padding: 16px 18px 14px;
+  padding: 40px 18px 14px;
   background: var(--card-bg);
   -webkit-backdrop-filter: blur(24px) saturate(190%);
   backdrop-filter: blur(24px) saturate(190%);
@@ -734,7 +739,7 @@
      the grid — the exact opposite of what large collections need. */
   will-change: transform, box-shadow;
   box-shadow: var(--specular-rim-card), var(--shadow-lg), 0 16px 42px var(--card-glow);
-  transform: translateY(-8px) scale(1.025) perspective(1000px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+  transform: translateY(-4px) scale(1.025) perspective(1000px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
   border-color: var(--liquid-border-hover);
   z-index: 5;
   transition: box-shadow 0.25s var(--spring-bounce),
@@ -882,8 +887,8 @@
 
 .note-card-check {
   position: absolute;
-  top: -8px;
-  left: -8px;
+  top: 8px;
+  left: 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -921,13 +926,16 @@
   animation: check-pop 0.25s var(--spring-bounce);
 }
 
+/* Lives in the card's reserved top strip: never clipped, never over the title,
+   never over a neighbouring card. The strip exists on every card so hover
+   cannot reflow text. */
 .note-card-actions {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 6px;
+  right: 10px;
   display: flex;
   gap: 2px;
-  padding: 2px 4px;
+  padding: 1px 3px;
   border-radius: var(--radius-full);
   background: var(--liquid-glass-elevated);
   -webkit-backdrop-filter: blur(14px);
@@ -945,8 +953,8 @@
   transform: translateY(0) scale(1);
 }
 .note-card-actions .icon-btn {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   color: var(--text-2);
   transition: transform 0.16s var(--spring-bounce), background-color 0.14s ease, color 0.14s ease, box-shadow 0.16s ease;
@@ -963,23 +971,23 @@
 }
 
 .note-card-title {
-  font-size: 14.5px;
+  font-size: 16px;
   font-weight: 620;
-  letter-spacing: -0.018em;
-  line-height: 1.35;
-  padding-right: 90px;
+  letter-spacing: -0.022em;
+  line-height: 1.3;
+  /* No reserved gutter: hover actions live above the card now, so every
+     pixel of the title can carry identifying words. */
+  padding-right: 0;
   color: var(--text-1);
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
   overflow-wrap: anywhere;
-  max-height: 42px;
+  max-height: calc(1.3em * 3);
   flex: none;
-  transition: color 0.18s ease, transform 0.22s var(--spring-bounce);
-}
-.note-card:hover .note-card-title {
-  transform: translateX(2px);
+  transition: color 0.18s ease;
 }
 .note-card-title-untitled {
   color: var(--text-3);
@@ -987,21 +995,23 @@
 }
 
 .note-card-preview {
-  font-size: 12.5px;
+  --preview-lines: 2;
+  font-size: 14px;
   color: var(--text-2);
-  line-height: 1.55;
+  line-height: 1.5;
   letter-spacing: 0.002em;
   display: -webkit-box;
-  -webkit-line-clamp: 4;
+  /* The browser's own ellipsis appears only when a line is actually omitted.
+     No mask: every visible line is equally opaque. */
+  -webkit-line-clamp: max(1, var(--preview-lines));
+  line-clamp: max(1, var(--preview-lines));
   -webkit-box-orient: vertical;
   overflow: hidden;
   overflow-wrap: anywhere;
-  max-height: calc(1.55em * 4);
+  max-height: calc(1lh * var(--preview-lines));
   flex: 0 1 auto;
   min-height: 0;
   position: relative;
-  -webkit-mask-image: linear-gradient(to bottom, black 65%, transparent 100%);
-  mask-image: linear-gradient(to bottom, black 65%, transparent 100%);
   transition: color 0.2s ease;
 }
 .note-card:hover .note-card-preview {
@@ -1021,7 +1031,33 @@
   background: var(--liquid-glass-elevated);
   border: 1px solid var(--border-subtle);
   width: fit-content;
+  max-width: 100%;
+  min-width: 0;
   transition: background-color 0.18s ease, color 0.18s ease, transform 0.2s var(--spring-bounce), box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.note-card-checklist > svg {
+  flex: none;
+}
+.note-card-checklist-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.note-card-checklist-text.is-match {
+  color: var(--text-1);
+  font-weight: 600;
+}
+.note-card-checklist-text.is-match mark {
+  background: var(--mark-bg);
+}
+.note-card-checklist-count {
+  flex: none;
+  margin-left: 2px;
+  padding-left: 6px;
+  border-left: 1px solid var(--border);
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
 }
 .note-card:hover .note-card-checklist {
   background: var(--surface);
@@ -1203,14 +1239,24 @@
   align-items: center;
   justify-content: center;
   background: var(--overlay);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
   animation: overlay-enter 0.18s ease-out backwards;
   padding: 16px;
 }
 
+/* Keep the backdrop filter off the editor's ancestor. WebKit can otherwise
+   reveal the backdrop through the editor's composited scroll layer. */
+.editor-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+}
+
 .editor {
-  --editor-bg: var(--liquid-glass-elevated);
+  /* Solid fallback for any palette without an explicit theme rule. */
+  --editor-bg: #ffffff;
   --editor-accent: var(--accent);
   position: relative;
   display: flex;
@@ -1218,9 +1264,10 @@
   width: min(780px, 100%);
   max-height: min(88vh, 840px);
   height: min(88vh, 840px);
+  /* Fully opaque surface: no backdrop is sampled, so "No matches found" (or
+     any card text) can never show through the writing area. The frosted
+     overlay around the sheet still provides the visual separation. */
   background: var(--editor-bg);
-  -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
-  backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   box-shadow: var(--specular-rim-strong), var(--shadow-liquid-floating);
@@ -1245,25 +1292,26 @@
 
 
 
-/* Editorial Liquid Glass Tint Palettes (Light) */
-[data-theme="light"] .editor.color-default { --editor-bg: rgba(255, 255, 255, 0.96); --editor-accent: #0071e3; }
-[data-theme="light"] .editor.color-red    { --editor-bg: rgba(255, 222, 228, 0.96); --editor-accent: #d92038; }
-[data-theme="light"] .editor.color-orange { --editor-bg: rgba(255, 230, 212, 0.96); --editor-accent: #c95500; }
-[data-theme="light"] .editor.color-yellow { --editor-bg: rgba(255, 246, 202, 0.96); --editor-accent: #aa7c00; }
-[data-theme="light"] .editor.color-green  { --editor-bg: rgba(222, 250, 232, 0.96); --editor-accent: #198038; }
-[data-theme="light"] .editor.color-teal   { --editor-bg: rgba(216, 248, 252, 0.96); --editor-accent: #007d8a; }
-[data-theme="light"] .editor.color-blue   { --editor-bg: rgba(222, 238, 255, 0.96); --editor-accent: #0062cc; }
-[data-theme="light"] .editor.color-purple { --editor-bg: rgba(242, 228, 255, 0.96); --editor-accent: #7a22d6; }
+/* Editorial tint palettes — solid colors, including every colored note. Even
+   at 0.99 alpha WebKit composited enough of the page behind to read through
+   the sheet at the minimum window size; opaque paint removes it entirely. */
+[data-theme="light"] .editor.color-default { --editor-bg: #ffffff; --editor-accent: #0071e3; }
+[data-theme="light"] .editor.color-red    { --editor-bg: #ffe7ec; --editor-accent: #d92038; }
+[data-theme="light"] .editor.color-orange { --editor-bg: #ffeee0; --editor-accent: #c95500; }
+[data-theme="light"] .editor.color-yellow { --editor-bg: #fff9db; --editor-accent: #aa7c00; }
+[data-theme="light"] .editor.color-green  { --editor-bg: #e6faed; --editor-accent: #198038; }
+[data-theme="light"] .editor.color-teal   { --editor-bg: #e1f9fc; --editor-accent: #007d8a; }
+[data-theme="light"] .editor.color-blue   { --editor-bg: #e6f2ff; --editor-accent: #0062cc; }
+[data-theme="light"] .editor.color-purple { --editor-bg: #f6ebff; --editor-accent: #7a22d6; }
 
-/* Editorial Liquid Glass Tint Palettes (Dark) */
-[data-theme="dark"] .editor.color-default { --editor-bg: rgba(28, 30, 36, 0.94); --editor-accent: #2997ff; }
-[data-theme="dark"] .editor.color-red    { --editor-bg: rgba(68, 16, 26, 0.94); --editor-accent: #ff526a; }
-[data-theme="dark"] .editor.color-orange { --editor-bg: rgba(65, 28, 10, 0.94); --editor-accent: #ffa03b; }
-[data-theme="dark"] .editor.color-yellow { --editor-bg: rgba(60, 45, 10, 0.94); --editor-accent: #ffd83b; }
-[data-theme="dark"] .editor.color-green  { --editor-bg: rgba(14, 54, 28, 0.94); --editor-accent: #3ade6e; }
-[data-theme="dark"] .editor.color-teal   { --editor-bg: rgba(12, 50, 58, 0.94); --editor-accent: #2dd8e4; }
-[data-theme="dark"] .editor.color-blue   { --editor-bg: rgba(16, 40, 78, 0.94); --editor-accent: #47a8ff; }
-[data-theme="dark"] .editor.color-purple { --editor-bg: rgba(50, 20, 76, 0.94); --editor-accent: #d06cff; }
+[data-theme="dark"] .editor.color-default { --editor-bg: #1c1e24; --editor-accent: #2997ff; }
+[data-theme="dark"] .editor.color-red    { --editor-bg: #44101a; --editor-accent: #ff526a; }
+[data-theme="dark"] .editor.color-orange { --editor-bg: #411c0a; --editor-accent: #ffa03b; }
+[data-theme="dark"] .editor.color-yellow { --editor-bg: #3c2d0a; --editor-accent: #ffd83b; }
+[data-theme="dark"] .editor.color-green  { --editor-bg: #0e361c; --editor-accent: #3ade6e; }
+[data-theme="dark"] .editor.color-teal   { --editor-bg: #0c323a; --editor-accent: #2dd8e4; }
+[data-theme="dark"] .editor.color-blue   { --editor-bg: #10284e; --editor-accent: #47a8ff; }
+[data-theme="dark"] .editor.color-purple { --editor-bg: #32144c; --editor-accent: #d06cff; }
 
 /* Header & Toolbar */
 .editor-header {
@@ -1394,6 +1442,7 @@
 
 /* Scrollable Writing Surface */
 .editor-scroll {
+  background: var(--editor-bg);
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -1415,6 +1464,12 @@
   flex-direction: column;
   gap: 12px;
 }
+/* Visual order stays editorial; focus order follows the DOM (title → body →
+   tag controls) so keyboard users reach the writing surface first. */
+.editor-doc-header > .editor-title { order: 0; }
+.editor-doc-header > .editor-meta-bar { order: 1; }
+.editor-doc-header > .editor-divider { order: 2; margin: 4px 0 0; }
+.editor-doc-header > .editor-content { order: 3; }
 
 .editor-title {
   border: none;
@@ -2118,35 +2173,6 @@
   color: #ffffff;
 }
 
-.settings-glass-banner {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  margin-top: 14px;
-  padding: 12px 14px;
-  background: var(--accent-soft);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--specular-rim);
-}
-.settings-glass-banner svg {
-  flex: none;
-  margin-top: 2px;
-}
-.settings-glass-banner-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 12px;
-  color: var(--text-2);
-  line-height: 1.45;
-}
-.settings-glass-banner-text strong {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--text-1);
-}
-
 /* ---------- Keyframes ---------- */
 @keyframes rise-in {
   from { opacity: 0; transform: translateY(6px); }
@@ -2292,13 +2318,15 @@
 }
 
 /* ---------- Perf + motion safety ---------- */
+/* Paint containment is safe again: the hover toolbar now lives inside the
+   card's reserved top strip, so clipping to the card/grid box hides nothing. */
 .notes-grid {
   content-visibility: auto;
   contain-intrinsic-size: auto 400px;
 }
 .note-card {
   content-visibility: auto;
-  contain-intrinsic-size: auto 220px;
+  contain-intrinsic-size: auto 256px;
 }
 @media (prefers-reduced-motion: reduce) {
   .note-card,
@@ -2358,6 +2386,13 @@
   margin: 8px 2px 0;
   font-size: 11.5px;
   color: var(--text-3);
+}
+.reminder-proposed {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-1);
+  font-weight: 600;
+  line-height: 1.4;
 }
 .reminder-actions {
   display: flex;

@@ -97,9 +97,14 @@ export const useNotesStore = create<NotesState>((set, get) => ({
       if (!(await ui.flushEditor())) return;
       const note = await api.createNote();
       await get().refresh();
+      // The editor mounts only inside NotesPage. From Settings, switch back
+      // first (setPage still owns the save guard) so the new note is actually
+      // editable instead of leaving an untitled row behind on Settings.
+      const current = useUiStore.getState();
+      if (current.page !== "notes") await current.setPage("notes");
       // openEditor flushes the open editor (if any) before switching, so
       // Ctrl+N while typing no longer drops edits to the gate reset.
-      await ui.openEditor(note.id);
+      await current.openEditor(note.id);
     } catch (e) {
       ui.showSnackbar(errText(e));
     }

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Pin, Plus, Star, StickyNote, Trash2, Archive, SearchX } from "lucide-react";
+import { Pin, Star, StickyNote, Trash2, Archive, SearchX, Hash } from "lucide-react";
 import { useNotesStore } from "../store/notesStore";
 import { useUiStore } from "../store/uiStore";
 import { EmptyState } from "../components/EmptyState";
@@ -17,7 +17,7 @@ const VIEW_TITLES: Record<string, string> = {
 
 export function NotesPage() {
   const view = useUiStore((s) => s.view);
-  const query = useUiStore((s) => s.query);
+  const query = useUiStore((s) => s.query.trim());
   const activeTagId = useUiStore((s) => s.activeTagId);
   const askConfirm = useUiStore((s) => s.askConfirm);
 
@@ -64,14 +64,23 @@ export function NotesPage() {
         />
       );
     }
+    if (activeTagId) {
+      return (
+        <EmptyState
+          icon={<Hash size={32} strokeWidth={1.4} />}
+          title={activeTag ? `No notes tagged ${activeTag.name}` : "No notes with this tag"}
+          message="Add this tag to a note to see it here."
+        />
+      );
+    }
     switch (view) {
       case "all":
         return (
           <EmptyState
             icon={<StickyNote size={32} strokeWidth={1.4} />}
             title="Your workspace awaits"
-            message="Create your first note and start capturing ideas."
-            action={{ label: "Create Note", onClick: () => void createNote() }}
+            message="Start capturing ideas — your notes stay on this device."
+            action={{ label: "Create your first note", onClick: () => void createNote() }}
           />
         );
       case "pinned":
@@ -135,13 +144,6 @@ export function NotesPage() {
               <Trash2 size={15} aria-hidden="true" /> Empty Trash
             </button>
           )}
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => void createNote()}
-          >
-            <Plus size={16} aria-hidden="true" /> New Note
-          </button>
         </div>
       </header>
 

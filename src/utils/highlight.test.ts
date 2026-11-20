@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { bodyPreview, highlightParts } from "./highlight";
+import type { ChecklistItem } from "../types";
+import { bodyPreview, checklistPreview, highlightParts } from "./highlight";
 
 describe("highlightParts", () => {
   it("returns null for empty or missing query", () => {
@@ -49,14 +50,29 @@ describe("highlightParts", () => {
 });
 
 describe("bodyPreview", () => {
-  it("collapses trailing whitespace before newlines", () => {
-    expect(bodyPreview("line one   \n   line two")).toBe("line one\n   line two");
+  it("collapses display whitespace", () => {
+    expect(bodyPreview("line one   \r\n\t line two")).toBe("line one line two");
   });
 
-  it("truncates long bodies with an ellipsis", () => {
-    const long = "x".repeat(300);
-    const out = bodyPreview(long);
-    expect(out.length).toBe(221);
+  it("collapses pasted columns before applying the character limit", () => {
+    const columnGap = " ".repeat(32);
+    const row = ["Review", "Ana", "Fri"].join(columnGap);
+    const pastedTable = Array(12).fill(row).join("\n");
+    expect(bodyPreview(pastedTable)).toBe(Array(12).fill("Review Ana Fri").join(" "));
+  });
+
+  it("does not add a premature ellipsis to a body that fits the card", () => {
+    // The card clamps by *lines*; adding "…" here as well would show an
+    // ellipsis even when nothing was omitted. The char cap stays out of the
+    // way of ordinary notes and long paragraphs.
+    const out = bodyPreview("x".repeat(300));
+    expect(out.length).toBe(300);
+    expect(out.endsWith("…")).toBe(false);
+  });
+
+  it("only truncates past the generous safety cap", () => {
+    const out = bodyPreview("x".repeat(700));
+    expect(out.length).toBe(601);
     expect(out.endsWith("…")).toBe(true);
   });
 
@@ -65,7 +81,52 @@ describe("bodyPreview", () => {
   });
 
   it("strips common markdown formatting from previews", () => {
-    expect(bodyPreview("# Title\n**bold** and `code`")).toBe("Title\nbold and code");
+    expect(bodyPreview("# Title\n**bold** and `code`")).toBe("Title bold and code");
+  });
+});
+
+describe("checklistPreview", () => {
+  const items: ChecklistItem[] = [
+    { id: "a", text: "Draft release notes", checked: true },
+    { id: "b", text: "Verify package signature before publishing", checked: false },
+    { id: "c", text: "Upload the signed build", checked: false },
+  ];
+
+  it("names the next unchecked task with progress left to the count", () => {
+    expect(checklistPreview(items)).toEqual({
+      text: "Verify package signature before publishing",
+      matched: false,
+      allDone: false,
+    });
+  });
+
+  it("shows a search-matched item even when an earlier one is unchecked", () => {
+    expect(checklistPreview(items, "verify package")).toEqual({
+      text: "Verify package signature before publishing",
+      matched: true,
+      allDone: false,
+    });
+    expect(checklistPreview(items, "DRAFT")).toMatchObject({
+      text: "Draft release notes",
+      matched: true,
+    });
+  });
+
+  it("handles a fully completed checklist gracefully", () => {
+    expect(checklistPreview(items.map((i) => ({ ...i, checked: true })))).toEqual({
+      text: "All items complete",
+      matched: false,
+      allDone: true,
+    });
+  });
+
+  it("is case-insensitive and ignores surrounding whitespace in the query", () => {
+    expect(checklistPreview(items, "  UPLOAD  ").matched).toBe(true);
+    expect(checklistPreview(items, "not present").matched).toBe(false);
+  });
+
+  it("returns nothing for an empty checklist", () => {
+    expect(checklistPreview([])).toEqual({ text: "", matched: false, allDone: false });
   });
 });
 

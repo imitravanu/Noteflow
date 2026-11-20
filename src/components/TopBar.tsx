@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useNotesStore } from "../store/notesStore";
 import { useUiStore } from "../store/uiStore";
+import { shouldShowNewNote } from "../utils/createAction";
 import { Logo } from "./Logo";
 
 export function TopBar() {
@@ -23,7 +24,19 @@ export function TopBar() {
   const setSidebarOpen = useUiStore((s) => s.setSidebarOpen);
   const setShortcutsOpen = useUiStore((s) => s.setShortcutsOpen);
   const page = useUiStore((s) => s.page);
+  const view = useUiStore((s) => s.view);
+  const activeTagId = useUiStore((s) => s.activeTagId);
+  const totalNotes = useNotesStore((s) => s.counts.all);
   const createNote = useNotesStore((s) => s.createNote);
+
+  // Every screen except empty All Notes needs the global create action.
+  const showCompose = shouldShowNewNote({
+    page,
+    view,
+    query,
+    activeTagId,
+    totalNotes,
+  });
 
   const ThemeIcon = theme === "light" ? Sun : theme === "dark" ? Moon : Monitor;
   const themeLabel =
@@ -97,16 +110,18 @@ export function TopBar() {
 
       {/* Right: New Note Quick Compose + Segmented Control Pill */}
       <div className="topbar-right">
-        <button
-          type="button"
-          className="topbar-compose-btn"
-          aria-label="Create note (Ctrl+N)"
-          title="Create note (Ctrl+N)"
-          onClick={() => void createNote()}
-        >
-          <SquarePen size={14} />
-          <span>New Note</span>
-        </button>
+        {showCompose && (
+          <button
+            type="button"
+            className="topbar-compose-btn"
+            aria-label="Create note (Ctrl+N)"
+            title="Create note (Ctrl+N)"
+            onClick={() => void createNote()}
+          >
+            <SquarePen size={14} />
+            <span>New Note</span>
+          </button>
+        )}
 
         <div className="topbar-utility-pill" role="toolbar" aria-label="Quick tools">
           <button

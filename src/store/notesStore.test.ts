@@ -92,6 +92,38 @@ describe("notesStore.createNote (the Ctrl+N data-loss regression)", () => {
   });
 });
 
+describe("notesStore.createNote from Settings", () => {
+  it("creates exactly one note, returns to Notes, and opens it for editing", async () => {
+    route({
+      create_note: () => makeNote("n1"),
+      list_notes: () => [makeNote("n1")],
+      list_tags: () => [],
+      get_counts: () => ({ ...ZERO_COUNTS, all: 1 }),
+    });
+    useUiStore.setState({ page: "settings" });
+
+    await useNotesStore.getState().createNote();
+
+    expect(
+      mockedInvoke.mock.calls.filter(([cmd]) => cmd === "create_note"),
+    ).toHaveLength(1);
+    expect(useUiStore.getState().page).toBe("notes");
+    expect(useUiStore.getState().editorNoteId).toBe("n1");
+  });
+
+  it("creates nothing and stays on Settings when the current draft cannot be saved", async () => {
+    route({ create_note: () => makeNote("n1") });
+    useUiStore.setState({ page: "settings" });
+    useUiStore.getState().registerEditorFlush(() => Promise.resolve(false));
+
+    await useNotesStore.getState().createNote();
+
+    expect(mockedInvoke).not.toHaveBeenCalledWith("create_note", expect.anything());
+    expect(useUiStore.getState().page).toBe("settings");
+    expect(useUiStore.getState().editorNoteId).toBeNull();
+  });
+});
+
 describe("notesStore.refresh (stale-response protection)", () => {
   it("discards a slow, superseded list response that resolves last", async () => {
     const n1 = makeNote("n1");

@@ -5,6 +5,8 @@
  * (local wall-clock, no timezone suffix).
  */
 
+import { formatDateTime } from "./format";
+
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 
@@ -61,6 +63,35 @@ export function fromLocalInputValue(value: string): number | null {
   if (!value) return null;
   const ms = new Date(value).getTime();
   return Number.isFinite(ms) ? ms : null;
+}
+
+export interface ReminderHintLabels {
+  /** What is already persisted for the note. */
+  scheduled: string;
+  /** A pending proposal, shown before confirmation; null when there is none. */
+  proposed: string | null;
+}
+
+/**
+ * The picker's two distinct states: an already saved schedule vs. a proposed
+ * (not saved yet) one — including which preset produced the proposal.
+ */
+export function reminderHintLabels(
+  value: number | null,
+  at: number | null,
+  valid: boolean,
+  presetLabel: string | null,
+  now: number = Date.now(),
+): ReminderHintLabels {
+  const scheduled =
+    value !== null
+      ? `Currently scheduled: ${formatReminderTime(value, now)} · ${formatDateTime(value)}`
+      : "No reminder saved yet";
+  const proposed =
+    at !== null && valid && at !== value
+      ? `Proposed${presetLabel ? ` (${presetLabel})` : ""}: ${formatDateTime(at)} — not saved yet`
+      : null;
+  return { scheduled, proposed };
 }
 
 /** Quick picks offered above the datetime field. */
